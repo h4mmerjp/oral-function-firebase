@@ -1164,6 +1164,297 @@ function showDiagnosis() {
     `;
   }
 }
+
+// 管理計画書にデータを反映する関数
+function generateManagementPlan() {
+  // 患者情報の反映
+  const patientName = document.getElementById('patient-name').value;
+  const birthdate = document.getElementById('birthdate').value;
+  const gender = document.getElementById('gender').value;
+  const height = parseFloat(document.getElementById('height').value) / 100; // cmからmに変換
+  const weight = parseFloat(document.getElementById('weight').value);
+  
+  document.getElementById('mp-patient-name').textContent = patientName;
+  
+  // 年齢計算
+  if (birthdate) {
+    const today = new Date();
+    const birthdateObj = new Date(birthdate);
+    let age = today.getFullYear() - birthdateObj.getFullYear();
+    const monthDiff = today.getMonth() - birthdateObj.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthdateObj.getDate())) {
+      age--;
+    }
+    document.getElementById('mp-age').textContent = age + '歳';
+  }
+  
+  // 性別
+  if (gender === 'male') {
+    document.getElementById('mp-gender').textContent = '男';
+  } else if (gender === 'female') {
+    document.getElementById('mp-gender').textContent = '女';
+  } else {
+    document.getElementById('mp-gender').textContent = '未指定';
+  }
+  
+  // 日付
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth() + 1;
+  const day = today.getDate();
+  document.getElementById('mp-date').textContent = `${year}年 ${month}月 ${day}日`;
+  
+  // 全身の状態
+  // 基礎疾患
+  const diseaseCheckboxes = document.querySelectorAll('input[name="disease"]:checked');
+  let diseases = [];
+  diseaseCheckboxes.forEach(checkbox => {
+    if (checkbox.value === 'heart') diseases.push('心疾患');
+    if (checkbox.value === 'hepatitis') diseases.push('肝炎');
+    if (checkbox.value === 'diabetes') diseases.push('糖尿病');
+    if (checkbox.value === 'hypertension') diseases.push('高血圧症');
+    if (checkbox.value === 'stroke') diseases.push('脳血管疾患');
+    if (checkbox.value === 'other') diseases.push('その他');
+  });
+  
+  if (diseases.length > 0) {
+    document.getElementById('mp-disease').textContent = diseases.join('・');
+  } else {
+    document.getElementById('mp-disease').textContent = 'なし';
+  }
+  
+  // 服用薬剤
+  const medicationStatus = document.getElementById('medication-status').value;
+  if (medicationStatus === 'yes') {
+    const medicationList = document.getElementById('medication-list').value;
+    document.getElementById('mp-medication').textContent = `2. あり （薬剤名：${medicationList}）`;
+  } else {
+    document.getElementById('mp-medication').textContent = '1. なし';
+  }
+  
+  // 肺炎の既往
+  const pneumoniaHistory = document.getElementById('pneumonia-history').value;
+  if (pneumoniaHistory === 'no') {
+    document.getElementById('mp-pneumonia').textContent = '1. なし';
+  } else if (pneumoniaHistory === 'yes') {
+    document.getElementById('mp-pneumonia').textContent = '2. あり';
+  } else if (pneumoniaHistory === 'repeated') {
+    document.getElementById('mp-pneumonia').textContent = '3. 繰り返しあり';
+  }
+  
+  // 栄養状態
+  if (height && weight) {
+    document.getElementById('mp-height').textContent = height.toFixed(2);
+    document.getElementById('mp-weight').textContent = weight;
+    
+    const bmi = weight / (height * height);
+    document.getElementById('mp-bmi').textContent = bmi.toFixed(1);
+    
+    // BMIによる栄養状態の判定
+    let nutritionStatus = '';
+    if (bmi < 18.5) {
+      nutritionStatus = '2. 低体重（やせ）';
+    } else if (bmi >= 25) {
+      nutritionStatus = '3. 肥満';
+    } else {
+      nutritionStatus = '1. 正常範囲内';
+    }
+    document.getElementById('mp-nutrition').textContent = nutritionStatus;
+  }
+  
+  // 体重の変化
+  const weightChange = document.getElementById('weight-change').value;
+  if (weightChange === 'yes') {
+    const weightChangeMonths = document.getElementById('weight-change-months').value;
+    const weightChangeAmount = document.getElementById('weight-change-amount').value;
+    const weightChangeDirection = document.getElementById('weight-change-direction').value;
+    
+    document.getElementById('mp-weight-change').textContent = 
+      `2. あり （${weightChangeMonths}か月で ${weightChangeAmount}kgの ${weightChangeDirection === 'increase' ? '増加' : '減少'}）`;
+  } else {
+    document.getElementById('mp-weight-change').textContent = '1. なし';
+  }
+  
+  // 食事形態
+  const foodForm = document.getElementById('food-form').value;
+  if (foodForm === 'normal') {
+    document.getElementById('mp-food-form').textContent = '1. 常食';
+  } else if (foodForm === 'soft') {
+    document.getElementById('mp-food-form').textContent = '2. やわらかい食事';
+  } else if (foodForm === 'other') {
+    const foodFormOther = document.getElementById('food-form-other-text').value;
+    document.getElementById('mp-food-form').textContent = `3. その他（${foodFormOther}）`;
+  }
+  
+  // 食欲
+  const appetite = document.getElementById('appetite').value;
+  if (appetite === 'yes') {
+    document.getElementById('mp-appetite').textContent = '1. あり';
+  } else {
+    const appetiteReason = document.getElementById('appetite-reason-text').value;
+    document.getElementById('mp-appetite').textContent = `2. なし（理由：${appetiteReason}）`;
+  }
+  
+  // 口腔機能の状態
+  // 口腔衛生状態
+  if (document.getElementById('tci-value')) {
+    const tciValue = document.getElementById('tci-value').textContent;
+    document.getElementById('mp-hygiene-value').textContent = `TCI値: ${tciValue}%`;
+    document.getElementById('mp-hygiene-threshold').textContent = '50%以上';
+    if (assessmentStatus.tci) {
+      document.getElementById('mp-hygiene-status').textContent = '2. 低下';
+    } else {
+      document.getElementById('mp-hygiene-status').textContent = '1. 正常範囲内';
+    }
+  }
+  
+  // 口腔乾燥
+  if (assessmentStatus.dryness !== undefined) {
+    let drynessValue = '';
+    if (document.getElementById('moisture-value') && document.getElementById('moisture-value').value) {
+      drynessValue = `湿潤度: ${document.getElementById('moisture-value').value}`;
+      document.getElementById('mp-dryness-threshold').textContent = '27.0未満';
+    } else if (document.getElementById('saliva-value') && document.getElementById('saliva-value').value) {
+      drynessValue = `唾液量: ${document.getElementById('saliva-value').value}g/2分`;
+      document.getElementById('mp-dryness-threshold').textContent = '2g/2分以下';
+    }
+    
+    document.getElementById('mp-dryness-value').textContent = drynessValue;
+    if (assessmentStatus.dryness) {
+      document.getElementById('mp-dryness-status').textContent = '2. 低下';
+    } else {
+      document.getElementById('mp-dryness-status').textContent = '1. 正常範囲内';
+    }
+  }
+  
+  // 咬合力低下
+  if (assessmentStatus.biteForce !== undefined) {
+    let biteForceValue = '';
+    if (document.getElementById('force-value') && document.getElementById('force-value').value) {
+      biteForceValue = `咬合力: ${document.getElementById('force-value').value}N`;
+      document.getElementById('mp-bite-threshold').textContent = document.getElementById('force-threshold').textContent;
+    } else if (document.getElementById('teeth-count') && document.getElementById('teeth-count').value) {
+      biteForceValue = `残存歯数: ${document.getElementById('teeth-count').value}本`;
+      document.getElementById('mp-bite-threshold').textContent = '20本未満';
+    }
+    
+    document.getElementById('mp-bite-value').textContent = biteForceValue;
+    if (assessmentStatus.biteForce) {
+      document.getElementById('mp-bite-status').textContent = '2. 低下';
+    } else {
+      document.getElementById('mp-bite-status').textContent = '1. 正常範囲内';
+    }
+  }
+  
+  // オーラルディアドコキネシス
+  if (document.getElementById('pa-value') && document.getElementById('pa-value').value) {
+    document.getElementById('mp-pa-value').textContent = document.getElementById('pa-value').value;
+    if (parseFloat(document.getElementById('pa-value').value) < 6) {
+      document.getElementById('mp-lip-status').textContent = '2. 低下';
+    } else {
+      document.getElementById('mp-lip-status').textContent = '1. 正常範囲内';
+    }
+  }
+  
+  if (document.getElementById('ta-value') && document.getElementById('ta-value').value) {
+    document.getElementById('mp-ta-value').textContent = document.getElementById('ta-value').value;
+    if (parseFloat(document.getElementById('ta-value').value) < 6) {
+      document.getElementById('mp-tongue-tip-status').textContent = '2. 低下';
+    } else {
+      document.getElementById('mp-tongue-tip-status').textContent = '1. 正常範囲内';
+    }
+  }
+  
+  if (document.getElementById('ka-value') && document.getElementById('ka-value').value) {
+    document.getElementById('mp-ka-value').textContent = document.getElementById('ka-value').value;
+    if (parseFloat(document.getElementById('ka-value').value) < 6) {
+      document.getElementById('mp-back-tongue-status').textContent = '2. 低下';
+    } else {
+      document.getElementById('mp-back-tongue-status').textContent = '1. 正常範囲内';
+    }
+  }
+  
+  // 舌圧
+  if (document.getElementById('tongue-pressure') && document.getElementById('tongue-pressure').value) {
+    document.getElementById('mp-tongue-pressure-value').textContent = document.getElementById('tongue-pressure').value;
+    if (parseFloat(document.getElementById('tongue-pressure').value) < 30) {
+      document.getElementById('mp-tongue-pressure-status').textContent = '2. 低下';
+    } else {
+      document.getElementById('mp-tongue-pressure-status').textContent = '1. 正常範囲内';
+    }
+  }
+  
+  // 咀嚼機能低下
+  if (assessmentStatus.mastication !== undefined) {
+    let masticationValue = '';
+    if (document.getElementById('glucose-value') && document.getElementById('glucose-value').value) {
+      masticationValue = `グルコース濃度: ${document.getElementById('glucose-value').value}mg/dL`;
+      document.getElementById('mp-mastication-threshold').textContent = '100mg/dL未満';
+    } else if (document.getElementById('mastication-score') && document.getElementById('mastication-score').value) {
+      masticationValue = `咀嚼能率スコア: ${document.getElementById('mastication-score').value}`;
+      document.getElementById('mp-mastication-threshold').textContent = 'スコア2以下';
+    }
+    
+    document.getElementById('mp-mastication-value').textContent = masticationValue;
+    if (assessmentStatus.mastication) {
+      document.getElementById('mp-mastication-status').textContent = '2. 低下';
+    } else {
+      document.getElementById('mp-mastication-status').textContent = '1. 正常範囲内';
+    }
+  }
+  
+  // 嚥下機能低下
+  if (assessmentStatus.swallowing !== undefined) {
+    let swallowingValue = '';
+    if (document.getElementById('eat10-result') && document.getElementById('eat10-result').textContent.includes('EAT-10')) {
+      const match = document.getElementById('eat10-result').textContent.match(/EAT-10スコア: (\d+)点/);
+      if (match) {
+        swallowingValue = `EAT-10スコア: ${match[1]}点`;
+      } else {
+        swallowingValue = 'EAT-10評価実施';
+      }
+      document.getElementById('mp-swallowing-threshold').textContent = '3点以上';
+    } else if (document.getElementById('seirei-result')) {
+      swallowingValue = '聖隷式嚥下質問紙評価実施';
+      document.getElementById('mp-swallowing-threshold').textContent = 'Aの回答あり';
+    }
+    
+    document.getElementById('mp-swallowing-value').textContent = swallowingValue;
+    if (assessmentStatus.swallowing) {
+      document.getElementById('mp-swallowing-status').textContent = '2. 低下';
+    } else {
+      document.getElementById('mp-swallowing-status').textContent = '1. 正常範囲内';
+    }
+  }
+  
+  alert('管理計画書の作成が完了しました。');
+}
+
+// 管理計画書の管理方針の選択関数
+function selectManagementOption(element, type) {
+  // 同じカテゴリの他のオプションから選択クラスを削除
+  const options = element.parentElement.querySelectorAll('.management-option');
+  options.forEach(option => {
+    option.classList.remove('selected');
+  });
+  
+  // 選択されたオプションに選択クラスを追加
+  element.classList.add('selected');
+}
+
+// 管理計画書の印刷機能
+function printManagementPlan() {
+  // 印刷時に不要な要素を非表示にするためのクラスを追加
+  document.body.classList.add('printing-management-plan');
+  
+  // 印刷ダイアログを開く
+  window.print();
+  
+  // 印刷後にクラスを削除して元に戻す
+  setTimeout(() => {
+    document.body.classList.remove('printing-management-plan');
+  }, 1000);
+}
   </script>
   <div class="container">
     <header>
@@ -1825,223 +2116,159 @@ function showDiagnosis() {
       <h2>口腔機能低下症 管理計画書</h2>
       
       <div class="summary-card">
-        <h3>全身の状態</h3>
-        <div class="grid-container">
-          <div class="form-group">
-            <label>基礎疾患:</label>
-            <p id="mp-disease">選択した基礎疾患がここに表示されます</p>
-          </div>
-          
-          <div class="form-group">
-            <label>服用薬剤:</label>
-            <p id="mp-medication">服用薬剤情報がここに表示されます</p>
-          </div>
-          
-          <div class="form-group">
-            <label>肺炎の既往:</label>
-            <p id="mp-pneumonia">肺炎の既往情報がここに表示されます</p>
-          </div>
-          
-          <div class="form-group">
-            <label>栄養状態:</label>
-            <p id="mp-nutrition">BMI: <span id="mp-bmi"></span></p>
-          </div>
-          
-          <div class="form-group">
-            <label>体重の変化:</label>
-            <p id="mp-weight-change">体重変化情報がここに表示されます</p>
-          </div>
-          
-          <div class="form-group">
-            <label>食事形態:</label>
-            <p id="mp-food-form">食事形態情報がここに表示されます</p>
-          </div>
-          
-          <div class="form-group">
-            <label>食欲:</label>
-            <p id="mp-appetite">食欲情報がここに表示されます</p>
-          </div>
-        </div>
-      </div>
-      
-      <div class="summary-card">
-        <h3>口腔機能の状態</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>評価項目</th>
-              <th>検査結果</th>
-              <th>状態</th>
-            </tr>
-          </thead>
-          <tbody id="mp-oral-function">
-            <!-- 口腔機能の状態がここに表示されます -->
-            <tr>
-              <td>1. 口腔内の衛生状態</td>
-              <td id="mp-hygiene-value">-</td>
-              <td id="mp-hygiene-status">-</td>
-            </tr>
-            <tr>
-              <td>2. 口腔内の乾燥程度</td>
-              <td id="mp-dryness-value">-</td>
-              <td id="mp-dryness-status">-</td>
-            </tr>
-            <tr>
-              <td>3. 咬む力の程度</td>
-              <td id="mp-bite-value">-</td>
-              <td id="mp-bite-status">-</td>
-            </tr>
-            <tr>
-              <td>4. 口唇の動きの程度</td>
-              <td id="mp-lip-value">-</td>
-              <td id="mp-lip-status">-</td>
-            </tr>
-            <tr>
-              <td>5. 舌尖の動きの程度</td>
-              <td id="mp-tongue-tip-value">-</td>
-              <td id="mp-tongue-tip-status">-</td>
-            </tr>
-            <tr>
-              <td>6. 奥舌の動きの程度</td>
-              <td id="mp-back-tongue-value">-</td>
-              <td id="mp-back-tongue-status">-</td>
-            </tr>
-            <tr>
-              <td>7. 舌の力の程度</td>
-              <td id="mp-tongue-pressure-value">-</td>
-              <td id="mp-tongue-pressure-status">-</td>
-            </tr>
-            <tr>
-              <td>8. 咀嚼の機能の程度</td>
-              <td id="mp-mastication-value">-</td>
-              <td id="mp-mastication-status">-</td>
-            </tr>
-            <tr>
-              <td>9. 嚥下の機能の程度</td>
-              <td id="mp-swallowing-value">-</td>
-              <td id="mp-swallowing-status">-</td>
-            </tr>
-          </tbody>
+        <table class="management-table" style="width: 100%;">
+          <tr>
+            <td style="width: 15%;">患者氏名</td>
+            <td style="width: 45%;" id="mp-patient-name"></td>
+            <td style="width: 10%;">年齢</td>
+            <td style="width: 10%;" id="mp-age">歳</td>
+            <td style="width: 10%;">性別</td>
+            <td style="width: 10%;" id="mp-gender">男・女</td>
+            <td id="mp-date" colspan="3" style="text-align: right;"></td>
+          </tr>
+        </table>
+        
+        <h3>【全身の状態】</h3>
+        <table class="management-table" style="width: 100%;">
+          <tr>
+            <td style="width: 5%;">1</td>
+            <td style="width: 15%;">基礎疾患</td>
+            <td id="mp-disease" colspan="4">心疾患・肝炎・糖尿病・高血圧症・脳血管疾患・その他（　　　　　）</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>服用薬剤</td>
+            <td id="mp-medication" colspan="4">1．なし　2．あり （薬剤名：　　　　　　　　　　　　　　　　　　）</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>肺炎の既往</td>
+            <td id="mp-pneumonia" colspan="4">1．なし　2．あり　3．繰り返しあり</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>栄養状態</td>
+            <td colspan="4">
+              体重：<span id="mp-weight"></span> Kg、 身長：<span id="mp-height"></span> ｍ<br>
+              体格指数（BMI）：<span id="mp-bmi"></span> 1．正常範囲内　2．低体重（やせ）　3．肥満
+            </td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>体重の変化</td>
+            <td id="mp-weight-change" colspan="4">1．なし　2．あり （　　　か月で　　　Kgの 増・減 ）</td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td>食事形態</td>
+            <td id="mp-food-form" colspan="4">1.常食　2.やわらかい食事　3.その他（　　　　　　　　　　　　　）</td>
+          </tr>
+          <tr>
+            <td>7</td>
+            <td>食欲</td>
+            <td id="mp-appetite" colspan="4">1．あり　2．なし（理由：　　　　　　　　　　　　　　　　　　　）</td>
+          </tr>
         </table>
       </div>
-      
+    
       <div class="summary-card">
-        <h3>口腔機能管理計画</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>管理項目</th>
-              <th>管理方針</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>1. 口腔内の衛生</td>
-              <td>
-                <div class="management-options">
-                  <div class="management-option" onclick="selectManagementOption(this, 'hygiene')" data-value="1">問題なし</div>
-                  <div class="management-option" onclick="selectManagementOption(this, 'hygiene')" data-value="2">機能維持を目指す</div>
-                  <div class="management-option" onclick="selectManagementOption(this, 'hygiene')" data-value="3">機能向上を目指す</div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>2. 口腔内の乾燥</td>
-              <td>
-                <div class="management-options">
-                  <div class="management-option" onclick="selectManagementOption(this, 'dryness')" data-value="1">問題なし</div>
-                  <div class="management-option" onclick="selectManagementOption(this, 'dryness')" data-value="2">機能維持を目指す</div>
-                  <div class="management-option" onclick="selectManagementOption(this, 'dryness')" data-value="3">機能向上を目指す</div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>3. 咬む力</td>
-              <td>
-                <div class="management-options">
-                  <div class="management-option" onclick="selectManagementOption(this, 'bite')" data-value="1">問題なし</div>
-                  <div class="management-option" onclick="selectManagementOption(this, 'bite')" data-value="2">機能維持を目指す</div>
-                  <div class="management-option" onclick="selectManagementOption(this, 'bite')" data-value="3">機能向上を目指す</div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>4. 口唇の動き</td>
-              <td>
-                <div class="management-options">
-                  <div class="management-option" onclick="selectManagementOption(this, 'lip')" data-value="1">問題なし</div>
-                  <div class="management-option" onclick="selectManagementOption(this, 'lip')" data-value="2">機能維持を目指す</div>
-                  <div class="management-option" onclick="selectManagementOption(this, 'lip')" data-value="3">機能向上を目指す</div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>5. 舌尖の動き</td>
-              <td>
-                <div class="management-options">
-                  <div class="management-option" onclick="selectManagementOption(this, 'tongue-tip')" data-value="1">問題なし</div>
-                  <div class="management-option" onclick="selectManagementOption(this, 'tongue-tip')" data-value="2">機能維持を目指す</div>
-                  <div class="management-option" onclick="selectManagementOption(this, 'tongue-tip')" data-value="3">機能向上を目指す</div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>6. 奥舌の動き</td>
-              <td>
-                <div class="management-options">
-                  <div class="management-option" onclick="selectManagementOption(this, 'back-tongue')" data-value="1">問題なし</div>
-                  <div class="management-option" onclick="selectManagementOption(this, 'back-tongue')" data-value="2">機能維持を目指す</div>
-                  <div class="management-option" onclick="selectManagementOption(this, 'back-tongue')" data-value="3">機能向上を目指す</div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>7. 舌の力</td>
-              <td>
-                <div class="management-options">
-                  <div class="management-option" onclick="selectManagementOption(this, 'tongue-pressure')" data-value="1">問題なし</div>
-                  <div class="management-option" onclick="selectManagementOption(this, 'tongue-pressure')" data-value="2">機能維持を目指す</div>
-                  <div class="management-option" onclick="selectManagementOption(this, 'tongue-pressure')" data-value="3">機能向上を目指す</div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>8. 咀嚼の機能</td>
-              <td>
-                <div class="management-options">
-                  <div class="management-option" onclick="selectManagementOption(this, 'mastication')" data-value="1">問題なし</div>
-                  <div class="management-option" onclick="selectManagementOption(this, 'mastication')" data-value="2">機能維持を目指す</div>
-                  <div class="management-option" onclick="selectManagementOption(this, 'mastication')" data-value="3">機能向上を目指す</div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>9. 嚥下の機能</td>
-              <td>
-                <div class="management-options">
-                  <div class="management-option" onclick="selectManagementOption(this, 'swallowing')" data-value="1">問題なし</div>
-                  <div class="management-option" onclick="selectManagementOption(this, 'swallowing')" data-value="2">機能維持を目指す</div>
-                  <div class="management-option" onclick="selectManagementOption(this, 'swallowing')" data-value="3">機能向上を目指す</div>
-                </div>
-              </td>
-            </tr>
-          </tbody>
+        <h3>【口腔機能の状態】</h3>
+        <table class="management-table" style="width: 100%;">
+          <tr>
+            <td style="width: 5%;">1</td>
+            <td style="width: 25%;">口腔内の衛生状態</td>
+            <td style="width: 30%;">検査結果 <span id="mp-hygiene-value"></span>（基準値 <span id="mp-hygiene-threshold"></span>）</td>
+            <td style="width: 40%;">1．正常範囲内　2．低下</td>
+          </tr>
+          <!-- 他の検査項目も同様に追加 -->
+          <tr>
+            <td>2</td>
+            <td>口腔内の乾燥程度</td>
+            <td>検査結果 <span id="mp-dryness-value"></span>（基準値 <span id="mp-dryness-threshold"></span>）</td>
+            <td>1．正常範囲内　2．低下</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>咬む力の程度</td>
+            <td>検査結果 <span id="mp-bite-value"></span>（基準値 <span id="mp-bite-threshold"></span>）</td>
+            <td>1．正常範囲内　2．低下</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>口唇の動きの程度</td>
+            <td>パ発音速度 <span id="mp-pa-value"></span>回/秒（基準値 6.0回/秒未満）</td>
+            <td>1．正常範囲内　2．低下</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>舌尖の動きの程度</td>
+            <td>タ発音速度 <span id="mp-ta-value"></span>回/秒（基準値 6.0回/秒未満）</td>
+            <td>1．正常範囲内　2．低下</td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td>奥舌の動きの程度</td>
+            <td>カ発音速度 <span id="mp-ka-value"></span>回/秒（基準値 6.0回/秒未満）</td>
+            <td>1．正常範囲内　2．低下</td>
+          </tr>
+          <tr>
+            <td>7</td>
+            <td>舌の力の程度</td>
+            <td>舌圧 <span id="mp-tongue-pressure-value"></span>kPa（基準値 30kPa未満）</td>
+            <td>1．正常範囲内　2．低下</td>
+          </tr>
+          <tr>
+            <td>8</td>
+            <td>咀嚼の機能の程度</td>
+            <td>検査結果 <span id="mp-mastication-value"></span>（基準値 <span id="mp-mastication-threshold"></span>）</td>
+            <td>1．正常範囲内　2．低下</td>
+          </tr>
+          <tr>
+            <td>9</td>
+            <td>嚥下の機能の程度</td>
+            <td>検査結果 <span id="mp-swallowing-value"></span>（基準値 <span id="mp-swallowing-threshold"></span>）</td>
+            <td>1．正常範囲内　2．低下</td>
+          </tr>
+          <tr>
+            <td>10</td>
+            <td>歯・歯肉の状態</td>
+            <td colspan="2">プラーク（なし・あり） 歯肉の炎症（なし・あり） 歯の動揺（なし・あり）</td>
+          </tr>
+          <tr>
+            <td>11</td>
+            <td>口腔内・義歯の状態</td>
+            <td colspan="2"><textarea id="mp-oral-denture-status" style="width: 100%; height: 50px;"></textarea></td>
+          </tr>
         </table>
       </div>
-      
+    
       <div class="summary-card">
-        <h3>管理方針・目標（ゴール）・治療予定等</h3>
+        <h3>【口腔機能管理計画】</h3>
+        <table class="management-table" style="width: 100%;">
+          <tr>
+            <td style="width: 5%;">1</td>
+            <td style="width: 25%;">口腔内の衛生</td>
+            <td style="width: 70%;">
+              <div class="management-options">
+                <div class="management-option" onclick="selectManagementOption(this, 'hygiene')" data-value="1">1．問題なし</div>
+                <div class="management-option" onclick="selectManagementOption(this, 'hygiene')" data-value="2">2．機能維持を目指す</div>
+                <div class="management-option" onclick="selectManagementOption(this, 'hygiene')" data-value="3">3．機能向上を目指す</div>
+              </div>
+            </td>
+          </tr>
+          <!-- 他の管理項目も同様に追加 -->
+        </table>
+      </div>
+    
+      <div class="summary-card">
+        <h3>【管理方針・目標（ゴール）・治療予定等】</h3>
         <textarea id="management-goals" style="width: 100%; height: 150px;" placeholder="管理方針や目標、治療予定などを記入してください"></textarea>
       </div>
       
       <div class="summary-card">
-        <h3>再評価の時期・治療期間</h3>
-        <div class="form-group">
-          <label for="reevaluation-period">再評価の時期：約</label>
-          <div class="input-group">
-            <input type="number" id="reevaluation-period" min="1" value="6" style="width: 100px;">
-            <span>か月後</span>
-          </div>
+        <h3>【再評価の時期・治療期間】</h3>
+        <div>
+          再評価の時期：約（<input type="number" id="reevaluation-period" min="1" value="6" style="width: 50px;">）か月後
         </div>
       </div>
       
