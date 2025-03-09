@@ -465,6 +465,60 @@
       border-color: #3498db;
     }
     
+    /* 管理計画書のスタイル */
+.management-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 15px;
+}
+
+.management-table td, .management-table th {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+/* 印刷時のスタイル */
+@media print {
+  body.printing-management-plan .container {
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+  }
+  
+  body.printing-management-plan .no-print,
+  body.printing-management-plan .tabs,
+  body.printing-management-plan .form-group button {
+    display: none !important;
+  }
+  
+  body.printing-management-plan #management-plan {
+    display: block !important;
+    padding: 0;
+  }
+  
+  body.printing-management-plan .management-options {
+    display: block;
+  }
+  
+  body.printing-management-plan .management-option:not(.selected) {
+    display: none;
+  }
+  
+  body.printing-management-plan .management-option.selected {
+    background: none;
+    color: black;
+    border: none;
+    padding: 0;
+    text-align: left;
+  }
+  
+  body.printing-management-plan h2 {
+    border: none;
+    text-align: center;
+    font-size: 24px;
+    margin-bottom: 20px;
+  }
+}
   </style>
 </head>
 <body>
@@ -2180,7 +2234,6 @@ function printManagementPlan() {
             <td style="width: 30%;">検査結果 <span id="mp-hygiene-value"></span>（基準値 <span id="mp-hygiene-threshold"></span>）</td>
             <td style="width: 40%;">1．正常範囲内　2．低下</td>
           </tr>
-          <!-- 他の検査項目も同様に追加 -->
           <tr>
             <td>2</td>
             <td>口腔内の乾燥程度</td>
@@ -2256,7 +2309,94 @@ function printManagementPlan() {
               </div>
             </td>
           </tr>
-          <!-- 他の管理項目も同様に追加 -->
+          <tr>
+            <td>2</td>
+            <td>口腔内の乾燥</td>
+            <td>
+              <div class="management-options">
+                <div class="management-option" onclick="selectManagementOption(this, 'dryness')" data-value="1">1．問題なし</div>
+                <div class="management-option" onclick="selectManagementOption(this, 'dryness')" data-value="2">2．機能維持を目指す</div>
+                <div class="management-option" onclick="selectManagementOption(this, 'dryness')" data-value="3">3．機能向上を目指す</div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>咬む力</td>
+            <td>
+              <div class="management-options">
+                <div class="management-option" onclick="selectManagementOption(this, 'bite')" data-value="1">1．問題なし</div>
+                <div class="management-option" onclick="selectManagementOption(this, 'bite')" data-value="2">2．機能維持を目指す</div>
+                <div class="management-option" onclick="selectManagementOption(this, 'bite')" data-value="3">3．機能向上を目指す</div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>口唇の動き</td>
+            <td>
+              <div class="management-options">
+                <div class="management-option" onclick="selectManagementOption(this, 'lip')" data-value="1">1．問題なし</div>
+                <div class="management-option" onclick="selectManagementOption(this, 'lip')" data-value="2">2．機能維持を目指す</div>
+                <div class="management-option" onclick="selectManagementOption(this, 'lip')" data-value="3">3．機能向上を目指す</div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>舌尖の動き</td>
+            <td>
+              <div class="management-options">
+                <div class="management-option" onclick="selectManagementOption(this, 'tongue-tip')" data-value="1">1．問題なし</div>
+                <div class="management-option" onclick="selectManagementOption(this, 'tongue-tip')" data-value="2">2．機能維持を目指す</div>
+                <div class="management-option" onclick="selectManagementOption(this, 'tongue-tip')" data-value="3">3．機能向上を目指す</div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td>奥舌の動き</td>
+            <td>
+              <div class="management-options">
+                <div class="management-option" onclick="selectManagementOption(this, 'back-tongue')" data-value="1">1．問題なし</div>
+                <div class="management-option" onclick="selectManagementOption(this, 'back-tongue')" data-value="2">2．機能維持を目指す</div>
+                <div class="management-option" onclick="selectManagementOption(this, 'back-tongue')" data-value="3">3．機能向上を目指す</div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>7</td>
+            <td>舌の力</td>
+            <td>
+              <div class="management-options">
+                <div class="management-option" onclick="selectManagementOption(this, 'tongue-pressure')" data-value="1">1．問題なし</div>
+                <div class="management-option" onclick="selectManagementOption(this, 'tongue-pressure')" data-value="2">2．機能維持を目指す</div>
+                <div class="management-option" onclick="selectManagementOption(this, 'tongue-pressure')" data-value="3">3．機能向上を目指す</div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>8</td>
+            <td>咀嚼の機能</td>
+            <td>
+              <div class="management-options">
+                <div class="management-option" onclick="selectManagementOption(this, 'mastication')" data-value="1">1．問題なし</div>
+                <div class="management-option" onclick="selectManagementOption(this, 'mastication')" data-value="2">2．機能維持を目指す</div>
+                <div class="management-option" onclick="selectManagementOption(this, 'mastication')" data-value="3">3．機能向上を目指す</div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>9</td>
+            <td>嚥下の機能</td>
+            <td>
+              <div class="management-options">
+                <div class="management-option" onclick="selectManagementOption(this, 'swallowing')" data-value="1">1．問題なし</div>
+                <div class="management-option" onclick="selectManagementOption(this, 'swallowing')" data-value="2">2．機能維持を目指す</div>
+                <div class="management-option" onclick="selectManagementOption(this, 'swallowing')" data-value="3">3．機能向上を目指す</div>
+              </div>
+            </td>
+          </tr>
         </table>
       </div>
     
