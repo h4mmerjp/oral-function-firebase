@@ -251,6 +251,27 @@
       font-weight: bold;
     }
     
+    .normal-status {
+      color: #000000;
+      font-weight: normal;
+    }
+    
+    .low-status {
+      color: #000000;
+      font-weight: normal;
+    }
+    
+    .circled {
+      display: inline-block;
+      width: 1.4em;
+      height: 1.4em;
+      border-radius: 50%;
+      border: 1px solid currentColor;
+      text-align: center;
+      line-height: 1.4em;
+      font-weight: bold;
+    }
+    
     .tooltip {
       position: relative;
       display: inline-block;
@@ -1065,7 +1086,7 @@
     }
     
     // 診断結果の表示
-function showDiagnosis() {
+    function showDiagnosis() {
   const completedItems = Object.values(assessmentStatus).filter(status => status).length;
   const diagnosisElement = document.getElementById('diagnosis-result');
   const detailsElement = document.getElementById('diagnosis-details');
@@ -1219,8 +1240,196 @@ function showDiagnosis() {
   }
 }
 
-// 管理計画書にデータを反映する関数
-function generateManagementPlan() {
+    // 口腔機能の状態を自動選択して表示する関数
+    function updateOralFunctionStatus() {
+  // 検査結果の値を表示する
+  const drynessMethod = document.getElementById('dryness-method').value;
+  if (drynessMethod === 'moisture' && document.getElementById('moisture-value').value) {
+    document.getElementById('mp-dryness-value').textContent = document.getElementById('moisture-value').value;
+    document.getElementById('mp-dryness-threshold').textContent = '27.0未満';
+  } else if (drynessMethod === 'saliva' && document.getElementById('saliva-value').value) {
+    document.getElementById('mp-dryness-value').textContent = document.getElementById('saliva-value').value + 'g/2分';
+    document.getElementById('mp-dryness-threshold').textContent = '2.0g/2分以下';
+  }
+  
+  // TCI値の設定
+  if (document.getElementById('tci-value')) {
+    document.getElementById('mp-hygiene-value').textContent = document.getElementById('tci-value').textContent + '%';
+    document.getElementById('mp-hygiene-threshold').textContent = '50%以上';
+  }
+  
+  // 咬合力の設定
+  if (document.getElementById('force-value') && document.getElementById('force-value').value) {
+    document.getElementById('mp-bite-value').textContent = document.getElementById('force-value').value + 'N';
+    const system = document.getElementById('force-system').value;
+    let threshold = '';
+    if (system === 'dental-scale-2-filter') {
+      threshold = '350N未満';
+    } else if (system === 'dental-scale-2-no-filter') {
+      threshold = '500N未満';
+    } else if (system === 'dental-scale') {
+      threshold = '200N未満';
+    } else if (system === 'oramo-bf') {
+      threshold = '375N未満';
+    }
+    document.getElementById('mp-bite-threshold').textContent = threshold;
+  } else if (document.getElementById('teeth-count') && document.getElementById('teeth-count').value) {
+    document.getElementById('mp-bite-value').textContent = document.getElementById('teeth-count').value + '本';
+    document.getElementById('mp-bite-threshold').textContent = '20本未満';
+  }
+  
+  // オーラルディアドコキネシスの設定
+  if (document.getElementById('pa-value') && document.getElementById('pa-value').value) {
+    document.getElementById('mp-pa-value').textContent = document.getElementById('pa-value').value;
+  }
+  if (document.getElementById('ta-value') && document.getElementById('ta-value').value) {
+    document.getElementById('mp-ta-value').textContent = document.getElementById('ta-value').value;
+  }
+  if (document.getElementById('ka-value') && document.getElementById('ka-value').value) {
+    document.getElementById('mp-ka-value').textContent = document.getElementById('ka-value').value;
+  }
+  
+  // 舌圧の設定
+  if (document.getElementById('tongue-pressure') && document.getElementById('tongue-pressure').value) {
+    document.getElementById('mp-tongue-pressure-value').textContent = document.getElementById('tongue-pressure').value;
+  }
+  
+  // 咀嚼機能の設定
+  if (document.getElementById('glucose-value') && document.getElementById('glucose-value').value) {
+    document.getElementById('mp-mastication-value').textContent = document.getElementById('glucose-value').value + 'mg/dL';
+    document.getElementById('mp-mastication-threshold').textContent = '100mg/dL未満';
+  } else if (document.getElementById('mastication-score') && document.getElementById('mastication-score').value) {
+    document.getElementById('mp-mastication-value').textContent = 'スコア' + document.getElementById('mastication-score').value;
+    document.getElementById('mp-mastication-threshold').textContent = 'スコア2以下';
+  }
+  
+  // 嚥下機能の設定
+  const swallowingMethod = document.getElementById('swallowing-method').value;
+  if (swallowingMethod === 'eat10') {
+    const totalScore = eat10Scores.reduce((sum, score) => sum + score, 0);
+    document.getElementById('mp-swallowing-value').textContent = 'EAT-10スコア: ' + totalScore + '点';
+    document.getElementById('mp-swallowing-threshold').textContent = '3点以上';
+  } else if (swallowingMethod === 'seirei') {
+    document.getElementById('mp-swallowing-value').textContent = '聖隷式質問紙';
+    document.getElementById('mp-swallowing-threshold').textContent = 'Aの回答あり';
+  }
+  
+  // 各口腔機能の評価項目と対応する状態表示要素のマッピング
+  const statusMappings = [
+    { 
+      assessment: 'tci', 
+      statusElement: 'mp-hygiene-status', 
+      normalText: '1．正常範囲内', 
+      lowText: '2．低下' 
+    },
+    { 
+      assessment: 'dryness', 
+      statusElement: 'mp-dryness-status', 
+      normalText: '1．正常範囲内', 
+      lowText: '2．低下' 
+    },
+    { 
+      assessment: 'biteForce', 
+      statusElement: 'mp-bite-status', 
+      normalText: '1．正常範囲内', 
+      lowText: '2．低下' 
+    },
+    // 舌口唇運動機能の各要素
+    { 
+      assessment: 'oralDiadochokinesis', 
+      subType: 'pa', 
+      statusElement: 'mp-lip-status', 
+      valueElement: 'pa-value',
+      threshold: 6, 
+      normalText: '1．正常範囲内', 
+      lowText: '2．低下' 
+    },
+    { 
+      assessment: 'oralDiadochokinesis', 
+      subType: 'ta', 
+      statusElement: 'mp-tongue-tip-status', 
+      valueElement: 'ta-value',
+      threshold: 6, 
+      normalText: '1．正常範囲内', 
+      lowText: '2．低下' 
+    },
+    { 
+      assessment: 'oralDiadochokinesis', 
+      subType: 'ka', 
+      statusElement: 'mp-back-tongue-status', 
+      valueElement: 'ka-value',
+      threshold: 6, 
+      normalText: '1．正常範囲内', 
+      lowText: '2．低下' 
+    },
+    { 
+      assessment: 'tonguePressure', 
+      statusElement: 'mp-tongue-pressure-status', 
+      normalText: '1．正常範囲内', 
+      lowText: '2．低下' 
+    },
+    { 
+      assessment: 'mastication', 
+      statusElement: 'mp-mastication-status', 
+      normalText: '1．正常範囲内', 
+      lowText: '2．低下' 
+    },
+    { 
+      assessment: 'swallowing', 
+      statusElement: 'mp-swallowing-status', 
+      normalText: '1．正常範囲内', 
+      lowText: '2．低下' 
+    }
+  ];
+
+  // 各評価項目ごとに正常/低下を判定して表示
+  statusMappings.forEach(mapping => {
+    const element = document.getElementById(mapping.statusElement);
+    
+    // 要素が存在するか確認
+    if (!element) return;
+    
+    let isNormal = false;
+    
+    // 特殊なサブタイプがある場合（オーラルディアドコキネシス）
+    if (mapping.subType) {
+      const valueElement = document.getElementById(mapping.valueElement);
+      if (valueElement && valueElement.value) {
+        const value = parseFloat(valueElement.value);
+        isNormal = value >= mapping.threshold;
+      }
+    } 
+    // 一般的な評価項目
+    else if (mapping.assessment in assessmentStatus) {
+      // tciの場合は値が大きいほど異常なので、他の項目と反対の評価になる
+      if (mapping.assessment === 'tci') {
+        isNormal = !assessmentStatus[mapping.assessment];
+      } else {
+        isNormal = !assessmentStatus[mapping.assessment];
+      }
+    }
+    
+    // 表示テキストを設定（選択状態を○で囲む）
+    if (isNormal) {
+      element.innerHTML = `<span class="circled">1</span>．正常範囲内　2．低下`;
+    } else {
+      element.innerHTML = `1．正常範囲内　<span class="circled">2</span>．低下`;
+    }
+  });
+}
+
+    // 要素のnullチェックを行い安全にtextContentを設定する関数
+    function safeSetText(elementId, text) {
+  const element = document.getElementById(elementId);
+  if (element) {
+    element.textContent = text;
+  }
+}
+    // 管理計画書にデータを反映する関数
+    function generateManagementPlan() {
+  // 口腔機能の状態を更新
+  updateOralFunctionStatus();
+  
   // 患者情報の反映
   const patientName = document.getElementById('patient-name').value;
   const birthdate = document.getElementById('birthdate').value;
@@ -1349,143 +1558,40 @@ function generateManagementPlan() {
     document.getElementById('mp-appetite').textContent = `2. なし（理由：${appetiteReason}）`;
   }
   
-  // 口腔機能の状態
-  // 口腔衛生状態
-  if (document.getElementById('tci-value')) {
-    const tciValue = document.getElementById('tci-value').textContent;
-    document.getElementById('mp-hygiene-value').textContent = `TCI値: ${tciValue}%`;
-    document.getElementById('mp-hygiene-threshold').textContent = '50%以上';
-    if (assessmentStatus.tci) {
-      document.getElementById('mp-hygiene-status').textContent = '2. 低下';
-    } else {
-      document.getElementById('mp-hygiene-status').textContent = '1. 正常範囲内';
-    }
+ // 口腔機能の状態を更新
+ updateOralFunctionStatus();
+
+  // 歯・歯肉の状態の反映
+  const plaque = document.querySelector('input[name="plaque"]:checked');
+  const gingiva = document.querySelector('input[name="gingiva"]:checked');
+  const mobility = document.querySelector('input[name="mobility"]:checked');
+  
+  let dentalState = [];
+  if (plaque) {
+    dentalState.push(`プラーク（${plaque.value === 'yes' ? 'あり' : 'なし'}）`);
+  } else {
+    dentalState.push('プラーク（未評価）');
   }
   
-  // 口腔乾燥
-  if (assessmentStatus.dryness !== undefined) {
-    let drynessValue = '';
-    if (document.getElementById('moisture-value') && document.getElementById('moisture-value').value) {
-      drynessValue = `湿潤度: ${document.getElementById('moisture-value').value}`;
-      document.getElementById('mp-dryness-threshold').textContent = '27.0未満';
-    } else if (document.getElementById('saliva-value') && document.getElementById('saliva-value').value) {
-      drynessValue = `唾液量: ${document.getElementById('saliva-value').value}g/2分`;
-      document.getElementById('mp-dryness-threshold').textContent = '2g/2分以下';
-    }
-    
-    document.getElementById('mp-dryness-value').textContent = drynessValue;
-    if (assessmentStatus.dryness) {
-      document.getElementById('mp-dryness-status').textContent = '2. 低下';
-    } else {
-      document.getElementById('mp-dryness-status').textContent = '1. 正常範囲内';
-    }
+  if (gingiva) {
+    dentalState.push(`歯肉の炎症（${gingiva.value === 'yes' ? 'あり' : 'なし'}）`);
+  } else {
+    dentalState.push('歯肉の炎症（未評価）');
   }
   
-  // 咬合力低下
-  if (assessmentStatus.biteForce !== undefined) {
-    let biteForceValue = '';
-    if (document.getElementById('force-value') && document.getElementById('force-value').value) {
-      biteForceValue = `咬合力: ${document.getElementById('force-value').value}N`;
-      document.getElementById('mp-bite-threshold').textContent = document.getElementById('force-threshold').textContent;
-    } else if (document.getElementById('teeth-count') && document.getElementById('teeth-count').value) {
-      biteForceValue = `残存歯数: ${document.getElementById('teeth-count').value}本`;
-      document.getElementById('mp-bite-threshold').textContent = '20本未満';
-    }
-    
-    document.getElementById('mp-bite-value').textContent = biteForceValue;
-    if (assessmentStatus.biteForce) {
-      document.getElementById('mp-bite-status').textContent = '2. 低下';
-    } else {
-      document.getElementById('mp-bite-status').textContent = '1. 正常範囲内';
-    }
+  if (mobility) {
+    dentalState.push(`歯の動揺（${mobility.value === 'yes' ? 'あり' : 'なし'}）`);
+  } else {
+    dentalState.push('歯の動揺（未評価）');
   }
   
-  // オーラルディアドコキネシス
-  if (document.getElementById('pa-value') && document.getElementById('pa-value').value) {
-    document.getElementById('mp-pa-value').textContent = document.getElementById('pa-value').value;
-    if (parseFloat(document.getElementById('pa-value').value) < 6) {
-      document.getElementById('mp-lip-status').textContent = '2. 低下';
-    } else {
-      document.getElementById('mp-lip-status').textContent = '1. 正常範囲内';
-    }
-  }
-  
-  if (document.getElementById('ta-value') && document.getElementById('ta-value').value) {
-    document.getElementById('mp-ta-value').textContent = document.getElementById('ta-value').value;
-    if (parseFloat(document.getElementById('ta-value').value) < 6) {
-      document.getElementById('mp-tongue-tip-status').textContent = '2. 低下';
-    } else {
-      document.getElementById('mp-tongue-tip-status').textContent = '1. 正常範囲内';
-    }
-  }
-  
-  if (document.getElementById('ka-value') && document.getElementById('ka-value').value) {
-    document.getElementById('mp-ka-value').textContent = document.getElementById('ka-value').value;
-    if (parseFloat(document.getElementById('ka-value').value) < 6) {
-      document.getElementById('mp-back-tongue-status').textContent = '2. 低下';
-    } else {
-      document.getElementById('mp-back-tongue-status').textContent = '1. 正常範囲内';
-    }
-  }
-  
-  // 舌圧
-  if (document.getElementById('tongue-pressure') && document.getElementById('tongue-pressure').value) {
-    document.getElementById('mp-tongue-pressure-value').textContent = document.getElementById('tongue-pressure').value;
-    if (parseFloat(document.getElementById('tongue-pressure').value) < 30) {
-      document.getElementById('mp-tongue-pressure-status').textContent = '2. 低下';
-    } else {
-      document.getElementById('mp-tongue-pressure-status').textContent = '1. 正常範囲内';
-    }
-  }
-  
-  // 咀嚼機能低下
-  if (assessmentStatus.mastication !== undefined) {
-    let masticationValue = '';
-    if (document.getElementById('glucose-value') && document.getElementById('glucose-value').value) {
-      masticationValue = `グルコース濃度: ${document.getElementById('glucose-value').value}mg/dL`;
-      document.getElementById('mp-mastication-threshold').textContent = '100mg/dL未満';
-    } else if (document.getElementById('mastication-score') && document.getElementById('mastication-score').value) {
-      masticationValue = `咀嚼能率スコア: ${document.getElementById('mastication-score').value}`;
-      document.getElementById('mp-mastication-threshold').textContent = 'スコア2以下';
-    }
-    
-    document.getElementById('mp-mastication-value').textContent = masticationValue;
-    if (assessmentStatus.mastication) {
-      document.getElementById('mp-mastication-status').textContent = '2. 低下';
-    } else {
-      document.getElementById('mp-mastication-status').textContent = '1. 正常範囲内';
-    }
-  }
-  
-  // 嚥下機能低下
-  if (assessmentStatus.swallowing !== undefined) {
-    let swallowingValue = '';
-    if (document.getElementById('eat10-result') && document.getElementById('eat10-result').textContent.includes('EAT-10')) {
-      const match = document.getElementById('eat10-result').textContent.match(/EAT-10スコア: (\d+)点/);
-      if (match) {
-        swallowingValue = `EAT-10スコア: ${match[1]}点`;
-      } else {
-        swallowingValue = 'EAT-10評価実施';
-      }
-      document.getElementById('mp-swallowing-threshold').textContent = '3点以上';
-    } else if (document.getElementById('seirei-result')) {
-      swallowingValue = '聖隷式嚥下質問紙評価実施';
-      document.getElementById('mp-swallowing-threshold').textContent = 'Aの回答あり';
-    }
-    
-    document.getElementById('mp-swallowing-value').textContent = swallowingValue;
-    if (assessmentStatus.swallowing) {
-      document.getElementById('mp-swallowing-status').textContent = '2. 低下';
-    } else {
-      document.getElementById('mp-swallowing-status').textContent = '1. 正常範囲内';
-    }
-  }
+  document.getElementById('mp-dental-state').textContent = dentalState.join(' ');
   
   alert('管理計画書の作成が完了しました。');
 }
 
-// 管理計画書の管理方針の選択関数
-function selectManagementOption(element, type) {
+    // 管理計画書の管理方針の選択関数
+    function selectManagementOption(element, type) {
   // 同じカテゴリの他のオプションから選択クラスを削除
   const options = element.parentElement.querySelectorAll('.management-option');
   options.forEach(option => {
@@ -1496,8 +1602,8 @@ function selectManagementOption(element, type) {
   element.classList.add('selected');
 }
 
-// 管理計画書の印刷機能
-function printManagementPlan() {
+    // 管理計画書の印刷機能
+    function printManagementPlan() {
   // 印刷時に不要な要素を非表示にするためのクラスを追加
   document.body.classList.add('printing-management-plan');
   
@@ -1508,6 +1614,10 @@ function printManagementPlan() {
   setTimeout(() => {
     document.body.classList.remove('printing-management-plan');
   }, 1000);
+}
+// データ保存関数
+function saveAllData() {
+  alert('すべてのデータが保存されました（この機能は実装途中です）');
 }
   </script>
   <div class="container">
@@ -2229,63 +2339,79 @@ function printManagementPlan() {
         <h3>【口腔機能の状態】</h3>
         <table class="management-table" style="width: 100%;">
           <tr>
-            <td style="width: 5%;">1</td>
-            <td style="width: 25%;">口腔内の衛生状態</td>
-            <td style="width: 30%;">検査結果 <span id="mp-hygiene-value"></span>（基準値 <span id="mp-hygiene-threshold"></span>）</td>
-            <td style="width: 40%;">1．正常範囲内　2．低下</td>
+            <td>1</td>
+            <td>口腔内の衛生状態</td>
+            <td>検査結果 <span id="mp-hygiene-value"></span>（基準値 <span id="mp-hygiene-threshold"></span>）</td>
+            <td id="mp-hygiene-status">1．正常範囲内　2．低下</td>
           </tr>
           <tr>
             <td>2</td>
             <td>口腔内の乾燥程度</td>
             <td>検査結果 <span id="mp-dryness-value"></span>（基準値 <span id="mp-dryness-threshold"></span>）</td>
-            <td>1．正常範囲内　2．低下</td>
+            <td id="mp-dryness-status">1．正常範囲内　2．低下</td>
           </tr>
           <tr>
             <td>3</td>
             <td>咬む力の程度</td>
             <td>検査結果 <span id="mp-bite-value"></span>（基準値 <span id="mp-bite-threshold"></span>）</td>
-            <td>1．正常範囲内　2．低下</td>
+            <td id="mp-bite-status">1．正常範囲内　2．低下</td>
           </tr>
           <tr>
             <td>4</td>
             <td>口唇の動きの程度</td>
             <td>パ発音速度 <span id="mp-pa-value"></span>回/秒（基準値 6.0回/秒未満）</td>
-            <td>1．正常範囲内　2．低下</td>
+            <td id="mp-lip-status">1．正常範囲内　2．低下</td>
           </tr>
           <tr>
             <td>5</td>
             <td>舌尖の動きの程度</td>
             <td>タ発音速度 <span id="mp-ta-value"></span>回/秒（基準値 6.0回/秒未満）</td>
-            <td>1．正常範囲内　2．低下</td>
+            <td id="mp-tongue-tip-status">1．正常範囲内　2．低下</td>
           </tr>
           <tr>
             <td>6</td>
             <td>奥舌の動きの程度</td>
             <td>カ発音速度 <span id="mp-ka-value"></span>回/秒（基準値 6.0回/秒未満）</td>
-            <td>1．正常範囲内　2．低下</td>
+            <td id="mp-back-tongue-status">1．正常範囲内　2．低下</td>
           </tr>
           <tr>
             <td>7</td>
             <td>舌の力の程度</td>
             <td>舌圧 <span id="mp-tongue-pressure-value"></span>kPa（基準値 30kPa未満）</td>
-            <td>1．正常範囲内　2．低下</td>
+            <td id="mp-tongue-pressure-status">1．正常範囲内　2．低下</td>
           </tr>
           <tr>
             <td>8</td>
             <td>咀嚼の機能の程度</td>
             <td>検査結果 <span id="mp-mastication-value"></span>（基準値 <span id="mp-mastication-threshold"></span>）</td>
-            <td>1．正常範囲内　2．低下</td>
+            <td id="mp-mastication-status">1．正常範囲内　2．低下</td>
           </tr>
           <tr>
             <td>9</td>
             <td>嚥下の機能の程度</td>
             <td>検査結果 <span id="mp-swallowing-value"></span>（基準値 <span id="mp-swallowing-threshold"></span>）</td>
-            <td>1．正常範囲内　2．低下</td>
+            <td id="mp-swallowing-status">1．正常範囲内　2．低下</td>
           </tr>
           <tr>
             <td>10</td>
             <td>歯・歯肉の状態</td>
-            <td colspan="2">プラーク（なし・あり） 歯肉の炎症（なし・あり） 歯の動揺（なし・あり）</td>
+            <td colspan="2" id="mp-dental-state-input">
+              <div style="margin-bottom: 5px;">
+                プラーク： 
+                <label style="display: inline;"><input type="radio" name="plaque" value="no"> なし</label>
+                <label style="display: inline; margin-left: 10px;"><input type="radio" name="plaque" value="yes"> あり</label>
+              </div>
+              <div style="margin-bottom: 5px;">
+                歯肉の炎症： 
+                <label style="display: inline;"><input type="radio" name="gingiva" value="no"> なし</label>
+                <label style="display: inline; margin-left: 10px;"><input type="radio" name="gingiva" value="yes"> あり</label>
+              </div>
+              <div>
+                歯の動揺： 
+                <label style="display: inline;"><input type="radio" name="mobility" value="no"> なし</label>
+                <label style="display: inline; margin-left: 10px;"><input type="radio" name="mobility" value="yes"> あり</label>
+              </div>
+            </td>
           </tr>
           <tr>
             <td>11</td>
