@@ -1240,8 +1240,16 @@
   }
 }
 
-    // 口腔機能の状態を自動選択して表示する関数
-    function updateOralFunctionStatus() {
+    // 要素のnullチェックを行い安全にtextContentを設定する関数
+function safeSetText(elementId, text) {
+  const element = document.getElementById(elementId);
+  if (element) {
+    element.textContent = text;
+  }
+}
+
+// 口腔機能の状態を自動選択して表示する関数
+function updateOralFunctionStatus() {
   // 検査結果の値を表示する
   const drynessMethod = document.getElementById('dryness-method').value;
   if (drynessMethod === 'moisture' && document.getElementById('moisture-value').value) {
@@ -1418,12 +1426,32 @@
   });
 }
 
-    // 要素のnullチェックを行い安全にtextContentを設定する関数
-    function safeSetText(elementId, text) {
-  const element = document.getElementById(elementId);
-  if (element) {
-    element.textContent = text;
+    // 歯・歯肉の状態を文字列として設定する関数
+function updateDentalState() {
+  const plaque = document.querySelector('input[name="plaque"]:checked');
+  const gingiva = document.querySelector('input[name="gingiva"]:checked');
+  const mobility = document.querySelector('input[name="mobility"]:checked');
+  
+  let dentalState = [];
+  if (plaque) {
+    dentalState.push(`プラーク（${plaque.value === 'yes' ? 'あり' : 'なし'}）`);
+  } else {
+    dentalState.push('プラーク（未評価）');
   }
+  
+  if (gingiva) {
+    dentalState.push(`歯肉の炎症（${gingiva.value === 'yes' ? 'あり' : 'なし'}）`);
+  } else {
+    dentalState.push('歯肉の炎症（未評価）');
+  }
+  
+  if (mobility) {
+    dentalState.push(`歯の動揺（${mobility.value === 'yes' ? 'あり' : 'なし'}）`);
+  } else {
+    dentalState.push('歯の動揺（未評価）');
+  }
+  
+  safeSetText('mp-dental-state', dentalState.join(' '));
 }
     // 管理計画書にデータを反映する関数
     function generateManagementPlan() {
@@ -1562,30 +1590,7 @@
  updateOralFunctionStatus();
 
   // 歯・歯肉の状態の反映
-  const plaque = document.querySelector('input[name="plaque"]:checked');
-  const gingiva = document.querySelector('input[name="gingiva"]:checked');
-  const mobility = document.querySelector('input[name="mobility"]:checked');
-  
-  let dentalState = [];
-  if (plaque) {
-    dentalState.push(`プラーク（${plaque.value === 'yes' ? 'あり' : 'なし'}）`);
-  } else {
-    dentalState.push('プラーク（未評価）');
-  }
-  
-  if (gingiva) {
-    dentalState.push(`歯肉の炎症（${gingiva.value === 'yes' ? 'あり' : 'なし'}）`);
-  } else {
-    dentalState.push('歯肉の炎症（未評価）');
-  }
-  
-  if (mobility) {
-    dentalState.push(`歯の動揺（${mobility.value === 'yes' ? 'あり' : 'なし'}）`);
-  } else {
-    dentalState.push('歯の動揺（未評価）');
-  }
-  
-  document.getElementById('mp-dental-state').textContent = dentalState.join(' ');
+  updateDentalState();
   
   alert('管理計画書の作成が完了しました。');
 }
@@ -1618,6 +1623,282 @@
 // データ保存関数
 function saveAllData() {
   alert('すべてのデータが保存されました（この機能は実装途中です）');
+}
+
+// 管理指導記録簿の評価選択関数
+function selectRating(element, type) {
+  // 同じカテゴリの他のオプションから選択クラスを削除
+  const options = element.parentElement.querySelectorAll('.rating-option');
+  options.forEach(option => {
+    option.classList.remove('selected');
+  });
+  
+  // 選択されたオプションに選択クラスを追加
+  element.classList.add('selected');
+}
+// グローバル変数で選択した管理オプションを保存
+let selectedManagementOptions = {
+  'hygiene': '',
+  'dryness': '',
+  'bite': '',
+  'lip': '',
+  'tongue-tip': '',
+  'back-tongue': '',
+  'tongue-pressure': '',
+  'mastication': '',
+  'swallowing': ''
+};
+
+// 管理オプションを選択する関数
+function selectManagementOption(element, type) {
+  // 同じカテゴリの他のオプションから選択クラスを削除
+  const options = element.parentElement.querySelectorAll('.management-option');
+  options.forEach(option => {
+    option.classList.remove('selected');
+  });
+  
+  // 選択されたオプションに選択クラスを追加
+  element.classList.add('selected');
+  
+  // 選択データをグローバル変数に保存
+  const value = element.getAttribute('data-value');
+  selectedManagementOptions[type] = value;
+  
+  console.log(`選択しました: ${type} = ${value}`);
+}
+
+// AIによる管理計画を生成する関数
+function generateAIManagementPlan() {
+  // ローディング表示
+  document.getElementById('management-goals').value = "AI生成中...";
+  
+  // 患者情報の収集
+  const patientInfo = {
+    name: document.getElementById('mp-patient-name')?.textContent || '',
+    age: document.getElementById('mp-age')?.textContent || '',
+    gender: document.getElementById('mp-gender')?.textContent || '',
+    disease: document.getElementById('mp-disease')?.textContent || '',
+    medication: document.getElementById('mp-medication')?.textContent || '',
+    pneumonia: document.getElementById('mp-pneumonia')?.textContent || '',
+    // nutrition行を削除（存在しないため）
+    weight: document.getElementById('mp-weight')?.textContent || '',
+    height: document.getElementById('mp-height')?.textContent || '',
+    bmi: document.getElementById('mp-bmi')?.textContent || '',
+    weightChange: document.getElementById('mp-weight-change')?.textContent || '',
+    foodForm: document.getElementById('mp-food-form')?.textContent || '',
+    appetite: document.getElementById('mp-appetite')?.textContent || ''
+  };
+  
+  // 口腔機能情報の収集（オプショナルチェイニング演算子を使用）
+  const oralFunctionInfo = {
+    hygiene: {
+      value: document.getElementById('mp-hygiene-value')?.textContent || '',
+      threshold: document.getElementById('mp-hygiene-threshold')?.textContent || '',
+      status: document.getElementById('mp-hygiene-status')?.textContent || ''
+    },
+    dryness: {
+      value: document.getElementById('mp-dryness-value')?.textContent || '',
+      threshold: document.getElementById('mp-dryness-threshold')?.textContent || '',
+      status: document.getElementById('mp-dryness-status')?.textContent || ''
+    },
+    bite: {
+      value: document.getElementById('mp-bite-value')?.textContent || '',
+      threshold: document.getElementById('mp-bite-threshold')?.textContent || '',
+      status: document.getElementById('mp-bite-status')?.textContent || ''
+    },
+    lip: {
+      value: document.getElementById('mp-pa-value')?.textContent || '',
+      status: document.getElementById('mp-lip-status')?.textContent || ''
+    },
+    tongueTip: {
+      value: document.getElementById('mp-ta-value')?.textContent || '',
+      status: document.getElementById('mp-tongue-tip-status')?.textContent || ''
+    },
+    backTongue: {
+      value: document.getElementById('mp-ka-value')?.textContent || '',
+      status: document.getElementById('mp-back-tongue-status')?.textContent || ''
+    },
+    tonguePressure: {
+      value: document.getElementById('mp-tongue-pressure-value')?.textContent || '',
+      status: document.getElementById('mp-tongue-pressure-status')?.textContent || ''
+    },
+    mastication: {
+      value: document.getElementById('mp-mastication-value')?.textContent || '',
+      threshold: document.getElementById('mp-mastication-threshold')?.textContent || '',
+      status: document.getElementById('mp-mastication-status')?.textContent || ''
+    },
+    swallowing: {
+      value: document.getElementById('mp-swallowing-value')?.textContent || '',
+      threshold: document.getElementById('mp-swallowing-threshold')?.textContent || '',
+      status: document.getElementById('mp-swallowing-status')?.textContent || ''
+    },
+    dentalState: document.getElementById('mp-dental-state')?.textContent || ''
+  };
+  
+  // 選択肢の表示名マッピング
+  const optionLabels = {
+    '1': '問題なし',
+    '2': '機能維持を目指す',
+    '3': '機能向上を目指す'
+  };
+  
+  // 選択された管理オプションの整形（表示名付き）
+  const formattedOptions = {};
+  for (const [key, value] of Object.entries(selectedManagementOptions)) {
+    if (value) {
+      formattedOptions[key] = {
+        value: value,
+        label: optionLabels[value] || value
+      };
+    }
+  }
+  
+  // DifyのAPIキーとエンドポイント
+  const DIFY_API_KEY = 'app-zs9WBSK3tWPFM9mD9BpwVCBF'; 
+  const DIFY_ENDPOINT = 'https://api.dify.ai/v1/completion-messages';
+  
+  // 生成用のプロンプト
+  let promptText = `口腔機能低下症患者の管理計画を立案してください。\n\n`;
+  promptText += `【患者情報】\n`;
+  promptText += `氏名: ${patientInfo.name}\n`;
+  promptText += `年齢: ${patientInfo.age}\n`;
+  promptText += `性別: ${patientInfo.gender}\n`;
+  promptText += `基礎疾患: ${patientInfo.disease}\n`;
+  promptText += `服用薬剤: ${patientInfo.medication}\n\n`;
+  
+  promptText += `【口腔機能評価】\n`;
+  Object.entries(oralFunctionInfo).forEach(([key, info]) => {
+    if (typeof info === 'object') {
+      promptText += `${key}: ${info.value} (${info.status})\n`;
+    } else {
+      promptText += `${key}: ${info}\n`;
+    }
+  });
+  
+  promptText += `\n【選択された管理方針】\n`;
+  Object.entries(formattedOptions).forEach(([key, option]) => {
+    promptText += `${key}: ${option.label}\n`;
+  });
+  
+  promptText += `\n以上の情報に基づいて、具体的な管理方針・目標（ゴール）・治療予定等を提案してください。`;
+  
+  console.log("送信データ準備完了");
+  console.log("プロンプト:", promptText);
+  
+  // API呼び出し
+  fetch(DIFY_ENDPOINT, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${DIFY_API_KEY}`
+  },
+  body: JSON.stringify({
+    // 正しいフォーマット
+    inputs: {
+      query: promptText  // プロンプトテキスト全体を query として送信
+    },
+    response_mode: "blocking",
+    user: "dental-app-user-" + new Date().getTime()
+  })
+})
+  .then(response => {
+    console.log("レスポンスステータス:", response.status);
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    return response.json();
+  })
+  .then(data => {
+    console.log("AI応答:", data);
+    
+    // APIレスポンス構造に合わせて適切に処理
+    let generatedText = "";
+    if (data.answer) {
+      generatedText = data.answer;
+    } else if (data.response) {
+      generatedText = data.response;
+    } else if (data.text) {
+      generatedText = data.text;
+    } else {
+      generatedText = "応答の形式が予期しないものでした。詳細はコンソールをご確認ください。";
+    }
+    
+    // 生成されたテキストを表示
+    document.getElementById('management-goals').value = generatedText;
+  })
+  .catch(error => {
+    console.error('エラー:', error);
+    document.getElementById('management-goals').value = "エラーが発生しました: " + error.message + "\n\nブラウザのコンソールで詳細を確認してください。";
+    // エラーが発生した場合はデモレスポンスを代替として使用
+    setTimeout(() => {
+      generateLocalDemoResponse();
+    }, 1000);
+  });
+}
+
+// フォールバック：APIが利用できない場合のデモ機能
+function generateLocalDemoResponse() {
+  // 選択された管理オプションの一覧を取得
+  const selectedOptionsText = Object.entries(selectedManagementOptions)
+    .filter(([_, value]) => value)
+    .map(([key, value]) => {
+      const optionLabels = {
+        'hygiene': '口腔内の衛生',
+        'dryness': '口腔内の乾燥',
+        'bite': '咬む力',
+        'lip': '口唇の動き',
+        'tongue-tip': '舌尖の動き',
+        'back-tongue': '奥舌の動き',
+        'tongue-pressure': '舌の力',
+        'mastication': '咀嚼の機能',
+        'swallowing': '嚥下の機能'
+      };
+      
+      const valueLabels = {
+        '1': '問題なし',
+        '2': '機能維持を目指す',
+        '3': '機能向上を目指す'
+      };
+      
+      return `${optionLabels[key] || key}: ${valueLabels[value] || value}`;
+    })
+    .join('\n');
+  
+  // デモの管理計画テキスト
+  const demoText = `【管理方針】
+・個別の口腔機能に応じた包括的な機能改善プログラムを実施します
+・定期的な評価とフィードバックによる継続的な管理を行います
+・専門的口腔ケアと自己管理の指導を組み合わせて実施します
+
+【目標（ゴール）】
+・短期（1-3ヶ月）：セルフケア習慣の確立と基本的な口腔機能訓練の習得
+・中期（3-6ヶ月）：口腔機能評価項目の50%以上で改善を目指す
+・長期（6ヶ月以上）：複数の口腔機能の継続的な維持・向上と全身健康への好影響
+
+【治療・訓練計画】
+1. 専門的口腔ケア：月1回の定期的クリーニングと評価
+2. 口腔機能訓練：個別に設計された訓練プログラムを週3回実施
+3. 栄養指導：口腔機能に合わせた食形態と栄養摂取の指導
+
+【患者への指導内容】
+・口腔衛生管理の具体的方法と継続的な実践
+・在宅での口腔機能訓練の具体的な方法と頻度
+・誤嚥予防と安全な食事摂取の方法
+・定期検査の重要性
+
+選択された管理オプション：
+${selectedOptionsText}`;
+
+  document.getElementById('management-goals').value = demoText;
+}
+
+// 管理指導記録簿の保存・印刷関数
+function saveProgressRecord() {
+  alert('管理指導記録が保存されました（この機能は実装途中です）');
+}
+
+function printProgressRecord() {
+  window.print();
 }
   </script>
   <div class="container">
@@ -2395,7 +2676,9 @@ function saveAllData() {
           <tr>
             <td>10</td>
             <td>歯・歯肉の状態</td>
-            <td colspan="2" id="mp-dental-state-input">
+            <td colspan="2">
+              <div id="mp-dental-state"></div>
+              <div id="mp-dental-state-input">
               <div style="margin-bottom: 5px;">
                 プラーク： 
                 <label style="display: inline;"><input type="radio" name="plaque" value="no"> なし</label>
@@ -2410,6 +2693,7 @@ function saveAllData() {
                 歯の動揺： 
                 <label style="display: inline;"><input type="radio" name="mobility" value="no"> なし</label>
                 <label style="display: inline; margin-left: 10px;"><input type="radio" name="mobility" value="yes"> あり</label>
+              </div>
               </div>
             </td>
           </tr>
@@ -2528,6 +2812,10 @@ function saveAllData() {
     
       <div class="summary-card">
         <h3>【管理方針・目標（ゴール）・治療予定等】</h3>
+        <div style="margin-bottom: 10px;">
+          <button onclick="generateAIManagementPlan()" class="btn-success">AIによる提案を生成</button>
+          <button onclick="generateLocalDemoResponse()" class="btn-secondary" style="margin-left: 10px;">デモ提案を表示</button>
+        </div>
         <textarea id="management-goals" style="width: 100%; height: 150px;" placeholder="管理方針や目標、治療予定などを記入してください"></textarea>
       </div>
       
@@ -2790,4 +3078,4 @@ function saveAllData() {
     
     
     
-  </div>
+  </div> 
