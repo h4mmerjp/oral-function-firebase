@@ -322,8 +322,14 @@ function closeAddPatientModal() {
   app.closeAddPatientModal();
 }
 
-// 検査開始のグローバル関数
+// 検査開始のグローバル関数（修正版）
 function startAssessment() {
+  if (!patientManager.currentPatient) {
+    alert('患者を選択してください');
+    return;
+  }
+  
+  // 検査を開始して検査タブに移動
   assessmentManager.startAssessment();
 }
 

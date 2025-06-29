@@ -1,4 +1,72 @@
-<p>舌表面を9分割し、それぞれのエリアに対して舌苔の付着程度を評価します。</p>
+// 検査管理モジュール
+class AssessmentManager {
+  constructor() {
+    this.currentAssessment = null;
+    this.assessmentStatus = {
+      tci: false,
+      dryness: false,
+      biteForce: false,
+      oralDiadochokinesis: false,
+      tonguePressure: false,
+      mastication: false,
+      swallowing: false
+    };
+    this.eat10Scores = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  }
+
+  // 検査開始
+  startAssessment() {
+    if (!patientManager.currentPatient) {
+      alert('患者を選択してください');
+      return;
+    }
+    
+    // 新しい検査セッションを開始
+    this.currentAssessment = {
+      patient_id: patientManager.currentPatient.id,
+      assessment_date: new Date().toISOString().split('T')[0]
+    };
+    
+    // 検査状態をリセット
+    this.assessmentStatus = {
+      tci: false,
+      dryness: false,
+      biteForce: false,
+      oralDiadochokinesis: false,
+      tonguePressure: false,
+      mastication: false,
+      swallowing: false
+    };
+    
+    this.eat10Scores = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    
+    this.loadAssessmentContent();
+    app.openTab('assessment');
+  }
+
+  // 検査コンテンツの読み込み
+  loadAssessmentContent() {
+    const content = document.getElementById('assessment-content');
+    
+    if (!patientManager.currentPatient) {
+      content.innerHTML = '<p>患者を選択してから検査を開始してください。</p>';
+      return;
+    }
+
+    content.innerHTML = `
+      <p>患者: ${patientManager.currentPatient.name} (ID: ${patientManager.currentPatient.patient_id})</p>
+      <p>各項目の評価を行ってください。3項目以上が基準値を下回る場合、口腔機能低下症と診断されます。</p>
+
+      <div class="progress-bar-container">
+        <div id="assessment-progress" class="progress-bar" style="width: 0%;">0/7項目完了</div>
+      </div>
+
+      <!-- 1. 口腔衛生状態不良の評価 -->
+      <div class="summary-card">
+        <h3>① 口腔衛生状態不良の評価 (TCI)</h3>
+        
+        <div>
+          <p>舌表面を9分割し、それぞれのエリアに対して舌苔の付着程度を評価します。</p>
           <p>0：舌苔なし、1：薄い舌苔あり、2：厚い舌苔あり</p>
          
           <div class="tci-grid">
@@ -894,72 +962,4 @@
 }
 
 // グローバルインスタンス
-const assessmentManager = new AssessmentManager();// 検査管理モジュール
-class AssessmentManager {
-  constructor() {
-    this.currentAssessment = null;
-    this.assessmentStatus = {
-      tci: false,
-      dryness: false,
-      biteForce: false,
-      oralDiadochokinesis: false,
-      tonguePressure: false,
-      mastication: false,
-      swallowing: false
-    };
-    this.eat10Scores = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  }
-
-  // 検査開始
-  startAssessment() {
-    if (!patientManager.currentPatient) {
-      alert('患者を選択してください');
-      return;
-    }
-    
-    // 新しい検査セッションを開始
-    this.currentAssessment = {
-      patient_id: patientManager.currentPatient.id,
-      assessment_date: new Date().toISOString().split('T')[0]
-    };
-    
-    // 検査状態をリセット
-    this.assessmentStatus = {
-      tci: false,
-      dryness: false,
-      biteForce: false,
-      oralDiadochokinesis: false,
-      tonguePressure: false,
-      mastication: false,
-      swallowing: false
-    };
-    
-    this.eat10Scores = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    
-    this.loadAssessmentContent();
-    app.openTab('assessment');
-  }
-
-  // 検査コンテンツの読み込み
-  loadAssessmentContent() {
-    const content = document.getElementById('assessment-content');
-    
-    if (!patientManager.currentPatient) {
-      content.innerHTML = '<p>患者を選択してから検査を開始してください。</p>';
-      return;
-    }
-
-    content.innerHTML = `
-      <p>患者: ${patientManager.currentPatient.name} (ID: ${patientManager.currentPatient.patient_id})</p>
-      <p>各項目の評価を行ってください。3項目以上が基準値を下回る場合、口腔機能低下症と診断されます。</p>
-
-      <div class="progress-bar-container">
-        <div id="assessment-progress" class="progress-bar" style="width: 0%;">0/7項目完了</div>
-      </div>
-
-      <!-- 1. 口腔衛生状態不良の評価 -->
-      <div class="summary-card">
-        <h3>① 口腔衛生状態不良の評価 (TCI)</h3>
-        
-        <div>
-          <p>舌表面を9分割し、それぞれのエリアに対して舌
+const assessmentManager = new AssessmentManager();
