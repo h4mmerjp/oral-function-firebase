@@ -24,7 +24,7 @@ class PatientManager {
       container.innerHTML = `
         <div class="no-patients">
           <p>登録された患者がありません。</p>
-          <button onclick="patientManager.showAddPatientModal()" class="btn-success">最初の患者を登録</button>
+          <button onclick="showAddPatientModal()" class="btn-success">最初の患者を登録</button>
         </div>
       `;
       return;
@@ -37,7 +37,7 @@ class PatientManager {
       const status = this.getPatientStatus(latestAssessment);
       
       html += `
-        <div class="patient-card ${status.class}" onclick="patientManager.selectPatient(${patient.id})">
+        <div class="patient-card ${status.class}" onclick="selectPatient(${patient.id})">
           <div class="patient-name">${patient.name}</div>
           <div class="patient-info">
             <div>ID: ${patient.patient_id}</div>
@@ -46,8 +46,8 @@ class PatientManager {
             <div class="status-badge status-${status.class}">${status.text}</div>
           </div>
           <div style="margin-top: 10px;">
-            <button onclick="event.stopPropagation(); patientManager.editPatient(${patient.id})" class="btn-secondary" style="margin: 2px; padding: 5px 10px;">編集</button>
-            <button onclick="event.stopPropagation(); patientManager.deletePatient(${patient.id})" class="btn-danger" style="margin: 2px; padding: 5px 10px;">削除</button>
+            <button onclick="event.stopPropagation(); editPatient(${patient.id})" class="btn-secondary" style="margin: 2px; padding: 5px 10px;">編集</button>
+            <button onclick="event.stopPropagation(); deletePatient(${patient.id})" class="btn-danger" style="margin: 2px; padding: 5px 10px;">削除</button>
           </div>
         </div>
       `;
@@ -146,7 +146,7 @@ class PatientManager {
           <div><strong>住所:</strong> ${this.currentPatient.address || '未入力'}</div>
         </div>
         <div style="margin-top: 20px;">
-          <button onclick="patientManager.editPatient(${this.currentPatient.id})" class="btn-secondary">編集</button>
+          <button onclick="editPatient(${this.currentPatient.id})" class="btn-secondary">編集</button>
           <button onclick="startAssessment()" class="btn-success">検査開始</button>
           <button onclick="app.openTab('patient-history')" class="btn-secondary">履歴確認</button>
         </div>
