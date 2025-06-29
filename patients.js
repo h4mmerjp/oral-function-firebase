@@ -111,13 +111,37 @@ class PatientManager {
     });
   }
 
-  // 患者選択
+  // 患者選択（修正版）
   async selectPatient(patientId) {
     try {
-      this.currentPatient = await db.getPatient(patientId);
-      if (this.currentPatient) {
-        this.loadPatientInfo();
+      console.log('患者選択開始:', patientId); // デバッグ用ログ
+      
+      // 現在の患者をクリア
+      this.currentPatient = null;
+      
+      // 新しい患者データを取得
+      const patient = await db.getPatient(patientId);
+      console.log('取得した患者データ:', patient); // デバッグ用ログ
+      
+      if (patient) {
+        // 患者データを設定
+        this.currentPatient = patient;
+        
+        // 検査データもクリア（重要：前の患者の検査データが残らないように）
+        if (assessmentManager) {
+          assessmentManager.currentAssessment = null;
+        }
+        
+        // 患者情報を読み込み
+        await this.loadPatientInfo();
+        
+        // 患者情報タブに移動
         app.openTab('patient-info');
+        
+        console.log('患者選択完了:', this.currentPatient.name); // デバッグ用ログ
+      } else {
+        console.error('患者が見つかりません:', patientId);
+        alert('患者情報の取得に失敗しました');
       }
     } catch (error) {
       console.error('患者選択エラー:', error);
@@ -125,13 +149,19 @@ class PatientManager {
     }
   }
 
-  // 患者情報を読み込み
+  // 患者情報を読み込み（修正版）
   async loadPatientInfo() {
-    if (!this.currentPatient) return;
+    if (!this.currentPatient) {
+      console.warn('currentPatient が設定されていません');
+      return;
+    }
+
+    console.log('患者情報読み込み開始:', this.currentPatient.name); // デバッグ用ログ
 
     const age = this.calculateAge(this.currentPatient.birthdate);
     const content = document.getElementById('patient-info-content');
     
+    // 患者情報を強制的に最新データで更新
     content.innerHTML = `
       <div class="summary-card">
         <h3>基本情報</h3>
@@ -226,8 +256,10 @@ class PatientManager {
       </div>
     `;
 
-    // 既存の全身状態データを読み込み
+    // 既存の全身状態データを読み込み（現在の患者のもの）
     await this.loadGeneralConditions();
+    
+    console.log('患者情報読み込み完了'); // デバッグ用ログ
   }
 
   // 服用薬剤の詳細表示切り替え
@@ -283,32 +315,88 @@ class PatientManager {
     }
   }
 
-  // 全身状態の読み込み
+  // 全身状態の読み込み（修正版）
   async loadGeneralConditions() {
-    if (!this.currentPatient) return;
+    if (!this.currentPatient) {
+      console.warn('currentPatient が設定されていません');
+      return;
+    }
 
     try {
+      console.log('全身状態読み込み開始:', this.currentPatient.id); // デバッグ用ログ
+      
+      // 現在の患者の最新の全身状態データを取得
       const condition = await db.getLatestGeneralCondition(this.currentPatient.id);
+      
       if (condition) {
+        console.log('全身状態データ見つかりました:', condition); // デバッグ用ログ
         this.fillGeneralConditionsForm(condition);
+      } else {
+        console.log('全身状態データが見つかりませんでした'); // デバッグ用ログ
+        // フォームをクリア
+        this.clearGeneralConditionsForm();
       }
     } catch (error) {
       console.error('全身状態読み込みエラー:', error);
     }
   }
 
+  // 全身状態フォームのクリア（新規追加）
+  clearGeneralConditionsForm() {
+    // チェックボックスをクリア
+    const checkboxes = document.querySelectorAll('input[name="disease"]');
+    checkboxes.forEach(checkbox => {
+      checkbox.checked = false;
+    });
+    
+    // 選択肢をリセット
+    const medicationStatus = document.getElementById('medication-status');
+    if (medicationStatus) {
+      medicationStatus.value = 'no';
+      this.toggleMedicationDetails();
+    }
+    
+    const pneumoniaHistory = document.getElementById('pneumonia-history');
+    if (pneumoniaHistory) {
+      pneumoniaHistory.value = 'no';
+    }
+    
+    // 数値フィールドをクリア
+    const numericFields = ['height', 'weight', 'bmi'];
+    numericFields.forEach(fieldId => {
+      const field = document.getElementById(fieldId);
+      if (field) {
+        field.value = '';
+      }
+    });
+    
+    // テキストエリアをクリア
+    const medicationList = document.getElementById('medication-list');
+    if (medicationList) {
+      medicationList.value = '';
+    }
+  }
+
   // 全身状態フォームの入力
   fillGeneralConditionsForm(condition) {
+    // まずフォームをクリア
+    this.clearGeneralConditionsForm();
+    
+    // データがある場合のみ入力
     if (condition.height) document.getElementById('height').value = condition.height;
     if (condition.weight) document.getElementById('weight').value = condition.weight;
     if (condition.bmi) document.getElementById('bmi').value = condition.bmi;
     
     if (condition.diseases) {
-      const diseases = JSON.parse(condition.diseases);
-      diseases.forEach(disease => {
-        const checkbox = document.querySelector(`input[name="disease"][value="${disease}"]`);
-        if (checkbox) checkbox.checked = true;
-      });
+      try {
+        const diseases = JSON.parse(condition.diseases);
+        diseases.forEach(disease => {
+          const checkbox = document.querySelector(`input[name="disease"][value="${disease}"]`);
+          if (checkbox) checkbox.checked = true;
+        });
+      } catch (error) {
+        console.error('疾患データの解析エラー:', error);
+      }
     }
     
     if (condition.medications) {
@@ -372,6 +460,10 @@ class PatientManager {
       // 現在選択中の患者が削除された場合
       if (this.currentPatient && this.currentPatient.id === patientId) {
         this.currentPatient = null;
+        // 検査データもクリア
+        if (assessmentManager) {
+          assessmentManager.currentAssessment = null;
+        }
         document.getElementById('patient-info-content').innerHTML = '<p>患者一覧から患者を選択するか、新規登録を行ってください。</p>';
       }
     } catch (error) {
@@ -380,7 +472,7 @@ class PatientManager {
     }
   }
 
-  // 患者フォーム送信処理
+  // 患者フォーム送信処理（修正版）
   async handlePatientFormSubmit(event) {
     event.preventDefault();
     
@@ -396,18 +488,29 @@ class PatientManager {
     };
 
     try {
+      let updatedPatient;
+      
       if (editId) {
         // 更新
-        await db.updatePatient(parseInt(editId), patientData);
+        updatedPatient = await db.updatePatient(parseInt(editId), patientData);
         alert('患者情報が更新されました');
+        
+        // 現在選択中の患者が更新された場合、currentPatient も更新
+        if (this.currentPatient && this.currentPatient.id === parseInt(editId)) {
+          this.currentPatient = updatedPatient;
+          await this.loadPatientInfo(); // 画面を更新
+        }
       } else {
         // 新規登録
-        await db.createPatient(patientData);
+        updatedPatient = await db.createPatient(patientData);
         alert('患者が登録されました');
       }
       
       this.closeAddPatientModal();
-      this.loadPatients();
+      
+      // 患者一覧を再読み込み
+      await this.loadPatients();
+      
     } catch (error) {
       console.error('患者保存エラー:', error);
       alert('保存に失敗しました: ' + error.message);
