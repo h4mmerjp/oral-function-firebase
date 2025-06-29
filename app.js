@@ -327,6 +327,19 @@ function startAssessment() {
   assessmentManager.startAssessment();
 }
 
+// 患者管理のグローバル関数
+function selectPatient(patientId) {
+  patientManager.selectPatient(patientId);
+}
+
+function editPatient(patientId) {
+  patientManager.editPatient(patientId);
+}
+
+function deletePatient(patientId) {
+  patientManager.deletePatient(patientId);
+}
+
 // アプリケーション初期化
 let app;
 
