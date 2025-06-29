@@ -1,4 +1,4 @@
-// 患者管理モジュール
+// 修正版 patients.js - 患者選択とデータ表示の問題を解決
 class PatientManager {
   constructor() {
     this.currentPatient = null;
@@ -16,7 +16,7 @@ class PatientManager {
     }
   }
 
-  // 患者一覧を表示
+  // 患者一覧を表示（修正版）
   async displayPatients(patients) {
     const container = document.getElementById('patients-grid');
     
@@ -33,11 +33,15 @@ class PatientManager {
     let html = '';
     for (const patient of patients) {
       const age = this.calculateAge(patient.birthdate);
+      
+      // 重要：各患者に対して個別に検査データを取得
       const latestAssessment = await db.getLatestAssessment(patient.id);
       const status = this.getPatientStatus(latestAssessment);
       
+      console.log(`患者 ${patient.name} (ID: ${patient.id}) の検査データ:`, latestAssessment); // デバッグログ
+      
       html += `
-        <div class="patient-card ${status.class}" onclick="selectPatient(${patient.id})">
+        <div class="patient-card ${status.class}" onclick="selectPatient(${patient.id})" data-patient-id="${patient.id}">
           <div class="patient-name">${patient.name}</div>
           <div class="patient-info">
             <div>ID: ${patient.patient_id}</div>
@@ -111,60 +115,111 @@ class PatientManager {
     });
   }
 
-  // 患者選択（修正版）
+  // 患者選択（完全修正版）
   async selectPatient(patientId) {
     try {
-      console.log('患者選択開始:', patientId); // デバッグ用ログ
+      console.log('=== 患者選択開始 ===');
+      console.log('選択された患者ID:', patientId);
+      console.log('現在の患者:', this.currentPatient);
       
-      // 現在の患者をクリア
-      this.currentPatient = null;
+      // すべての関連データを完全にクリア
+      this.clearAllPatientData();
       
-      // 新しい患者データを取得
-      const patient = await db.getPatient(patientId);
-      console.log('取得した患者データ:', patient); // デバッグ用ログ
+      // 指定されたIDの患者データを新規取得
+      const selectedPatient = await db.getPatient(parseInt(patientId));
+      console.log('データベースから取得した患者:', selectedPatient);
       
-      if (patient) {
-        // 患者データを設定
-        this.currentPatient = patient;
-        
-        // 検査データもクリア（重要：前の患者の検査データが残らないように）
-        if (assessmentManager) {
-          assessmentManager.currentAssessment = null;
-        }
-        
-        // 患者情報を読み込み
-        await this.loadPatientInfo();
-        
-        // 患者情報タブに移動
-        app.openTab('patient-info');
-        
-        console.log('患者選択完了:', this.currentPatient.name); // デバッグ用ログ
-      } else {
+      if (!selectedPatient) {
         console.error('患者が見つかりません:', patientId);
         alert('患者情報の取得に失敗しました');
+        return;
       }
+      
+      // 新しい患者データを設定
+      this.currentPatient = selectedPatient;
+      console.log('設定された現在の患者:', this.currentPatient);
+      
+      // 患者情報画面を更新
+      await this.loadPatientInfo();
+      
+      // 患者情報タブに移動
+      app.openTab('patient-info');
+      
+      console.log('=== 患者選択完了 ===');
+      
     } catch (error) {
       console.error('患者選択エラー:', error);
-      alert('患者情報の取得に失敗しました');
+      alert('患者情報の取得に失敗しました: ' + error.message);
     }
   }
 
-  // 患者情報を読み込み（修正版）
+  // すべての患者関連データをクリア（新規追加）
+  clearAllPatientData() {
+    console.log('すべての患者データをクリア中...');
+    
+    // 現在の患者をクリア
+    this.currentPatient = null;
+    
+    // 検査データをクリア
+    if (window.assessmentManager) {
+      assessmentManager.currentAssessment = null;
+      assessmentManager.assessmentStatus = {
+        tci: false,
+        dryness: false,
+        biteForce: false,
+        oralDiadochokinesis: false,
+        tonguePressure: false,
+        mastication: false,
+        swallowing: false
+      };
+      assessmentManager.eat10Scores = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    }
+    
+    // 管理計画データをクリア
+    if (window.managementManager) {
+      managementManager.selectedManagementOptions = {};
+    }
+    
+    // 画面のコンテンツをクリア
+    const contentElements = [
+      'patient-info-content',
+      'assessment-content', 
+      'diagnosis-content',
+      'management-plan-content',
+      'progress-record-content',
+      'patient-history-content'
+    ];
+    
+    contentElements.forEach(elementId => {
+      const element = document.getElementById(elementId);
+      if (element) {
+        element.innerHTML = '<p>患者を選択してください。</p>';
+      }
+    });
+    
+    console.log('データクリア完了');
+  }
+
+  // 患者情報を読み込み（完全修正版）
   async loadPatientInfo() {
     if (!this.currentPatient) {
-      console.warn('currentPatient が設定されていません');
+      console.error('currentPatient が設定されていません');
+      document.getElementById('patient-info-content').innerHTML = '<p>患者を選択してください。</p>';
       return;
     }
 
-    console.log('患者情報読み込み開始:', this.currentPatient.name); // デバッグ用ログ
+    console.log('患者情報読み込み開始:', this.currentPatient);
 
     const age = this.calculateAge(this.currentPatient.birthdate);
     const content = document.getElementById('patient-info-content');
     
-    // 患者情報を強制的に最新データで更新
-    content.innerHTML = `
+    // 患者情報HTMLを強制的に再生成
+    const patientInfoHTML = `
       <div class="summary-card">
         <h3>基本情報</h3>
+        <p style="background: #e3f2fd; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+          <strong>選択中の患者:</strong> ${this.currentPatient.name} (内部ID: ${this.currentPatient.id})
+        </p>
         <div class="grid-container">
           <div><strong>患者氏名:</strong> ${this.currentPatient.name}</div>
           <div><strong>患者ID:</strong> ${this.currentPatient.patient_id}</div>
@@ -184,46 +239,46 @@ class PatientManager {
 
       <div class="summary-card">
         <h3>全身の状態</h3>
-        <div id="general-conditions-form">
+        <div id="general-conditions-form-${this.currentPatient.id}">
           <div class="grid-container">
             <div class="form-group">
               <label>基礎疾患</label>
               <div class="checkbox-container">
                 <label class="checkbox-item">
-                  <input type="checkbox" name="disease" value="heart"> 心疾患
+                  <input type="checkbox" name="disease-${this.currentPatient.id}" value="heart"> 心疾患
                 </label>
                 <label class="checkbox-item">
-                  <input type="checkbox" name="disease" value="hepatitis"> 肝炎
+                  <input type="checkbox" name="disease-${this.currentPatient.id}" value="hepatitis"> 肝炎
                 </label>
                 <label class="checkbox-item">
-                  <input type="checkbox" name="disease" value="diabetes"> 糖尿病
+                  <input type="checkbox" name="disease-${this.currentPatient.id}" value="diabetes"> 糖尿病
                 </label>
                 <label class="checkbox-item">
-                  <input type="checkbox" name="disease" value="hypertension"> 高血圧症
+                  <input type="checkbox" name="disease-${this.currentPatient.id}" value="hypertension"> 高血圧症
                 </label>
                 <label class="checkbox-item">
-                  <input type="checkbox" name="disease" value="stroke"> 脳血管疾患
+                  <input type="checkbox" name="disease-${this.currentPatient.id}" value="stroke"> 脳血管疾患
                 </label>
                 <label class="checkbox-item">
-                  <input type="checkbox" name="disease" value="other"> その他
+                  <input type="checkbox" name="disease-${this.currentPatient.id}" value="other"> その他
                 </label>
               </div>
             </div>
             
             <div class="form-group">
-              <label for="medication">服用薬剤</label>
-              <select id="medication-status" onchange="patientManager.toggleMedicationDetails()">
+              <label for="medication-status-${this.currentPatient.id}">服用薬剤</label>
+              <select id="medication-status-${this.currentPatient.id}" onchange="patientManager.toggleMedicationDetails()">
                 <option value="no">なし</option>
                 <option value="yes">あり</option>
               </select>
-              <div id="medication-details" style="margin-top: 10px; display: none;">
-                <textarea id="medication-list" placeholder="薬剤名をご記入ください"></textarea>
+              <div id="medication-details-${this.currentPatient.id}" style="margin-top: 10px; display: none;">
+                <textarea id="medication-list-${this.currentPatient.id}" placeholder="薬剤名をご記入ください"></textarea>
               </div>
             </div>
             
             <div class="form-group">
-              <label for="pneumonia-history">肺炎の既往</label>
-              <select id="pneumonia-history">
+              <label for="pneumonia-history-${this.currentPatient.id}">肺炎の既往</label>
+              <select id="pneumonia-history-${this.currentPatient.id}">
                 <option value="no">なし</option>
                 <option value="yes">あり</option>
                 <option value="repeated">繰り返しあり</option>
@@ -231,19 +286,19 @@ class PatientManager {
             </div>
             
             <div class="form-group">
-              <label for="height">身長 (cm)</label>
-              <input type="number" id="height" placeholder="例：165">
+              <label for="height-${this.currentPatient.id}">身長 (cm)</label>
+              <input type="number" id="height-${this.currentPatient.id}" placeholder="例：165">
             </div>
             
             <div class="form-group">
-              <label for="weight">体重 (kg)</label>
-              <input type="number" id="weight" placeholder="例：60">
+              <label for="weight-${this.currentPatient.id}">体重 (kg)</label>
+              <input type="number" id="weight-${this.currentPatient.id}" placeholder="例：60">
             </div>
             
             <div class="form-group">
-              <label for="bmi">BMI</label>
+              <label for="bmi-${this.currentPatient.id}">BMI</label>
               <div class="input-group">
-                <input type="text" id="bmi" readonly>
+                <input type="text" id="bmi-${this.currentPatient.id}" readonly>
                 <div class="input-group-append">
                   <button type="button" onclick="patientManager.calculateBMI()">計算</button>
                 </div>
@@ -256,53 +311,68 @@ class PatientManager {
       </div>
     `;
 
-    // 既存の全身状態データを読み込み（現在の患者のもの）
+    // HTMLを設定
+    content.innerHTML = patientInfoHTML;
+
+    // 現在の患者の既存の全身状態データを読み込み
     await this.loadGeneralConditions();
     
-    console.log('患者情報読み込み完了'); // デバッグ用ログ
+    console.log('患者情報読み込み完了');
   }
 
-  // 服用薬剤の詳細表示切り替え
+  // 服用薬剤の詳細表示切り替え（修正版）
   toggleMedicationDetails() {
-    const medicationStatus = document.getElementById('medication-status').value;
-    const medicationDetails = document.getElementById('medication-details');
+    if (!this.currentPatient) return;
     
-    if (medicationStatus === 'yes') {
-      medicationDetails.style.display = 'block';
-    } else {
-      medicationDetails.style.display = 'none';
+    const medicationStatus = document.getElementById(`medication-status-${this.currentPatient.id}`);
+    const medicationDetails = document.getElementById(`medication-details-${this.currentPatient.id}`);
+    
+    if (medicationStatus && medicationDetails) {
+      if (medicationStatus.value === 'yes') {
+        medicationDetails.style.display = 'block';
+      } else {
+        medicationDetails.style.display = 'none';
+      }
     }
   }
 
-  // BMI計算
+  // BMI計算（修正版）
   calculateBMI() {
-    const height = parseFloat(document.getElementById('height').value) / 100;
-    const weight = parseFloat(document.getElementById('weight').value);
+    if (!this.currentPatient) return;
+    
+    const heightElement = document.getElementById(`height-${this.currentPatient.id}`);
+    const weightElement = document.getElementById(`weight-${this.currentPatient.id}`);
+    const bmiElement = document.getElementById(`bmi-${this.currentPatient.id}`);
+    
+    if (!heightElement || !weightElement || !bmiElement) return;
+    
+    const height = parseFloat(heightElement.value) / 100;
+    const weight = parseFloat(weightElement.value);
     
     if (height > 0 && weight > 0) {
       const bmi = (weight / (height * height)).toFixed(1);
-      document.getElementById('bmi').value = bmi;
+      bmiElement.value = bmi;
     } else {
       alert('身長と体重を正しく入力してください');
     }
   }
 
-  // 全身状態の保存
+  // 全身状態の保存（修正版）
   async saveGeneralConditions() {
     if (!this.currentPatient) return;
 
-    const diseases = Array.from(document.querySelectorAll('input[name="disease"]:checked')).map(cb => cb.value);
-    const medicationStatus = document.getElementById('medication-status').value;
-    const medicationList = document.getElementById('medication-list').value;
+    const diseases = Array.from(document.querySelectorAll(`input[name="disease-${this.currentPatient.id}"]:checked`)).map(cb => cb.value);
+    const medicationStatus = document.getElementById(`medication-status-${this.currentPatient.id}`).value;
+    const medicationList = document.getElementById(`medication-list-${this.currentPatient.id}`).value;
     
     const generalCondition = {
       patient_id: this.currentPatient.id,
-      height: parseFloat(document.getElementById('height').value) || null,
-      weight: parseFloat(document.getElementById('weight').value) || null,
-      bmi: parseFloat(document.getElementById('bmi').value) || null,
+      height: parseFloat(document.getElementById(`height-${this.currentPatient.id}`).value) || null,
+      weight: parseFloat(document.getElementById(`weight-${this.currentPatient.id}`).value) || null,
+      bmi: parseFloat(document.getElementById(`bmi-${this.currentPatient.id}`).value) || null,
       diseases: JSON.stringify(diseases),
       medications: medicationStatus === 'yes' ? medicationList : '',
-      pneumonia_history: document.getElementById('pneumonia-history').value,
+      pneumonia_history: document.getElementById(`pneumonia-history-${this.currentPatient.id}`).value,
       assessment_date: new Date().toISOString().split('T')[0]
     };
 
@@ -323,17 +393,16 @@ class PatientManager {
     }
 
     try {
-      console.log('全身状態読み込み開始:', this.currentPatient.id); // デバッグ用ログ
+      console.log('全身状態読み込み - 患者ID:', this.currentPatient.id);
       
       // 現在の患者の最新の全身状態データを取得
       const condition = await db.getLatestGeneralCondition(this.currentPatient.id);
+      console.log('取得した全身状態データ:', condition);
       
       if (condition) {
-        console.log('全身状態データ見つかりました:', condition); // デバッグ用ログ
         this.fillGeneralConditionsForm(condition);
       } else {
-        console.log('全身状態データが見つかりませんでした'); // デバッグ用ログ
-        // フォームをクリア
+        console.log('全身状態データが見つかりませんでした');
         this.clearGeneralConditionsForm();
       }
     } catch (error) {
@@ -341,28 +410,30 @@ class PatientManager {
     }
   }
 
-  // 全身状態フォームのクリア（新規追加）
+  // 全身状態フォームのクリア（修正版）
   clearGeneralConditionsForm() {
+    if (!this.currentPatient) return;
+    
     // チェックボックスをクリア
-    const checkboxes = document.querySelectorAll('input[name="disease"]');
+    const checkboxes = document.querySelectorAll(`input[name="disease-${this.currentPatient.id}"]`);
     checkboxes.forEach(checkbox => {
       checkbox.checked = false;
     });
     
     // 選択肢をリセット
-    const medicationStatus = document.getElementById('medication-status');
+    const medicationStatus = document.getElementById(`medication-status-${this.currentPatient.id}`);
     if (medicationStatus) {
       medicationStatus.value = 'no';
       this.toggleMedicationDetails();
     }
     
-    const pneumoniaHistory = document.getElementById('pneumonia-history');
+    const pneumoniaHistory = document.getElementById(`pneumonia-history-${this.currentPatient.id}`);
     if (pneumoniaHistory) {
       pneumoniaHistory.value = 'no';
     }
     
     // 数値フィールドをクリア
-    const numericFields = ['height', 'weight', 'bmi'];
+    const numericFields = [`height-${this.currentPatient.id}`, `weight-${this.currentPatient.id}`, `bmi-${this.currentPatient.id}`];
     numericFields.forEach(fieldId => {
       const field = document.getElementById(fieldId);
       if (field) {
@@ -371,27 +442,40 @@ class PatientManager {
     });
     
     // テキストエリアをクリア
-    const medicationList = document.getElementById('medication-list');
+    const medicationList = document.getElementById(`medication-list-${this.currentPatient.id}`);
     if (medicationList) {
       medicationList.value = '';
     }
   }
 
-  // 全身状態フォームの入力
+  // 全身状態フォームの入力（修正版）
   fillGeneralConditionsForm(condition) {
+    if (!this.currentPatient) return;
+    
     // まずフォームをクリア
     this.clearGeneralConditionsForm();
     
     // データがある場合のみ入力
-    if (condition.height) document.getElementById('height').value = condition.height;
-    if (condition.weight) document.getElementById('weight').value = condition.weight;
-    if (condition.bmi) document.getElementById('bmi').value = condition.bmi;
+    if (condition.height) {
+      const heightElement = document.getElementById(`height-${this.currentPatient.id}`);
+      if (heightElement) heightElement.value = condition.height;
+    }
+    
+    if (condition.weight) {
+      const weightElement = document.getElementById(`weight-${this.currentPatient.id}`);
+      if (weightElement) weightElement.value = condition.weight;
+    }
+    
+    if (condition.bmi) {
+      const bmiElement = document.getElementById(`bmi-${this.currentPatient.id}`);
+      if (bmiElement) bmiElement.value = condition.bmi;
+    }
     
     if (condition.diseases) {
       try {
         const diseases = JSON.parse(condition.diseases);
         diseases.forEach(disease => {
-          const checkbox = document.querySelector(`input[name="disease"][value="${disease}"]`);
+          const checkbox = document.querySelector(`input[name="disease-${this.currentPatient.id}"][value="${disease}"]`);
           if (checkbox) checkbox.checked = true;
         });
       } catch (error) {
@@ -400,13 +484,19 @@ class PatientManager {
     }
     
     if (condition.medications) {
-      document.getElementById('medication-status').value = 'yes';
-      document.getElementById('medication-list').value = condition.medications;
-      this.toggleMedicationDetails();
+      const medicationStatus = document.getElementById(`medication-status-${this.currentPatient.id}`);
+      const medicationList = document.getElementById(`medication-list-${this.currentPatient.id}`);
+      
+      if (medicationStatus && medicationList) {
+        medicationStatus.value = 'yes';
+        medicationList.value = condition.medications;
+        this.toggleMedicationDetails();
+      }
     }
     
     if (condition.pneumonia_history) {
-      document.getElementById('pneumonia-history').value = condition.pneumonia_history;
+      const pneumoniaHistory = document.getElementById(`pneumonia-history-${this.currentPatient.id}`);
+      if (pneumoniaHistory) pneumoniaHistory.value = condition.pneumonia_history;
     }
   }
 
@@ -459,12 +549,7 @@ class PatientManager {
       
       // 現在選択中の患者が削除された場合
       if (this.currentPatient && this.currentPatient.id === patientId) {
-        this.currentPatient = null;
-        // 検査データもクリア
-        if (assessmentManager) {
-          assessmentManager.currentAssessment = null;
-        }
-        document.getElementById('patient-info-content').innerHTML = '<p>患者一覧から患者を選択するか、新規登録を行ってください。</p>';
+        this.clearAllPatientData();
       }
     } catch (error) {
       console.error('患者削除エラー:', error);
@@ -472,7 +557,7 @@ class PatientManager {
     }
   }
 
-  // 患者フォーム送信処理（修正版）
+  // 患者フォーム送信処理
   async handlePatientFormSubmit(event) {
     event.preventDefault();
     
@@ -495,10 +580,10 @@ class PatientManager {
         updatedPatient = await db.updatePatient(parseInt(editId), patientData);
         alert('患者情報が更新されました');
         
-        // 現在選択中の患者が更新された場合、currentPatient も更新
+        // 現在選択中の患者が更新された場合
         if (this.currentPatient && this.currentPatient.id === parseInt(editId)) {
           this.currentPatient = updatedPatient;
-          await this.loadPatientInfo(); // 画面を更新
+          await this.loadPatientInfo();
         }
       } else {
         // 新規登録
@@ -507,8 +592,6 @@ class PatientManager {
       }
       
       this.closeAddPatientModal();
-      
-      // 患者一覧を再読み込み
       await this.loadPatients();
       
     } catch (error) {

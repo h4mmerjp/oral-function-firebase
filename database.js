@@ -1,4 +1,4 @@
-// データベース管理クラス
+// 修正版データベース管理クラス
 class OralHealthDatabase {
   constructor() {
     this.storageKey = 'oralHealthApp';
@@ -54,8 +54,17 @@ class OralHealthDatabase {
   }
 
   async getPatient(id) {
+    console.log('getPatient called with ID:', id, 'type:', typeof id); // デバッグログ
     const data = this.getData();
-    return data.patients.find(p => p.id === id);
+    
+    // IDの型を統一（数値として比較）
+    const numericId = parseInt(id);
+    const patient = data.patients.find(p => parseInt(p.id) === numericId);
+    
+    console.log('Found patient:', patient); // デバッグログ
+    console.log('All patients:', data.patients.map(p => ({id: p.id, name: p.name}))); // デバッグログ
+    
+    return patient;
   }
 
   async createPatient(patientData) {
@@ -68,12 +77,16 @@ class OralHealthDatabase {
     };
     data.patients.push(newPatient);
     this.saveData(data);
+    
+    console.log('Created patient:', newPatient); // デバッグログ
     return newPatient;
   }
 
   async updatePatient(id, patientData) {
     const data = this.getData();
-    const index = data.patients.findIndex(p => p.id === id);
+    const numericId = parseInt(id);
+    const index = data.patients.findIndex(p => parseInt(p.id) === numericId);
+    
     if (index !== -1) {
       data.patients[index] = {
         ...data.patients[index],
@@ -81,6 +94,8 @@ class OralHealthDatabase {
         updated_at: new Date().toISOString()
       };
       this.saveData(data);
+      
+      console.log('Updated patient:', data.patients[index]); // デバッグログ
       return data.patients[index];
     }
     throw new Error('Patient not found');
@@ -88,26 +103,42 @@ class OralHealthDatabase {
 
   async deletePatient(id) {
     const data = this.getData();
-    data.patients = data.patients.filter(p => p.id !== id);
-    data.assessments = data.assessments.filter(a => a.patient_id !== id);
-    data.generalConditions = data.generalConditions.filter(g => g.patient_id !== id);
-    data.managementPlans = data.managementPlans.filter(m => m.patient_id !== id);
-    data.progressRecords = data.progressRecords.filter(p => p.patient_id !== id);
+    const numericId = parseInt(id);
+    
+    data.patients = data.patients.filter(p => parseInt(p.id) !== numericId);
+    data.assessments = data.assessments.filter(a => parseInt(a.patient_id) !== numericId);
+    data.generalConditions = data.generalConditions.filter(g => parseInt(g.patient_id) !== numericId);
+    data.managementPlans = data.managementPlans.filter(m => parseInt(m.patient_id) !== numericId);
+    data.progressRecords = data.progressRecords.filter(p => parseInt(p.patient_id) !== numericId);
+    
     this.saveData(data);
+    console.log('Deleted patient and related data for ID:', numericId); // デバッグログ
   }
 
-  // 検査関連
+  // 検査関連（修正版）
   async getAssessments(patientId = null) {
     const data = this.getData();
-    const assessments = patientId 
-      ? data.assessments.filter(a => a.patient_id === patientId)
-      : data.assessments;
+    let assessments;
+    
+    if (patientId !== null) {
+      const numericPatientId = parseInt(patientId);
+      assessments = data.assessments.filter(a => parseInt(a.patient_id) === numericPatientId);
+      console.log(`Assessments for patient ${numericPatientId}:`, assessments); // デバッグログ
+    } else {
+      assessments = data.assessments;
+    }
+    
     return assessments.sort((a, b) => new Date(b.assessment_date) - new Date(a.assessment_date));
   }
 
   async getLatestAssessment(patientId) {
+    console.log('getLatestAssessment called for patient:', patientId); // デバッグログ
+    
     const assessments = await this.getAssessments(patientId);
-    return assessments.length > 0 ? assessments[0] : null;
+    const latest = assessments.length > 0 ? assessments[0] : null;
+    
+    console.log('Latest assessment for patient', patientId, ':', latest); // デバッグログ
+    return latest;
   }
 
   async createAssessment(assessmentData) {
@@ -119,19 +150,29 @@ class OralHealthDatabase {
     };
     data.assessments.push(newAssessment);
     this.saveData(data);
+    
+    console.log('Created assessment:', newAssessment); // デバッグログ
     return newAssessment;
   }
 
-  // 全身状態関連
+  // 全身状態関連（修正版）
   async getGeneralConditions(patientId) {
     const data = this.getData();
-    const conditions = data.generalConditions.filter(g => g.patient_id === patientId);
+    const numericPatientId = parseInt(patientId);
+    const conditions = data.generalConditions.filter(g => parseInt(g.patient_id) === numericPatientId);
+    
+    console.log(`General conditions for patient ${numericPatientId}:`, conditions); // デバッグログ
     return conditions.sort((a, b) => new Date(b.assessment_date) - new Date(a.assessment_date));
   }
 
   async getLatestGeneralCondition(patientId) {
+    console.log('getLatestGeneralCondition called for patient:', patientId); // デバッグログ
+    
     const conditions = await this.getGeneralConditions(patientId);
-    return conditions.length > 0 ? conditions[0] : null;
+    const latest = conditions.length > 0 ? conditions[0] : null;
+    
+    console.log('Latest general condition for patient', patientId, ':', latest); // デバッグログ
+    return latest;
   }
 
   async createGeneralCondition(conditionData) {
@@ -143,13 +184,16 @@ class OralHealthDatabase {
     };
     data.generalConditions.push(newCondition);
     this.saveData(data);
+    
+    console.log('Created general condition:', newCondition); // デバッグログ
     return newCondition;
   }
 
-  // 管理計画関連
+  // 管理計画関連（修正版）
   async getManagementPlans(patientId) {
     const data = this.getData();
-    const plans = data.managementPlans.filter(m => m.patient_id === patientId);
+    const numericPatientId = parseInt(patientId);
+    const plans = data.managementPlans.filter(m => parseInt(m.patient_id) === numericPatientId);
     return plans.sort((a, b) => new Date(b.plan_date) - new Date(a.plan_date));
   }
 
@@ -165,10 +209,11 @@ class OralHealthDatabase {
     return newPlan;
   }
 
-  // 管理指導記録関連
+  // 管理指導記録関連（修正版）
   async getProgressRecords(patientId) {
     const data = this.getData();
-    const records = data.progressRecords.filter(r => r.patient_id === patientId);
+    const numericPatientId = parseInt(patientId);
+    const records = data.progressRecords.filter(r => parseInt(r.patient_id) === numericPatientId);
     return records.sort((a, b) => new Date(b.record_date) - new Date(a.record_date));
   }
 
@@ -230,14 +275,55 @@ class OralHealthDatabase {
     const data = this.getData();
     const totalPatients = data.patients.length;
     const totalAssessments = data.assessments.length;
-    const diagnosedPatients = data.assessments.filter(a => a.diagnosis_result).length;
+    
+    // 診断済み患者数の計算を修正
+    const diagnosedPatientIds = new Set();
+    data.assessments.forEach(assessment => {
+      if (assessment.diagnosis_result) {
+        diagnosedPatientIds.add(assessment.patient_id);
+      }
+    });
     
     return {
       totalPatients,
       totalAssessments,
-      diagnosedPatients,
-      normalPatients: totalPatients - diagnosedPatients
+      diagnosedPatients: diagnosedPatientIds.size,
+      normalPatients: totalPatients - diagnosedPatientIds.size
     };
+  }
+
+  // データベースの整合性チェック（開発用）
+  checkDataIntegrity() {
+    const data = this.getData();
+    console.log('=== データベース整合性チェック ===');
+    console.log('患者数:', data.patients.length);
+    console.log('検査数:', data.assessments.length);
+    console.log('全身状態記録数:', data.generalConditions.length);
+    
+    // 患者ごとの検査数をチェック
+    data.patients.forEach(patient => {
+      const patientAssessments = data.assessments.filter(a => parseInt(a.patient_id) === parseInt(patient.id));
+      const patientConditions = data.generalConditions.filter(g => parseInt(g.patient_id) === parseInt(patient.id));
+      
+      console.log(`患者 ${patient.name} (ID: ${patient.id}):`, {
+        assessments: patientAssessments.length,
+        conditions: patientConditions.length
+      });
+    });
+    
+    // 孤立したデータをチェック
+    const patientIds = new Set(data.patients.map(p => parseInt(p.id)));
+    const orphanedAssessments = data.assessments.filter(a => !patientIds.has(parseInt(a.patient_id)));
+    const orphanedConditions = data.generalConditions.filter(g => !patientIds.has(parseInt(g.patient_id)));
+    
+    if (orphanedAssessments.length > 0) {
+      console.warn('孤立した検査データ:', orphanedAssessments);
+    }
+    if (orphanedConditions.length > 0) {
+      console.warn('孤立した全身状態データ:', orphanedConditions);
+    }
+    
+    console.log('=== チェック完了 ===');
   }
 }
 
