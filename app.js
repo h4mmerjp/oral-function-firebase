@@ -322,6 +322,11 @@ function closeAddPatientModal() {
   app.closeAddPatientModal();
 }
 
+// 検査開始のグローバル関数
+function startAssessment() {
+  assessmentManager.startAssessment();
+}
+
 // アプリケーション初期化
 let app;
 
