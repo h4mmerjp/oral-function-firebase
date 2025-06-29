@@ -147,7 +147,7 @@ class PatientManager {
         </div>
         <div style="margin-top: 20px;">
           <button onclick="patientManager.editPatient(${this.currentPatient.id})" class="btn-secondary">編集</button>
-          <button onclick="assessmentManager.startAssessment()" class="btn-success">検査開始</button>
+          <button onclick="startAssessment()" class="btn-success">検査開始</button>
           <button onclick="app.openTab('patient-history')" class="btn-secondary">履歴確認</button>
         </div>
       </div>
