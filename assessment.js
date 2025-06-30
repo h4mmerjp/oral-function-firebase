@@ -139,8 +139,8 @@
       </div>
 
       <div style="margin-top: 30px;">
-        <button onclick="createManagementPlanSafe()" class="btn-success">管理計画書作成</button>
-        <button onclick="openPatientHistorySafe()" class="btn-secondary">履歴確認</button>
+        <button onclick="managementManager.createManagementPlan()" class="btn-success">管理計画書作成</button>
+        <button onclick="app.openTab('patient-history')" class="btn-secondary">履歴確認</button>
       </div>
     `;
 
