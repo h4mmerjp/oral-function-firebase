@@ -1,4 +1,4 @@
-// 修正版 patients.js - 患者選択とデータ表示の問題を解決
+// 最終修正版患者管理モジュール
 class PatientManager {
   constructor() {
     this.currentPatient = null;
@@ -16,7 +16,7 @@ class PatientManager {
     }
   }
 
-  // 患者一覧を表示（修正版）
+  // 患者一覧を表示
   async displayPatients(patients) {
     const container = document.getElementById('patients-grid');
     
@@ -34,11 +34,11 @@ class PatientManager {
     for (const patient of patients) {
       const age = this.calculateAge(patient.birthdate);
       
-      // 重要：各患者に対して個別に検査データを取得
+      // 各患者に対して個別に検査データを取得
       const latestAssessment = await db.getLatestAssessment(patient.id);
       const status = this.getPatientStatus(latestAssessment);
       
-      console.log(`患者 ${patient.name} (ID: ${patient.id}) の検査データ:`, latestAssessment); // デバッグログ
+      console.log(`患者 ${patient.name} (ID: ${patient.id}) の検査データ:`, latestAssessment);
       
       html += `
         <div class="patient-card ${status.class}" onclick="selectPatient(${patient.id})" data-patient-id="${patient.id}">
@@ -153,7 +153,7 @@ class PatientManager {
     }
   }
 
-  // すべての患者関連データをクリア（新規追加）
+  // すべての患者関連データをクリア
   clearAllPatientData() {
     console.log('すべての患者データをクリア中...');
     

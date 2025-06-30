@@ -1,4 +1,4 @@
-// 修正版データベース管理クラス
+// 最終修正版データベース管理クラス
 class OralHealthDatabase {
   constructor() {
     this.storageKey = 'oralHealthApp';
@@ -40,11 +40,34 @@ class OralHealthDatabase {
     localStorage.setItem(this.storageKey, JSON.stringify(data));
   }
 
+  // 改良版ID生成 - 重複を防ぐ
   generateId() {
     const data = this.getData();
-    data.lastId += 1;
+    
+    // 現在の最大IDを確認
+    let maxId = data.lastId || 0;
+    
+    // 全データから実際の最大IDを確認（安全対策）
+    const allItems = [
+      ...data.patients,
+      ...data.assessments,
+      ...data.generalConditions,
+      ...data.managementPlans,
+      ...data.progressRecords
+    ];
+    
+    allItems.forEach(item => {
+      if (item.id && parseInt(item.id) > maxId) {
+        maxId = parseInt(item.id);
+      }
+    });
+    
+    const newId = maxId + 1;
+    data.lastId = newId;
     this.saveData(data);
-    return data.lastId;
+    
+    console.log('Generated new ID:', newId);
+    return newId;
   }
 
   // 患者関連
@@ -54,31 +77,42 @@ class OralHealthDatabase {
   }
 
   async getPatient(id) {
-    console.log('getPatient called with ID:', id, 'type:', typeof id); // デバッグログ
+    console.log('getPatient called with ID:', id, 'type:', typeof id);
     const data = this.getData();
     
     // IDの型を統一（数値として比較）
     const numericId = parseInt(id);
     const patient = data.patients.find(p => parseInt(p.id) === numericId);
     
-    console.log('Found patient:', patient); // デバッグログ
-    console.log('All patients:', data.patients.map(p => ({id: p.id, name: p.name}))); // デバッグログ
-    
+    console.log('Found patient:', patient);
     return patient;
   }
 
   async createPatient(patientData) {
     const data = this.getData();
+    
+    // 重複チェック（患者IDまたは名前+生年月日の重複）
+    const existingPatient = data.patients.find(p => 
+      p.patient_id === patientData.patient_id || 
+      (p.name === patientData.name && p.birthdate === patientData.birthdate)
+    );
+    
+    if (existingPatient) {
+      console.warn('重複する患者が見つかりました:', existingPatient);
+      throw new Error('同じ患者IDまたは患者情報が既に存在します');
+    }
+    
     const newPatient = {
       id: this.generateId(),
       ...patientData,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
+    
     data.patients.push(newPatient);
     this.saveData(data);
     
-    console.log('Created patient:', newPatient); // デバッグログ
+    console.log('Created new patient:', newPatient);
     return newPatient;
   }
 
@@ -91,11 +125,12 @@ class OralHealthDatabase {
       data.patients[index] = {
         ...data.patients[index],
         ...patientData,
+        id: numericId, // IDは変更しない
         updated_at: new Date().toISOString()
       };
       this.saveData(data);
       
-      console.log('Updated patient:', data.patients[index]); // デバッグログ
+      console.log('Updated patient:', data.patients[index]);
       return data.patients[index];
     }
     throw new Error('Patient not found');
@@ -105,6 +140,14 @@ class OralHealthDatabase {
     const data = this.getData();
     const numericId = parseInt(id);
     
+    // 削除前のチェック
+    const patientExists = data.patients.some(p => parseInt(p.id) === numericId);
+    if (!patientExists) {
+      console.warn('削除対象の患者が見つかりません:', numericId);
+      return;
+    }
+    
+    // 関連データも削除
     data.patients = data.patients.filter(p => parseInt(p.id) !== numericId);
     data.assessments = data.assessments.filter(a => parseInt(a.patient_id) !== numericId);
     data.generalConditions = data.generalConditions.filter(g => parseInt(g.patient_id) !== numericId);
@@ -112,10 +155,10 @@ class OralHealthDatabase {
     data.progressRecords = data.progressRecords.filter(p => parseInt(p.patient_id) !== numericId);
     
     this.saveData(data);
-    console.log('Deleted patient and related data for ID:', numericId); // デバッグログ
+    console.log('Deleted patient and related data for ID:', numericId);
   }
 
-  // 検査関連（修正版）
+  // 検査関連
   async getAssessments(patientId = null) {
     const data = this.getData();
     let assessments;
@@ -123,7 +166,7 @@ class OralHealthDatabase {
     if (patientId !== null) {
       const numericPatientId = parseInt(patientId);
       assessments = data.assessments.filter(a => parseInt(a.patient_id) === numericPatientId);
-      console.log(`Assessments for patient ${numericPatientId}:`, assessments); // デバッグログ
+      console.log(`Assessments for patient ${numericPatientId}:`, assessments);
     } else {
       assessments = data.assessments;
     }
@@ -132,64 +175,82 @@ class OralHealthDatabase {
   }
 
   async getLatestAssessment(patientId) {
-    console.log('getLatestAssessment called for patient:', patientId); // デバッグログ
+    console.log('getLatestAssessment called for patient:', patientId);
     
     const assessments = await this.getAssessments(patientId);
     const latest = assessments.length > 0 ? assessments[0] : null;
     
-    console.log('Latest assessment for patient', patientId, ':', latest); // デバッグログ
+    console.log('Latest assessment for patient', patientId, ':', latest);
     return latest;
   }
 
   async createAssessment(assessmentData) {
     const data = this.getData();
+    
+    // 患者の存在確認
+    const patientExists = data.patients.some(p => parseInt(p.id) === parseInt(assessmentData.patient_id));
+    if (!patientExists) {
+      throw new Error('指定された患者が存在しません');
+    }
+    
     const newAssessment = {
       id: this.generateId(),
       ...assessmentData,
+      patient_id: parseInt(assessmentData.patient_id), // 数値型で保存
       created_at: new Date().toISOString()
     };
+    
     data.assessments.push(newAssessment);
     this.saveData(data);
     
-    console.log('Created assessment:', newAssessment); // デバッグログ
+    console.log('Created assessment:', newAssessment);
     return newAssessment;
   }
 
-  // 全身状態関連（修正版）
+  // 全身状態関連
   async getGeneralConditions(patientId) {
     const data = this.getData();
     const numericPatientId = parseInt(patientId);
     const conditions = data.generalConditions.filter(g => parseInt(g.patient_id) === numericPatientId);
     
-    console.log(`General conditions for patient ${numericPatientId}:`, conditions); // デバッグログ
+    console.log(`General conditions for patient ${numericPatientId}:`, conditions);
     return conditions.sort((a, b) => new Date(b.assessment_date) - new Date(a.assessment_date));
   }
 
   async getLatestGeneralCondition(patientId) {
-    console.log('getLatestGeneralCondition called for patient:', patientId); // デバッグログ
+    console.log('getLatestGeneralCondition called for patient:', patientId);
     
     const conditions = await this.getGeneralConditions(patientId);
     const latest = conditions.length > 0 ? conditions[0] : null;
     
-    console.log('Latest general condition for patient', patientId, ':', latest); // デバッグログ
+    console.log('Latest general condition for patient', patientId, ':', latest);
     return latest;
   }
 
   async createGeneralCondition(conditionData) {
     const data = this.getData();
+    
+    // 患者の存在確認
+    const patientExists = data.patients.some(p => parseInt(p.id) === parseInt(conditionData.patient_id));
+    if (!patientExists) {
+      throw new Error('指定された患者が存在しません');
+    }
+    
     const newCondition = {
       id: this.generateId(),
       ...conditionData,
+      patient_id: parseInt(conditionData.patient_id), // 数値型で保存
       created_at: new Date().toISOString()
     };
+    
     data.generalConditions.push(newCondition);
     this.saveData(data);
     
-    console.log('Created general condition:', newCondition); // デバッグログ
+    console.log('Created general condition:', newCondition);
     return newCondition;
   }
 
-  // 管理計画関連（修正版）
+  // 管理計画関連
   async getManagementPlans(patientId) {
     const data = this.getData();
     const numericPatientId = parseInt(patientId);
@@ -202,6 +263,7 @@ class OralHealthDatabase {
     const newPlan = {
       id: this.generateId(),
       ...planData,
+      patient_id: parseInt(planData.patient_id),
       created_at: new Date().toISOString()
     };
     data.managementPlans.push(newPlan);
@@ -209,7 +271,7 @@ class OralHealthDatabase {
     return newPlan;
   }
 
-  // 管理指導記録関連（修正版）
+  // 管理指導記録関連
   async getProgressRecords(patientId) {
     const data = this.getData();
     const numericPatientId = parseInt(patientId);
@@ -222,6 +284,7 @@ class OralHealthDatabase {
     const newRecord = {
       id: this.generateId(),
       ...recordData,
+      patient_id: parseInt(recordData.patient_id),
       created_at: new Date().toISOString()
     };
     data.progressRecords.push(newRecord);
@@ -235,7 +298,7 @@ class OralHealthDatabase {
     const exportData = {
       ...data,
       exportDate: new Date().toISOString(),
-      version: '1.0'
+      version: '1.1'
     };
     return JSON.stringify(exportData, null, 2);
   }
@@ -252,6 +315,9 @@ class OralHealthDatabase {
       if (!importedData.patients || !Array.isArray(importedData.patients)) {
         throw new Error('無効なデータ形式です');
       }
+      
+      // IDの整合性をチェック・修正
+      this.validateAndFixImportedData(importedData);
       
       // データをインポート
       this.saveData({
@@ -270,17 +336,50 @@ class OralHealthDatabase {
     }
   }
 
+  // インポートデータの検証と修正
+  validateAndFixImportedData(data) {
+    let maxId = 0;
+    
+    // 最大IDを確認
+    const allItems = [
+      ...data.patients,
+      ...data.assessments,
+      ...data.generalConditions,
+      ...data.managementPlans,
+      ...data.progressRecords
+    ];
+    
+    allItems.forEach(item => {
+      if (item.id && parseInt(item.id) > maxId) {
+        maxId = parseInt(item.id);
+      }
+    });
+    
+    data.lastId = maxId;
+    
+    // patient_idの数値化
+    ['assessments', 'generalConditions', 'managementPlans', 'progressRecords'].forEach(key => {
+      if (data[key]) {
+        data[key].forEach(item => {
+          if (item.patient_id) {
+            item.patient_id = parseInt(item.patient_id);
+          }
+        });
+      }
+    });
+  }
+
   // データの統計
   getStatistics() {
     const data = this.getData();
     const totalPatients = data.patients.length;
     const totalAssessments = data.assessments.length;
     
-    // 診断済み患者数の計算を修正
+    // 診断済み患者数の計算
     const diagnosedPatientIds = new Set();
     data.assessments.forEach(assessment => {
       if (assessment.diagnosis_result) {
-        diagnosedPatientIds.add(assessment.patient_id);
+        diagnosedPatientIds.add(parseInt(assessment.patient_id));
       }
     });
     
@@ -290,40 +389,6 @@ class OralHealthDatabase {
       diagnosedPatients: diagnosedPatientIds.size,
       normalPatients: totalPatients - diagnosedPatientIds.size
     };
-  }
-
-  // データベースの整合性チェック（開発用）
-  checkDataIntegrity() {
-    const data = this.getData();
-    console.log('=== データベース整合性チェック ===');
-    console.log('患者数:', data.patients.length);
-    console.log('検査数:', data.assessments.length);
-    console.log('全身状態記録数:', data.generalConditions.length);
-    
-    // 患者ごとの検査数をチェック
-    data.patients.forEach(patient => {
-      const patientAssessments = data.assessments.filter(a => parseInt(a.patient_id) === parseInt(patient.id));
-      const patientConditions = data.generalConditions.filter(g => parseInt(g.patient_id) === parseInt(patient.id));
-      
-      console.log(`患者 ${patient.name} (ID: ${patient.id}):`, {
-        assessments: patientAssessments.length,
-        conditions: patientConditions.length
-      });
-    });
-    
-    // 孤立したデータをチェック
-    const patientIds = new Set(data.patients.map(p => parseInt(p.id)));
-    const orphanedAssessments = data.assessments.filter(a => !patientIds.has(parseInt(a.patient_id)));
-    const orphanedConditions = data.generalConditions.filter(g => !patientIds.has(parseInt(g.patient_id)));
-    
-    if (orphanedAssessments.length > 0) {
-      console.warn('孤立した検査データ:', orphanedAssessments);
-    }
-    if (orphanedConditions.length > 0) {
-      console.warn('孤立した全身状態データ:', orphanedConditions);
-    }
-    
-    console.log('=== チェック完了 ===');
   }
 }
 
