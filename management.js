@@ -1,34 +1,73 @@
-// 管理計画モジュール（完全修正版）
+// 管理計画モジュール（修正版）
 class ManagementManager {
   constructor() {
     this.selectedManagementOptions = {};
     console.log('ManagementManager が初期化されました');
   }
 
-  // 管理計画書作成
+  // 管理計画書作成（修正版）
   createManagementPlan() {
     console.log('管理計画書作成が呼び出されました');
     
-    if (!window.patientManager || !patientManager.currentPatient || 
-        !window.assessmentManager || !assessmentManager.currentAssessment) {
-      alert('患者情報と検査結果が必要です');
+    if (!window.patientManager || !patientManager.currentPatient) {
+      alert('患者を選択してください');
+      return;
+    }
+    
+    if (!window.assessmentManager || !assessmentManager.currentAssessment) {
+      alert('検査を完了してください');
       return;
     }
 
     console.log('必要なデータが揃っています');
-    this.loadManagementPlanContent();
+    console.log('現在の患者:', patientManager.currentPatient);
+    console.log('現在の検査:', assessmentManager.currentAssessment);
     
-    // タブ切り替え
-    if (window.app) {
-      app.openTab('management-plan');
-    } else {
-      this.directTabSwitch('management-plan');
+    try {
+      // 管理計画書コンテンツを読み込み
+      this.loadManagementPlanContent();
+      
+      // タブ切り替えを確実に実行
+      this.switchToManagementPlanTab();
+      
+      console.log('管理計画書作成完了');
+    } catch (error) {
+      console.error('管理計画書作成エラー:', error);
+      alert('管理計画書の作成に失敗しました: ' + error.message);
     }
-    
-    console.log('管理計画書作成完了');
   }
 
-  // 直接タブ切り替え（app オブジェクトが利用できない場合の代替手段）
+  // 管理計画書タブへの切り替え（確実な実行）
+  switchToManagementPlanTab() {
+    console.log('管理計画書タブへの切り替え開始');
+    
+    try {
+      // 方法1: appオブジェクトを使用
+      if (window.app && typeof window.app.openTab === 'function') {
+        console.log('app.openTabを使用してタブ切り替え');
+        app.openTab('management-plan');
+        return;
+      }
+      
+      // 方法2: グローバル関数を使用
+      if (typeof window.openTab === 'function') {
+        console.log('グローバルopenTab関数を使用してタブ切り替え');
+        window.openTab('management-plan');
+        return;
+      }
+      
+      // 方法3: 直接DOM操作
+      console.log('直接DOM操作でタブ切り替え');
+      this.directTabSwitch('management-plan');
+      
+    } catch (error) {
+      console.error('タブ切り替えエラー:', error);
+      // フォールバック: 直接DOM操作
+      this.directTabSwitch('management-plan');
+    }
+  }
+
+  // 直接タブ切り替え（確実な実行版）
   directTabSwitch(tabName) {
     try {
       console.log('直接タブ切り替えを実行:', tabName);
@@ -37,43 +76,76 @@ class ManagementManager {
       const tabContents = document.querySelectorAll('.tab-content');
       tabContents.forEach(content => {
         content.classList.remove('active');
+        console.log('タブコンテンツ非表示:', content.id);
       });
       
-      // すべてのタブを非アクティブ
+      // すべてのタブボタンを非アクティブ
       const tabs = document.querySelectorAll('.tab');
       tabs.forEach(tab => {
         tab.classList.remove('active');
+        console.log('タブボタン非アクティブ:', tab.textContent);
       });
       
-      // 指定されたタブを表示
-      const targetTab = document.getElementById(tabName);
-      if (targetTab) {
-        targetTab.classList.add('active');
-        console.log('タブ表示完了:', tabName);
+      // 指定されたタブコンテンツを表示
+      const targetTabContent = document.getElementById(tabName);
+      if (targetTabContent) {
+        targetTabContent.classList.add('active');
+        console.log('対象タブコンテンツ表示完了:', tabName);
       } else {
-        console.error('対象タブが見つかりません:', tabName);
+        console.error('対象タブコンテンツが見つかりません:', tabName);
+        return false;
       }
       
-      // 対応するタブボタンをアクティブ化
-      const tabButton = document.querySelector(`.tab[onclick*="${tabName}"]`);
+      // 対応するタブボタンをアクティブ化（複数の方法で試行）
+      let tabButton = null;
+      
+      // 方法1: onclick属性で検索
+      tabButton = document.querySelector(`.tab[onclick*="${tabName}"]`);
+      if (!tabButton) {
+        // 方法2: テキスト内容で検索
+        const tabs = document.querySelectorAll('.tab');
+        tabs.forEach(tab => {
+          if (tab.textContent.includes('管理計画書')) {
+            tabButton = tab;
+          }
+        });
+      }
+      
       if (tabButton) {
         tabButton.classList.add('active');
-        console.log('タブボタンアクティブ化完了');
+        console.log('タブボタンアクティブ化完了:', tabButton.textContent);
+      } else {
+        console.warn('対応するタブボタンが見つかりません');
       }
+      
+      return true;
       
     } catch (error) {
       console.error('直接タブ切り替えエラー:', error);
+      return false;
     }
   }
 
-  // 管理計画書コンテンツの読み込み
+  // 管理計画書コンテンツの読み込み（修正版）
   loadManagementPlanContent() {
+    console.log('管理計画書コンテンツ読み込み開始');
+    
     const content = document.getElementById('management-plan-content');
     
     if (!content) {
       console.error('management-plan-content 要素が見つかりません');
-      return;
+      throw new Error('管理計画書コンテンツ要素が見つかりません');
     }
+    
+    if (!patientManager.currentPatient) {
+      throw new Error('患者が選択されていません');
+    }
+    
+    if (!assessmentManager.currentAssessment) {
+      throw new Error('検査結果がありません');
+    }
+    
+    console.log('管理計画書HTML生成開始');
     
     content.innerHTML = `
       <div class="summary-card">
@@ -201,8 +273,12 @@ class ManagementManager {
       </div>
     `;
 
-    // デフォルトの管理方針を自動選択
-    this.setDefaultManagementOptions();
+    console.log('管理計画書HTML生成完了');
+
+    // デフォルトの管理方針を自動選択（少し遅延して実行）
+    setTimeout(() => {
+      this.setDefaultManagementOptions();
+    }, 100);
   }
 
   // デフォルトの管理目標を生成
@@ -268,15 +344,13 @@ class ManagementManager {
       'swallowing': assessment.swallowing_status ? 3 : 2
     };
 
-    // 各オプションを自動選択（少し遅延して実行）
-    setTimeout(() => {
-      Object.entries(options).forEach(([type, value]) => {
-        const option = document.querySelector(`.rating-option[onclick*="${type}"][data-value="${value}"]`);
-        if (option) {
-          option.click();
-        }
-      });
-    }, 100);
+    // 各オプションを自動選択
+    Object.entries(options).forEach(([type, value]) => {
+      const option = document.querySelector(`.rating-option[onclick*="${type}"][data-value="${value}"]`);
+      if (option) {
+        option.click();
+      }
+    });
   }
 
   // 管理オプション選択
@@ -479,9 +553,21 @@ class ManagementManager {
     `;
 
     // タブ切り替え
-    if (window.app) {
-      app.openTab('progress-record');
-    } else {
+    this.switchToProgressRecordTab();
+  }
+
+  // 管理指導記録タブへの切り替え
+  switchToProgressRecordTab() {
+    try {
+      if (window.app && typeof window.app.openTab === 'function') {
+        app.openTab('progress-record');
+      } else if (typeof window.openTab === 'function') {
+        window.openTab('progress-record');
+      } else {
+        this.directTabSwitch('progress-record');
+      }
+    } catch (error) {
+      console.error('タブ切り替えエラー:', error);
       this.directTabSwitch('progress-record');
     }
   }
@@ -590,42 +676,76 @@ class ManagementManager {
             </tr>
           </thead>
           <tbody>
-            <tr><td>栄養・体重</td><td>${ratingText(record.nutrition_rating)}</td></tr>
-            <tr><td>口腔衛生</td><td>${ratingText(record.hygiene_rating)}</td></tr>
-            <tr><td>口腔乾燥</td><td>${ratingText(record.dryness_rating)}</td></tr>
-            <tr><td>咬合・義歯</td><td>${ratingText(record.bite_rating)}</td></tr>
-            <tr><td>口唇機能</td><td>${ratingText(record.lip_rating)}</td></tr>
-            <tr><td>舌機能</td><td>${ratingText(record.tongue_rating)}</td></tr>
-            <tr><td>咀嚼機能</td><td>${ratingText(record.mastication_rating)}</td></tr>
-            <tr><td>嚥下機能</td><td>${ratingText(record.swallowing_rating)}</td></tr>
+            <tr>
+              <td>栄養・体重</td>
+              <td>${ratingText(record.nutrition_rating)}</td>
+            </tr>
+            <tr>
+              <td>口腔衛生</td>
+              <td>${ratingText(record.hygiene_rating)}</td>
+            </tr>
+            <tr>
+              <td>口腔乾燥</td>
+              <td>${ratingText(record.dryness_rating)}</td>
+            </tr>
+            <tr>
+              <td>咬合・義歯</td>
+              <td>${ratingText(record.bite_rating)}</td>
+            </tr>
+            <tr>
+              <td>口唇機能</td>
+              <td>${ratingText(record.lip_rating)}</td>
+            </tr>
+            <tr>
+              <td>舌機能</td>
+              <td>${ratingText(record.tongue_rating)}</td>
+            </tr>
+            <tr>
+              <td>咀嚼機能</td>
+              <td>${ratingText(record.mastication_rating)}</td>
+            </tr>
+            <tr>
+              <td>嚥下機能</td>
+              <td>${ratingText(record.swallowing_rating)}</td>
+            </tr>
           </tbody>
         </table>
       </div>
 
       <div class="summary-card">
         <h3>所見</h3>
-        <div><strong>全身状態:</strong><br>${record.findings_general || '記載なし'}</div>
-        <div style="margin-top: 10px;"><strong>口腔機能:</strong><br>${record.findings_oral || '記載なし'}</div>
-        <div style="margin-top: 10px;"><strong>その他:</strong><br>${record.findings_other || '記載なし'}</div>
+        <div class="form-group">
+          <label>全身状態</label>
+          <div style="background: #f9f9f9; padding: 10px; border-radius: 4px;">
+            ${record.findings_general || '記録なし'}
+          </div>
+        </div>
+        <div class="form-group">
+          <label>口腔機能</label>
+          <div style="background: #f9f9f9; padding: 10px; border-radius: 4px;">
+            ${record.findings_oral || '記録なし'}
+          </div>
+        </div>
+        <div class="form-group">
+          <label>その他</label>
+          <div style="background: #f9f9f9; padding: 10px; border-radius: 4px;">
+            ${record.findings_other || '記録なし'}
+          </div>
+        </div>
       </div>
 
       <div class="summary-card">
         <h3>管理内容</h3>
-        <div>${record.management_content || '記載なし'}</div>
+        <div style="background: #f9f9f9; padding: 10px; border-radius: 4px;">
+          ${record.management_content || '記録なし'}
+        </div>
       </div>
 
       <div style="margin-top: 30px;">
         <button onclick="managementManager.loadProgressRecordForm()" class="btn-secondary">新規記録作成</button>
-        <button onclick="window.print()" class="btn-secondary">印刷</button>
+        <button onclick="managementManager.printProgressRecord()" class="btn-secondary">印刷</button>
       </div>
     `;
-
-    // タブ切り替え
-    if (window.app) {
-      app.openTab('progress-record');
-    } else {
-      this.directTabSwitch('progress-record');
-    }
   }
 }
 
@@ -634,16 +754,5 @@ const managementManager = new ManagementManager();
 
 // ウィンドウオブジェクトに登録（他のファイルからアクセス可能にする）
 window.managementManager = managementManager;
-
-// グローバル関数として定義（HTMLから直接呼び出せるように）
-window.createManagementPlan = function() {
-  console.log('グローバル関数 createManagementPlan が呼び出されました');
-  if (window.managementManager) {
-    managementManager.createManagementPlan();
-  } else {
-    console.error('managementManager が初期化されていません');
-    alert('管理モジュールの初期化中です。少し待ってから再試行してください。');
-  }
-};
 
 console.log('management.js 読み込み完了');
