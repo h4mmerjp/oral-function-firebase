@@ -7,12 +7,15 @@ class ManagementManager {
 
   // 管理計画書作成
   createManagementPlan() {
+    console.log('管理計画書作成が呼び出されました');
+    
     if (!window.patientManager || !patientManager.currentPatient || 
         !window.assessmentManager || !assessmentManager.currentAssessment) {
       alert('患者情報と検査結果が必要です');
       return;
     }
 
+    console.log('必要なデータが揃っています');
     this.loadManagementPlanContent();
     
     // タブ切り替え
@@ -21,6 +24,8 @@ class ManagementManager {
     } else {
       this.directTabSwitch('management-plan');
     }
+    
+    console.log('管理計画書作成完了');
   }
 
   // 直接タブ切り替え（app オブジェクトが利用できない場合の代替手段）
@@ -578,7 +583,3 @@ class ManagementManager {
       <div class="summary-card">
         <h3>評価結果</h3>
         <table>
-          <thead>
-            <tr>
-              <th>評価項目</th>
-              <th>評価</th>
