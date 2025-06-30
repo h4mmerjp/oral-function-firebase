@@ -3,6 +3,7 @@ class PatientManager {
   constructor() {
     this.currentPatient = null;
     this.selectedManagementOptions = {};
+    console.log('PatientManager が初期化されました');
   }
 
   // 患者一覧の読み込み
@@ -143,7 +144,11 @@ class PatientManager {
       await this.loadPatientInfo();
       
       // 患者情報タブに移動
-      app.openTab('patient-info');
+      if (window.app) {
+        app.openTab('patient-info');
+      } else {
+        this.directTabSwitch('patient-info');
+      }
       
       console.log('=== 患者選択完了 ===');
       
@@ -153,14 +158,52 @@ class PatientManager {
     }
   }
 
-  // すべての患者関連データをクリア
+  // 直接タブ切り替え（app オブジェクトが利用できない場合の代替手段）
+  directTabSwitch(tabName) {
+    try {
+      console.log('直接タブ切り替えを実行:', tabName);
+      
+      // すべてのタブコンテンツを非表示
+      const tabContents = document.querySelectorAll('.tab-content');
+      tabContents.forEach(content => {
+        content.classList.remove('active');
+      });
+      
+      // すべてのタブを非アクティブ
+      const tabs = document.querySelectorAll('.tab');
+      tabs.forEach(tab => {
+        tab.classList.remove('active');
+      });
+      
+      // 指定されたタブを表示
+      const targetTab = document.getElementById(tabName);
+      if (targetTab) {
+        targetTab.classList.add('active');
+        console.log('タブ表示完了:', tabName);
+      } else {
+        console.error('対象タブが見つかりません:', tabName);
+      }
+      
+      // 対応するタブボタンをアクティブ化
+      const tabButton = document.querySelector(`.tab[onclick*="${tabName}"]`);
+      if (tabButton) {
+        tabButton.classList.add('active');
+        console.log('タブボタンアクティブ化完了');
+      }
+      
+    } catch (error) {
+      console.error('直接タブ切り替えエラー:', error);
+    }
+  }
+
+  // すべての患者関連データをクリア（修正版）
   clearAllPatientData() {
     console.log('すべての患者データをクリア中...');
     
     // 現在の患者をクリア
     this.currentPatient = null;
     
-    // 検査データをクリア
+    // 検査データをクリア（安全チェック付き）
     if (window.assessmentManager) {
       assessmentManager.currentAssessment = null;
       assessmentManager.assessmentStatus = {
@@ -173,11 +216,17 @@ class PatientManager {
         swallowing: false
       };
       assessmentManager.eat10Scores = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      console.log('検査データクリア完了');
+    } else {
+      console.warn('assessmentManager が見つかりません');
     }
     
-    // 管理計画データをクリア
+    // 管理計画データをクリア（安全チェック付き）
     if (window.managementManager) {
       managementManager.selectedManagementOptions = {};
+      console.log('管理計画データクリア完了');
+    } else {
+      console.warn('managementManager が見つかりません');
     }
     
     // 画面のコンテンツをクリア
@@ -213,6 +262,11 @@ class PatientManager {
     const age = this.calculateAge(this.currentPatient.birthdate);
     const content = document.getElementById('patient-info-content');
     
+    if (!content) {
+      console.error('patient-info-content 要素が見つかりません');
+      return;
+    }
+    
     // 患者情報HTMLを強制的に再生成
     const patientInfoHTML = `
       <div class="summary-card">
@@ -233,7 +287,7 @@ class PatientManager {
         <div style="margin-top: 20px;">
           <button onclick="editPatient(${this.currentPatient.id})" class="btn-secondary">編集</button>
           <button onclick="startAssessment()" class="btn-success">検査開始</button>
-          <button onclick="app.openTab('patient-history')" class="btn-secondary">履歴確認</button>
+          <button onclick="patientManager.openPatientHistory()" class="btn-secondary">履歴確認</button>
         </div>
       </div>
 
@@ -318,6 +372,15 @@ class PatientManager {
     await this.loadGeneralConditions();
     
     console.log('患者情報読み込み完了');
+  }
+
+  // 履歴タブを開く（修正版）
+  openPatientHistory() {
+    if (window.app) {
+      app.openTab('patient-history');
+    } else {
+      this.directTabSwitch('patient-history');
+    }
   }
 
   // 服用薬剤の詳細表示切り替え（修正版）
@@ -720,5 +783,10 @@ class PatientManager {
   }
 }
 
-// グローバルインスタンス
+// グローバルインスタンス（即座に初期化）
 const patientManager = new PatientManager();
+
+// ウィンドウオブジェクトに登録（他のファイルからアクセス可能にする）
+window.patientManager = patientManager;
+
+console.log('patients.js 読み込み完了');

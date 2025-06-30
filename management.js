@@ -1,23 +1,74 @@
-// 管理計画モジュール
+// 管理計画モジュール（修正版）
 class ManagementManager {
   constructor() {
     this.selectedManagementOptions = {};
+    console.log('ManagementManager が初期化されました');
   }
 
   // 管理計画書作成
   createManagementPlan() {
-    if (!patientManager.currentPatient || !assessmentManager.currentAssessment) {
+    if (!window.patientManager || !patientManager.currentPatient || 
+        !window.assessmentManager || !assessmentManager.currentAssessment) {
       alert('患者情報と検査結果が必要です');
       return;
     }
 
     this.loadManagementPlanContent();
-    app.openTab('management-plan');
+    
+    // タブ切り替え
+    if (window.app) {
+      app.openTab('management-plan');
+    } else {
+      this.directTabSwitch('management-plan');
+    }
+  }
+
+  // 直接タブ切り替え（app オブジェクトが利用できない場合の代替手段）
+  directTabSwitch(tabName) {
+    try {
+      console.log('直接タブ切り替えを実行:', tabName);
+      
+      // すべてのタブコンテンツを非表示
+      const tabContents = document.querySelectorAll('.tab-content');
+      tabContents.forEach(content => {
+        content.classList.remove('active');
+      });
+      
+      // すべてのタブを非アクティブ
+      const tabs = document.querySelectorAll('.tab');
+      tabs.forEach(tab => {
+        tab.classList.remove('active');
+      });
+      
+      // 指定されたタブを表示
+      const targetTab = document.getElementById(tabName);
+      if (targetTab) {
+        targetTab.classList.add('active');
+        console.log('タブ表示完了:', tabName);
+      } else {
+        console.error('対象タブが見つかりません:', tabName);
+      }
+      
+      // 対応するタブボタンをアクティブ化
+      const tabButton = document.querySelector(`.tab[onclick*="${tabName}"]`);
+      if (tabButton) {
+        tabButton.classList.add('active');
+        console.log('タブボタンアクティブ化完了');
+      }
+      
+    } catch (error) {
+      console.error('直接タブ切り替えエラー:', error);
+    }
   }
 
   // 管理計画書コンテンツの読み込み
   loadManagementPlanContent() {
     const content = document.getElementById('management-plan-content');
+    
+    if (!content) {
+      console.error('management-plan-content 要素が見つかりません');
+      return;
+    }
     
     content.innerHTML = `
       <div class="summary-card">
@@ -34,6 +85,254 @@ class ManagementManager {
         <table>
           <thead>
             <tr>
+              <td>口腔乾燥</td>
+              <td>
+                <div class="rating-options">
+                  <div class="rating-option" onclick="managementManager.selectRating(this, 'dryness')" data-value="1">1：改善</div>
+                  <div class="rating-option" onclick="managementManager.selectRating(this, 'dryness')" data-value="2">2：著変なし</div>
+                  <div class="rating-option" onclick="managementManager.selectRating(this, 'dryness')" data-value="3">3：悪化</div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>咬合・義歯</td>
+              <td>
+                <div class="rating-options">
+                  <div class="rating-option" onclick="managementManager.selectRating(this, 'bite')" data-value="1">1：改善</div>
+                  <div class="rating-option" onclick="managementManager.selectRating(this, 'bite')" data-value="2">2：著変なし</div>
+                  <div class="rating-option" onclick="managementManager.selectRating(this, 'bite')" data-value="3">3：悪化</div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>口唇機能</td>
+              <td>
+                <div class="rating-options">
+                  <div class="rating-option" onclick="managementManager.selectRating(this, 'lip')" data-value="1">1：改善</div>
+                  <div class="rating-option" onclick="managementManager.selectRating(this, 'lip')" data-value="2">2：著変なし</div>
+                  <div class="rating-option" onclick="managementManager.selectRating(this, 'lip')" data-value="3">3：悪化</div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>舌機能</td>
+              <td>
+                <div class="rating-options">
+                  <div class="rating-option" onclick="managementManager.selectRating(this, 'tongue')" data-value="1">1：改善</div>
+                  <div class="rating-option" onclick="managementManager.selectRating(this, 'tongue')" data-value="2">2：著変なし</div>
+                  <div class="rating-option" onclick="managementManager.selectRating(this, 'tongue')" data-value="3">3：悪化</div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>咀嚼機能</td>
+              <td>
+                <div class="rating-options">
+                  <div class="rating-option" onclick="managementManager.selectRating(this, 'mastication')" data-value="1">1：改善</div>
+                  <div class="rating-option" onclick="managementManager.selectRating(this, 'mastication')" data-value="2">2：著変なし</div>
+                  <div class="rating-option" onclick="managementManager.selectRating(this, 'mastication')" data-value="3">3：悪化</div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>嚥下機能</td>
+              <td>
+                <div class="rating-options">
+                  <div class="rating-option" onclick="managementManager.selectRating(this, 'swallowing')" data-value="1">1：改善</div>
+                  <div class="rating-option" onclick="managementManager.selectRating(this, 'swallowing')" data-value="2">2：著変なし</div>
+                  <div class="rating-option" onclick="managementManager.selectRating(this, 'swallowing')" data-value="3">3：悪化</div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="summary-card">
+        <h3>所見</h3>
+        <div class="form-group">
+          <label for="findings-general">全身状態</label>
+          <textarea id="findings-general" style="width: 100%; height: 100px;" placeholder="全身状態に関する所見を記入してください"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="findings-oral">口腔機能</label>
+          <textarea id="findings-oral" style="width: 100%; height: 100px;" placeholder="口腔機能に関する所見を記入してください"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="findings-other">その他</label>
+          <textarea id="findings-other" style="width: 100%; height: 100px;" placeholder="その他の所見を記入してください"></textarea>
+        </div>
+      </div>
+      
+      <div class="summary-card">
+        <h3>管理内容</h3>
+        <textarea id="management-content" style="width: 100%; height: 150px;" placeholder="実施した管理内容について記入してください"></textarea>
+      </div>
+      
+      <div style="margin-top: 30px;">
+        <button onclick="managementManager.saveProgressRecord()" class="btn-success">管理指導記録を保存</button>
+        <button onclick="managementManager.printProgressRecord()" class="btn-secondary">印刷</button>
+      </div>
+    `;
+
+    // タブ切り替え
+    if (window.app) {
+      app.openTab('progress-record');
+    } else {
+      this.directTabSwitch('progress-record');
+    }
+  }
+
+  // 評価選択
+  selectRating(element, type) {
+    const options = element.parentElement.querySelectorAll('.rating-option');
+    options.forEach(option => {
+      option.classList.remove('selected');
+    });
+    
+    element.classList.add('selected');
+  }
+
+  // 管理指導記録の保存
+  async saveProgressRecord() {
+    if (!patientManager.currentPatient) {
+      alert('患者を選択してください');
+      return;
+    }
+
+    const recordData = {
+      patient_id: patientManager.currentPatient.id,
+      record_date: document.getElementById('record-date').value,
+      nutrition_rating: this.getSelectedRating('nutrition'),
+      hygiene_rating: this.getSelectedRating('hygiene'),
+      dryness_rating: this.getSelectedRating('dryness'),
+      bite_rating: this.getSelectedRating('bite'),
+      lip_rating: this.getSelectedRating('lip'),
+      tongue_rating: this.getSelectedRating('tongue'),
+      mastication_rating: this.getSelectedRating('mastication'),
+      swallowing_rating: this.getSelectedRating('swallowing'),
+      findings_general: document.getElementById('findings-general').value,
+      findings_oral: document.getElementById('findings-oral').value,
+      findings_other: document.getElementById('findings-other').value,
+      management_content: document.getElementById('management-content').value
+    };
+
+    try {
+      await db.createProgressRecord(recordData);
+      alert('管理指導記録が保存されました');
+    } catch (error) {
+      console.error('管理指導記録保存エラー:', error);
+      alert('保存に失敗しました');
+    }
+  }
+
+  // 選択された評価を取得
+  getSelectedRating(type) {
+    const selected = document.querySelector(`.rating-option.selected[onclick*="${type}"]`);
+    return selected ? parseInt(selected.getAttribute('data-value')) : null;
+  }
+
+  // 管理指導記録の印刷
+  printProgressRecord() {
+    window.print();
+  }
+
+  // 管理指導記録の詳細表示
+  async viewProgressRecord(recordId) {
+    try {
+      const records = await db.getProgressRecords(patientManager.currentPatient.id);
+      const record = records.find(r => r.id === recordId);
+      
+      if (record) {
+        this.displayProgressRecordDetails(record);
+      }
+    } catch (error) {
+      console.error('管理指導記録詳細表示エラー:', error);
+      alert('詳細の表示に失敗しました');
+    }
+  }
+
+  // 管理指導記録詳細の表示
+  displayProgressRecordDetails(record) {
+    const content = document.getElementById('progress-record-content');
+    
+    if (!content) {
+      console.error('progress-record-content 要素が見つかりません');
+      return;
+    }
+    
+    const ratingText = (value) => {
+      switch(value) {
+        case 1: return '改善';
+        case 2: return '著変なし';
+        case 3: return '悪化';
+        default: return '未評価';
+      }
+    };
+
+    content.innerHTML = `
+      <div class="summary-card">
+        <h3>管理指導記録詳細</h3>
+        <p>患者名: ${patientManager.currentPatient.name}</p>
+        <p>記録日: ${new Date(record.record_date).toLocaleDateString()}</p>
+      </div>
+
+      <div class="summary-card">
+        <h3>評価結果</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>評価項目</th>
+              <th>評価</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>栄養・体重</td><td>${ratingText(record.nutrition_rating)}</td></tr>
+            <tr><td>口腔衛生</td><td>${ratingText(record.hygiene_rating)}</td></tr>
+            <tr><td>口腔乾燥</td><td>${ratingText(record.dryness_rating)}</td></tr>
+            <tr><td>咬合・義歯</td><td>${ratingText(record.bite_rating)}</td></tr>
+            <tr><td>口唇機能</td><td>${ratingText(record.lip_rating)}</td></tr>
+            <tr><td>舌機能</td><td>${ratingText(record.tongue_rating)}</td></tr>
+            <tr><td>咀嚼機能</td><td>${ratingText(record.mastication_rating)}</td></tr>
+            <tr><td>嚥下機能</td><td>${ratingText(record.swallowing_rating)}</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="summary-card">
+        <h3>所見</h3>
+        <div><strong>全身状態:</strong><br>${record.findings_general || '記載なし'}</div>
+        <div style="margin-top: 10px;"><strong>口腔機能:</strong><br>${record.findings_oral || '記載なし'}</div>
+        <div style="margin-top: 10px;"><strong>その他:</strong><br>${record.findings_other || '記載なし'}</div>
+      </div>
+
+      <div class="summary-card">
+        <h3>管理内容</h3>
+        <div>${record.management_content || '記載なし'}</div>
+      </div>
+
+      <div style="margin-top: 30px;">
+        <button onclick="managementManager.loadProgressRecordForm()" class="btn-secondary">新規記録作成</button>
+        <button onclick="window.print()" class="btn-secondary">印刷</button>
+      </div>
+    `;
+
+    // タブ切り替え
+    if (window.app) {
+      app.openTab('progress-record');
+    } else {
+      this.directTabSwitch('progress-record');
+    }
+  }
+}
+
+// グローバルインスタンス（即座に初期化）
+const managementManager = new ManagementManager();
+
+// ウィンドウオブジェクトに登録（他のファイルからアクセス可能にする）
+window.managementManager = managementManager;
+
+console.log('management.js 読み込み完了');
               <th>項目</th>
               <th>現在の状態</th>
               <th>管理方針</th>
@@ -283,6 +582,11 @@ class ManagementManager {
 
     const content = document.getElementById('progress-record-content');
     
+    if (!content) {
+      console.error('progress-record-content 要素が見つかりません');
+      return;
+    }
+    
     content.innerHTML = `
       <div class="summary-card">
         <h3>患者情報</h3>
@@ -325,231 +629,3 @@ class ManagementManager {
               </td>
             </tr>
             <tr>
-              <td>口腔乾燥</td>
-              <td>
-                <div class="rating-options">
-                  <div class="rating-option" onclick="managementManager.selectRating(this, 'dryness')" data-value="1">1：改善</div>
-                  <div class="rating-option" onclick="managementManager.selectRating(this, 'dryness')" data-value="2">2：著変なし</div>
-                  <div class="rating-option" onclick="managementManager.selectRating(this, 'dryness')" data-value="3">3：悪化</div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>咬合・義歯</td>
-              <td>
-                <div class="rating-options">
-                  <div class="rating-option" onclick="managementManager.selectRating(this, 'bite')" data-value="1">1：改善</div>
-                  <div class="rating-option" onclick="managementManager.selectRating(this, 'bite')" data-value="2">2：著変なし</div>
-                  <div class="rating-option" onclick="managementManager.selectRating(this, 'bite')" data-value="3">3：悪化</div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>口唇機能</td>
-              <td>
-                <div class="rating-options">
-                  <div class="rating-option" onclick="managementManager.selectRating(this, 'lip')" data-value="1">1：改善</div>
-                  <div class="rating-option" onclick="managementManager.selectRating(this, 'lip')" data-value="2">2：著変なし</div>
-                  <div class="rating-option" onclick="managementManager.selectRating(this, 'lip')" data-value="3">3：悪化</div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>舌機能</td>
-              <td>
-                <div class="rating-options">
-                  <div class="rating-option" onclick="managementManager.selectRating(this, 'tongue')" data-value="1">1：改善</div>
-                  <div class="rating-option" onclick="managementManager.selectRating(this, 'tongue')" data-value="2">2：著変なし</div>
-                  <div class="rating-option" onclick="managementManager.selectRating(this, 'tongue')" data-value="3">3：悪化</div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>咀嚼機能</td>
-              <td>
-                <div class="rating-options">
-                  <div class="rating-option" onclick="managementManager.selectRating(this, 'mastication')" data-value="1">1：改善</div>
-                  <div class="rating-option" onclick="managementManager.selectRating(this, 'mastication')" data-value="2">2：著変なし</div>
-                  <div class="rating-option" onclick="managementManager.selectRating(this, 'mastication')" data-value="3">3：悪化</div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>嚥下機能</td>
-              <td>
-                <div class="rating-options">
-                  <div class="rating-option" onclick="managementManager.selectRating(this, 'swallowing')" data-value="1">1：改善</div>
-                  <div class="rating-option" onclick="managementManager.selectRating(this, 'swallowing')" data-value="2">2：著変なし</div>
-                  <div class="rating-option" onclick="managementManager.selectRating(this, 'swallowing')" data-value="3">3：悪化</div>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      
-      <div class="summary-card">
-        <h3>所見</h3>
-        <div class="form-group">
-          <label for="findings-general">全身状態</label>
-          <textarea id="findings-general" style="width: 100%; height: 100px;" placeholder="全身状態に関する所見を記入してください"></textarea>
-        </div>
-        <div class="form-group">
-          <label for="findings-oral">口腔機能</label>
-          <textarea id="findings-oral" style="width: 100%; height: 100px;" placeholder="口腔機能に関する所見を記入してください"></textarea>
-        </div>
-        <div class="form-group">
-          <label for="findings-other">その他</label>
-          <textarea id="findings-other" style="width: 100%; height: 100px;" placeholder="その他の所見を記入してください"></textarea>
-        </div>
-      </div>
-      
-      <div class="summary-card">
-        <h3>管理内容</h3>
-        <textarea id="management-content" style="width: 100%; height: 150px;" placeholder="実施した管理内容について記入してください"></textarea>
-      </div>
-      
-      <div style="margin-top: 30px;">
-        <button onclick="managementManager.saveProgressRecord()" class="btn-success">管理指導記録を保存</button>
-        <button onclick="managementManager.printProgressRecord()" class="btn-secondary">印刷</button>
-      </div>
-    `;
-
-    app.openTab('progress-record');
-  }
-
-  // 評価選択
-  selectRating(element, type) {
-    const options = element.parentElement.querySelectorAll('.rating-option');
-    options.forEach(option => {
-      option.classList.remove('selected');
-    });
-    
-    element.classList.add('selected');
-  }
-
-  // 管理指導記録の保存
-  async saveProgressRecord() {
-    if (!patientManager.currentPatient) {
-      alert('患者を選択してください');
-      return;
-    }
-
-    const recordData = {
-      patient_id: patientManager.currentPatient.id,
-      record_date: document.getElementById('record-date').value,
-      nutrition_rating: this.getSelectedRating('nutrition'),
-      hygiene_rating: this.getSelectedRating('hygiene'),
-      dryness_rating: this.getSelectedRating('dryness'),
-      bite_rating: this.getSelectedRating('bite'),
-      lip_rating: this.getSelectedRating('lip'),
-      tongue_rating: this.getSelectedRating('tongue'),
-      mastication_rating: this.getSelectedRating('mastication'),
-      swallowing_rating: this.getSelectedRating('swallowing'),
-      findings_general: document.getElementById('findings-general').value,
-      findings_oral: document.getElementById('findings-oral').value,
-      findings_other: document.getElementById('findings-other').value,
-      management_content: document.getElementById('management-content').value
-    };
-
-    try {
-      await db.createProgressRecord(recordData);
-      alert('管理指導記録が保存されました');
-    } catch (error) {
-      console.error('管理指導記録保存エラー:', error);
-      alert('保存に失敗しました');
-    }
-  }
-
-  // 選択された評価を取得
-  getSelectedRating(type) {
-    const selected = document.querySelector(`.rating-option.selected[onclick*="${type}"]`);
-    return selected ? parseInt(selected.getAttribute('data-value')) : null;
-  }
-
-  // 管理指導記録の印刷
-  printProgressRecord() {
-    window.print();
-  }
-
-  // 管理指導記録の詳細表示
-  async viewProgressRecord(recordId) {
-    try {
-      const records = await db.getProgressRecords(patientManager.currentPatient.id);
-      const record = records.find(r => r.id === recordId);
-      
-      if (record) {
-        this.displayProgressRecordDetails(record);
-      }
-    } catch (error) {
-      console.error('管理指導記録詳細表示エラー:', error);
-      alert('詳細の表示に失敗しました');
-    }
-  }
-
-  // 管理指導記録詳細の表示
-  displayProgressRecordDetails(record) {
-    const content = document.getElementById('progress-record-content');
-    
-    const ratingText = (value) => {
-      switch(value) {
-        case 1: return '改善';
-        case 2: return '著変なし';
-        case 3: return '悪化';
-        default: return '未評価';
-      }
-    };
-
-    content.innerHTML = `
-      <div class="summary-card">
-        <h3>管理指導記録詳細</h3>
-        <p>患者名: ${patientManager.currentPatient.name}</p>
-        <p>記録日: ${new Date(record.record_date).toLocaleDateString()}</p>
-      </div>
-
-      <div class="summary-card">
-        <h3>評価結果</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>評価項目</th>
-              <th>評価</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>栄養・体重</td><td>${ratingText(record.nutrition_rating)}</td></tr>
-            <tr><td>口腔衛生</td><td>${ratingText(record.hygiene_rating)}</td></tr>
-            <tr><td>口腔乾燥</td><td>${ratingText(record.dryness_rating)}</td></tr>
-            <tr><td>咬合・義歯</td><td>${ratingText(record.bite_rating)}</td></tr>
-            <tr><td>口唇機能</td><td>${ratingText(record.lip_rating)}</td></tr>
-            <tr><td>舌機能</td><td>${ratingText(record.tongue_rating)}</td></tr>
-            <tr><td>咀嚼機能</td><td>${ratingText(record.mastication_rating)}</td></tr>
-            <tr><td>嚥下機能</td><td>${ratingText(record.swallowing_rating)}</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="summary-card">
-        <h3>所見</h3>
-        <div><strong>全身状態:</strong><br>${record.findings_general || '記載なし'}</div>
-        <div style="margin-top: 10px;"><strong>口腔機能:</strong><br>${record.findings_oral || '記載なし'}</div>
-        <div style="margin-top: 10px;"><strong>その他:</strong><br>${record.findings_other || '記載なし'}</div>
-      </div>
-
-      <div class="summary-card">
-        <h3>管理内容</h3>
-        <div>${record.management_content || '記載なし'}</div>
-      </div>
-
-      <div style="margin-top: 30px;">
-        <button onclick="managementManager.loadProgressRecordForm()" class="btn-secondary">新規記録作成</button>
-        <button onclick="window.print()" class="btn-secondary">印刷</button>
-      </div>
-    `;
-
-    app.openTab('progress-record');
-  }
-}
-
-// グローバルインスタンス
-const managementManager = new ManagementManager();

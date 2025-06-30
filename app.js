@@ -186,26 +186,6 @@ class OralHealthApp {
     `);
   }
 
-  // 患者検索のグローバル関数
-  searchPatients() {
-    patientManager.searchPatients();
-  }
-
-  // 患者フィルタのグローバル関数
-  filterPatients() {
-    patientManager.filterPatients();
-  }
-
-  // モーダル表示関数
-  showAddPatientModal() {
-    patientManager.showAddPatientModal();
-  }
-
-  // モーダル閉じる関数
-  closeAddPatientModal() {
-    patientManager.closeAddPatientModal();
-  }
-
   // デモデータ作成（開発・テスト用）
   createDemoData() {
     if (!confirm('デモデータを作成しますか？既存のデータは削除されます。')) {
@@ -289,80 +269,184 @@ class OralHealthApp {
   }
 }
 
-// グローバル関数（HTMLから呼び出される）
+// グローバル変数とオブジェクトの初期化
+let app = null;
+
+// ページ読み込み前でも実行可能なグローバル関数（修正版）
 function openTab(tabName) {
-  app.openTab(tabName);
+  if (app) {
+    app.openTab(tabName);
+  } else {
+    console.error('アプリケーションが初期化されていません');
+  }
 }
 
 function exportDatabase() {
-  app.exportDatabase();
+  if (app) {
+    app.exportDatabase();
+  } else {
+    console.error('アプリケーションが初期化されていません');
+  }
 }
 
 function importDatabase() {
-  app.importDatabase();
+  if (app) {
+    app.importDatabase();
+  } else {
+    console.error('アプリケーションが初期化されていません');
+  }
 }
 
 function handleImportFile(event) {
-  app.handleImportFile(event);
+  if (app) {
+    app.handleImportFile(event);
+  } else {
+    console.error('アプリケーションが初期化されていません');
+  }
 }
 
 function searchPatients() {
-  app.searchPatients();
+  if (window.patientManager) {
+    patientManager.searchPatients();
+  } else {
+    console.error('患者マネージャーが初期化されていません');
+  }
 }
 
 function filterPatients() {
-  app.filterPatients();
+  if (window.patientManager) {
+    patientManager.filterPatients();
+  } else {
+    console.error('患者マネージャーが初期化されていません');
+  }
 }
 
 function showAddPatientModal() {
-  app.showAddPatientModal();
+  if (window.patientManager) {
+    patientManager.showAddPatientModal();
+  } else {
+    console.error('患者マネージャーが初期化されていません');
+  }
 }
 
 function closeAddPatientModal() {
-  app.closeAddPatientModal();
+  if (window.patientManager) {
+    patientManager.closeAddPatientModal();
+  } else {
+    console.error('患者マネージャーが初期化されていません');
+  }
 }
 
 // 検査開始のグローバル関数（修正版）
 function startAssessment() {
+  console.log('startAssessment() が呼び出されました');
+  
+  // 必要なオブジェクトの存在確認
+  if (!window.patientManager) {
+    console.error('patientManager が初期化されていません');
+    alert('アプリケーションの初期化中です。少し待ってから再試行してください。');
+    return;
+  }
+  
+  if (!window.assessmentManager) {
+    console.error('assessmentManager が初期化されていません');
+    alert('検査モジュールの初期化中です。少し待ってから再試行してください。');
+    return;
+  }
+  
   if (!patientManager.currentPatient) {
+    console.error('患者が選択されていません');
     alert('患者を選択してください');
     return;
   }
   
-  // 検査を開始して検査タブに移動
-  assessmentManager.startAssessment();
+  console.log('選択中の患者:', patientManager.currentPatient);
+  
+  try {
+    // 検査を開始
+    assessmentManager.startAssessment();
+    console.log('検査開始処理が完了しました');
+  } catch (error) {
+    console.error('検査開始エラー:', error);
+    alert('検査の開始に失敗しました: ' + error.message);
+  }
 }
 
-// 患者管理のグローバル関数
+// 患者管理のグローバル関数（修正版）
 function selectPatient(patientId) {
-  patientManager.selectPatient(patientId);
+  console.log('selectPatient() が呼び出されました。患者ID:', patientId);
+  
+  if (!window.patientManager) {
+    console.error('patientManager が初期化されていません');
+    alert('アプリケーションの初期化中です。少し待ってから再試行してください。');
+    return;
+  }
+  
+  try {
+    patientManager.selectPatient(patientId);
+  } catch (error) {
+    console.error('患者選択エラー:', error);
+    alert('患者の選択に失敗しました: ' + error.message);
+  }
 }
 
 function editPatient(patientId) {
-  patientManager.editPatient(patientId);
+  if (window.patientManager) {
+    patientManager.editPatient(patientId);
+  } else {
+    console.error('患者マネージャーが初期化されていません');
+  }
 }
 
 function deletePatient(patientId) {
-  patientManager.deletePatient(patientId);
+  if (window.patientManager) {
+    patientManager.deletePatient(patientId);
+  } else {
+    console.error('患者マネージャーが初期化されていません');
+  }
 }
 
-// アプリケーション初期化
-let app;
-
+// アプリケーション初期化（修正版）
 document.addEventListener('DOMContentLoaded', function() {
-  app = new OralHealthApp();
+  console.log('DOM読み込み完了 - アプリケーション初期化開始');
+  
+  try {
+    // アプリケーション初期化
+    app = new OralHealthApp();
+    console.log('メインアプリケーション初期化完了');
+    
+    // すべてのマネージャーが初期化されているか確認
+    setTimeout(() => {
+      if (window.patientManager && window.assessmentManager && window.managementManager) {
+        console.log('すべてのマネージャーが正常に初期化されました');
+      } else {
+        console.warn('一部のマネージャーが初期化されていません');
+        console.log('patientManager:', !!window.patientManager);
+        console.log('assessmentManager:', !!window.assessmentManager);
+        console.log('managementManager:', !!window.managementManager);
+      }
+    }, 100);
+    
+  } catch (error) {
+    console.error('アプリケーション初期化エラー:', error);
+    alert('アプリケーションの初期化に失敗しました: ' + error.message);
+  }
   
   // 開発者モード：Ctrl+Shift+D でデモデータ作成
   document.addEventListener('keydown', function(e) {
     if (e.ctrlKey && e.shiftKey && e.key === 'D') {
-      app.createDemoData();
+      if (app) {
+        app.createDemoData();
+      }
     }
   });
 });
 
 // ページ離脱前の確認（データ保存の確認）
 window.addEventListener('beforeunload', function(e) {
-  if (assessmentManager.currentAssessment && Object.values(assessmentManager.assessmentStatus).some(status => status)) {
+  if (window.assessmentManager && 
+      assessmentManager.currentAssessment && 
+      Object.values(assessmentManager.assessmentStatus).some(status => status)) {
     e.preventDefault();
     e.returnValue = '検査データが保存されていません。ページを離れますか？';
   }

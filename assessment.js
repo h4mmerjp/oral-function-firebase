@@ -12,47 +12,120 @@ class AssessmentManager {
       swallowing: false
     };
     this.eat10Scores = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    console.log('AssessmentManager が初期化されました');
   }
 
-  // 検査開始
+  // 検査開始（修正版）
   startAssessment() {
-    if (!patientManager.currentPatient) {
+    console.log('AssessmentManager.startAssessment() 開始');
+    
+    // 患者選択の確認
+    if (!window.patientManager || !patientManager.currentPatient) {
+      console.error('患者が選択されていません');
       alert('患者を選択してください');
       return;
     }
     
-    // 新しい検査セッションを開始
-    this.currentAssessment = {
-      patient_id: patientManager.currentPatient.id,
-      assessment_date: new Date().toISOString().split('T')[0]
-    };
+    console.log('選択中の患者:', patientManager.currentPatient);
     
-    // 検査状態をリセット
-    this.assessmentStatus = {
-      tci: false,
-      dryness: false,
-      biteForce: false,
-      oralDiadochokinesis: false,
-      tonguePressure: false,
-      mastication: false,
-      swallowing: false
-    };
-    
-    this.eat10Scores = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    
-    this.loadAssessmentContent();
-    app.openTab('assessment');
+    try {
+      // 新しい検査セッションを開始
+      this.currentAssessment = {
+        patient_id: patientManager.currentPatient.id,
+        assessment_date: new Date().toISOString().split('T')[0]
+      };
+      
+      // 検査状態をリセット
+      this.assessmentStatus = {
+        tci: false,
+        dryness: false,
+        biteForce: false,
+        oralDiadochokinesis: false,
+        tonguePressure: false,
+        mastication: false,
+        swallowing: false
+      };
+      
+      this.eat10Scores = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      
+      console.log('検査データ初期化完了');
+      
+      // 検査コンテンツを読み込み
+      this.loadAssessmentContent();
+      console.log('検査コンテンツ読み込み完了');
+      
+      // 検査タブに移動
+      if (window.app) {
+        app.openTab('assessment');
+        console.log('検査タブに移動完了');
+      } else {
+        console.error('app オブジェクトが見つかりません');
+        // 直接タブを切り替え
+        this.directTabSwitch('assessment');
+      }
+      
+    } catch (error) {
+      console.error('検査開始処理エラー:', error);
+      alert('検査の開始に失敗しました: ' + error.message);
+    }
   }
 
-  // 検査コンテンツの読み込み
+  // 直接タブ切り替え（app オブジェクトが利用できない場合の代替手段）
+  directTabSwitch(tabName) {
+    try {
+      console.log('直接タブ切り替えを実行:', tabName);
+      
+      // すべてのタブコンテンツを非表示
+      const tabContents = document.querySelectorAll('.tab-content');
+      tabContents.forEach(content => {
+        content.classList.remove('active');
+      });
+      
+      // すべてのタブを非アクティブ
+      const tabs = document.querySelectorAll('.tab');
+      tabs.forEach(tab => {
+        tab.classList.remove('active');
+      });
+      
+      // 指定されたタブを表示
+      const targetTab = document.getElementById(tabName);
+      if (targetTab) {
+        targetTab.classList.add('active');
+        console.log('タブ表示完了:', tabName);
+      } else {
+        console.error('対象タブが見つかりません:', tabName);
+      }
+      
+      // 対応するタブボタンをアクティブ化
+      const tabButton = document.querySelector(`.tab[onclick*="${tabName}"]`);
+      if (tabButton) {
+        tabButton.classList.add('active');
+        console.log('タブボタンアクティブ化完了');
+      }
+      
+    } catch (error) {
+      console.error('直接タブ切り替えエラー:', error);
+    }
+  }
+
+  // 検査コンテンツの読み込み（修正版）
   loadAssessmentContent() {
+    console.log('検査コンテンツ読み込み開始');
+    
     const content = document.getElementById('assessment-content');
+    
+    if (!content) {
+      console.error('assessment-content 要素が見つかりません');
+      return;
+    }
     
     if (!patientManager.currentPatient) {
       content.innerHTML = '<p>患者を選択してから検査を開始してください。</p>';
       return;
     }
 
+    console.log('検査画面HTML生成開始');
+    
     content.innerHTML = `
       <p>患者: ${patientManager.currentPatient.name} (ID: ${patientManager.currentPatient.patient_id})</p>
       <p>各項目の評価を行ってください。3項目以上が基準値を下回る場合、口腔機能低下症と診断されます。</p>
@@ -314,6 +387,8 @@ class AssessmentManager {
         <button onclick="assessmentManager.completeAssessment()" class="btn-success">検査完了・診断へ</button>
       </div>
     `;
+    
+    console.log('検査画面HTML生成完了');
   }
 
   // EAT-10質問項目を生成
@@ -787,7 +862,13 @@ class AssessmentManager {
       alert('検査結果が保存されました');
       
       this.loadDiagnosisContent();
-      app.openTab('diagnosis');
+      
+      // タブ切り替え
+      if (window.app) {
+        app.openTab('diagnosis');
+      } else {
+        this.directTabSwitch('diagnosis');
+      }
     } catch (error) {
       console.error('検査結果保存エラー:', error);
       alert('保存に失敗しました');
@@ -952,7 +1033,12 @@ class AssessmentManager {
       if (assessment) {
         this.currentAssessment = assessment;
         this.loadDiagnosisContent();
-        app.openTab('diagnosis');
+        
+        if (window.app) {
+          app.openTab('diagnosis');
+        } else {
+          this.directTabSwitch('diagnosis');
+        }
       }
     } catch (error) {
       console.error('検査詳細表示エラー:', error);
@@ -961,5 +1047,10 @@ class AssessmentManager {
   }
 }
 
-// グローバルインスタンス
+// グローバルインスタンス（即座に初期化）
 const assessmentManager = new AssessmentManager();
+
+// ウィンドウオブジェクトに登録（他のファイルからアクセス可能にする）
+window.assessmentManager = assessmentManager;
+
+console.log('assessment.js 読み込み完了');
