@@ -875,7 +875,7 @@ class AssessmentManager {
     }
   }
 
-  // 診断結果の表示
+  // 診断結果の表示（修正版 - グローバル関数使用）
   loadDiagnosisContent() {
     if (!this.currentAssessment) return;
 
@@ -1016,7 +1016,7 @@ class AssessmentManager {
       </div>
 
       <div style="margin-top: 30px;">
-        <button onclick="managementManager.createManagementPlan()" class="btn-success">管理計画書作成</button>
+        <button onclick="createManagementPlan()" class="btn-success">管理計画書作成</button>
         <button onclick="app.openTab('patient-history')" class="btn-secondary">履歴確認</button>
       </div>
     `;

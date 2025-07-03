@@ -101,72 +101,6 @@ class ManagementManager {
               <td>${assessmentManager.currentAssessment.tci_status ? '<span class="red-text">低下あり</span>' : '<span class="green-text">正常</span>'}</td>
               <td>
                 <div class="rating-options">
-                  <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'hygiene')" data-value="1">問題なし</div>
-                  <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'hygiene')" data-value="2">機能維持</div>
-                  <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'hygiene')" data-value="3">機能向上</div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>口腔乾燥</td>
-              <td>${assessmentManager.currentAssessment.dryness_status ? '<span class="red-text">低下あり</span>' : '<span class="green-text">正常</span>'}</td>
-              <td>
-                <div class="rating-options">
-                  <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'dryness')" data-value="1">問題なし</div>
-                  <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'dryness')" data-value="2">機能維持</div>
-                  <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'dryness')" data-value="3">機能向上</div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>咬合力</td>
-              <td>${assessmentManager.currentAssessment.bite_force_status ? '<span class="red-text">低下あり</span>' : '<span class="green-text">正常</span>'}</td>
-              <td>
-                <div class="rating-options">
-                  <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'bite')" data-value="1">問題なし</div>
-                  <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'bite')" data-value="2">機能維持</div>
-                  <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'bite')" data-value="3">機能向上</div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>舌口唇運動</td>
-              <td>${assessmentManager.currentAssessment.oral_diadochokinesis_status ? '<span class="red-text">低下あり</span>' : '<span class="green-text">正常</span>'}</td>
-              <td>
-                <div class="rating-options">
-                  <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'oral-motor')" data-value="1">問題なし</div>
-                  <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'oral-motor')" data-value="2">機能維持</div>
-                  <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'oral-motor')" data-value="3">機能向上</div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>舌圧</td>
-              <td>${assessmentManager.currentAssessment.tongue_pressure_status ? '<span class="red-text">低下あり</span>' : '<span class="green-text">正常</span>'}</td>
-              <td>
-                <div class="rating-options">
-                  <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'tongue-pressure')" data-value="1">問題なし</div>
-                  <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'tongue-pressure')" data-value="2">機能維持</div>
-                  <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'tongue-pressure')" data-value="3">機能向上</div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>咀嚼機能</td>
-              <td>${assessmentManager.currentAssessment.mastication_status ? '<span class="red-text">低下あり</span>' : '<span class="green-text">正常</span>'}</td>
-              <td>
-                <div class="rating-options">
-                  <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'mastication')" data-value="1">問題なし</div>
-                  <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'mastication')" data-value="2">機能維持</div>
-                  <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'mastication')" data-value="3">機能向上</div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>嚥下機能</td>
-              <td>${assessmentManager.currentAssessment.swallowing_status ? '<span class="red-text">低下あり</span>' : '<span class="green-text">正常</span>'}</td>
-              <td>
-                <div class="rating-options">
                   <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'swallowing')" data-value="1">問題なし</div>
                   <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'swallowing')" data-value="2">機能維持</div>
                   <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'swallowing')" data-value="3">機能向上</div>
@@ -208,7 +142,6 @@ class ManagementManager {
   // デフォルトの管理目標を生成
   generateDefaultGoals() {
     const assessment = assessmentManager.currentAssessment;
-    const patient = patientManager.currentPatient;
     
     let goals = `【管理方針】\n`;
     goals += `・口腔機能の維持・向上を目指し、個別の機能訓練プログラムを実施します\n`;
@@ -583,3 +516,82 @@ class ManagementManager {
       <div class="summary-card">
         <h3>評価結果</h3>
         <table>
+          <thead>
+            <tr>
+              <th>評価項目</th>
+              <th>評価</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>栄養・体重</td>
+              <td>${ratingText(record.nutrition_rating)}</td>
+            </tr>
+            <tr>
+              <td>口腔衛生</td>
+              <td>${ratingText(record.hygiene_rating)}</td>
+            </tr>
+            <tr>
+              <td>口腔乾燥</td>
+              <td>${ratingText(record.dryness_rating)}</td>
+            </tr>
+            <tr>
+              <td>咬合・義歯</td>
+              <td>${ratingText(record.bite_rating)}</td>
+            </tr>
+            <tr>
+              <td>口唇機能</td>
+              <td>${ratingText(record.lip_rating)}</td>
+            </tr>
+            <tr>
+              <td>舌機能</td>
+              <td>${ratingText(record.tongue_rating)}</td>
+            </tr>
+            <tr>
+              <td>咀嚼機能</td>
+              <td>${ratingText(record.mastication_rating)}</td>
+            </tr>
+            <tr>
+              <td>嚥下機能</td>
+              <td>${ratingText(record.swallowing_rating)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="summary-card">
+        <h3>所見</h3>
+        <div class="form-group">
+          <h4>全身状態</h4>
+          <p>${record.findings_general || '記載なし'}</p>
+        </div>
+        <div class="form-group">
+          <h4>口腔機能</h4>
+          <p>${record.findings_oral || '記載なし'}</p>
+        </div>
+        <div class="form-group">
+          <h4>その他</h4>
+          <p>${record.findings_other || '記載なし'}</p>
+        </div>
+      </div>
+
+      <div class="summary-card">
+        <h3>管理内容</h3>
+        <p>${record.management_content || '記載なし'}</p>
+      </div>
+
+      <div style="margin-top: 30px;">
+        <button onclick="managementManager.loadProgressRecordForm()" class="btn-secondary">新規記録作成</button>
+        <button onclick="managementManager.printProgressRecord()" class="btn-secondary">印刷</button>
+      </div>
+    `;
+  }
+}
+
+// グローバルインスタンス（即座に初期化）
+const managementManager = new ManagementManager();
+
+// ウィンドウオブジェクトに登録（他のファイルからアクセス可能にする）
+window.managementManager = managementManager;
+
+console.log('management.js 読み込み完了');

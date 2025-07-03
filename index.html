@@ -222,5 +222,15 @@
   <script src="assessment.js"></script>
   <script src="management.js"></script>
   <script src="app.js"></script>
+  
+  <!-- デバッグ用：読み込み確認 -->
+  <script>
+    console.log('All scripts loaded. Checking managers...');
+    setTimeout(() => {
+      console.log('patientManager:', !!window.patientManager);
+      console.log('assessmentManager:', !!window.assessmentManager);
+      console.log('managementManager:', !!window.managementManager);
+    }, 100);
+  </script>
 </body>
 </html>
