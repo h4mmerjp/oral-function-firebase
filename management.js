@@ -169,6 +169,7 @@ class ManagementManager {
               <td>${assessment.swallowing_status ? '<span class="red-text">低下あり</span>' : '<span class="green-text">正常</span>'}</td>
               <td>
                 <div class="rating-options">
+
                   <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'swallowing')" data-value="1">問題なし</div>
                   <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'swallowing')" data-value="2">機能維持</div>
                   <div class="rating-option" onclick="managementManager.selectManagementOption(this, 'swallowing')" data-value="3">機能向上</div>
@@ -210,7 +211,6 @@ class ManagementManager {
   // デフォルトの管理目標を生成
   generateDefaultGoals() {
     const assessment = assessmentManager.currentAssessment;
-    const patient = patientManager.currentPatient;
     
     let goals = `【管理方針】\n`;
     goals += `・口腔機能の維持・向上を目指し、個別の機能訓練プログラムを実施します\n`;
@@ -664,3 +664,4 @@ const managementManager = new ManagementManager();
 window.managementManager = managementManager;
 
 console.log('management.js 読み込み完了');
+

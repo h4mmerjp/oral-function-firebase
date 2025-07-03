@@ -406,6 +406,7 @@ function deletePatient(patientId) {
   }
 }
 
+
 // 管理計画書関連のグローバル関数（新規追加）
 function createManagementPlan() {
   console.log('createManagementPlan() が呼び出されました');
@@ -425,6 +426,7 @@ function createManagementPlan() {
       alert('管理計画モジュールが読み込まれていません。ページを再読み込みしてください。');
       return;
     }
+
   }
   
   if (!window.patientManager || !patientManager.currentPatient) {
@@ -435,7 +437,9 @@ function createManagementPlan() {
   
   if (!window.assessmentManager || !assessmentManager.currentAssessment) {
     console.error('検査結果がありません');
+
     alert('検査を完了してください');
+
     return;
   }
   
@@ -447,6 +451,8 @@ function createManagementPlan() {
     alert('管理計画書の作成に失敗しました: ' + error.message);
   }
 }
+
+
 
 // アプリケーション初期化（修正版）
 document.addEventListener('DOMContentLoaded', function() {
