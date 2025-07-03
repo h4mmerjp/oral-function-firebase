@@ -406,6 +406,87 @@ function deletePatient(patientId) {
   }
 }
 
+// ===== 管理計画関連のグローバル関数（新規追加） =====
+
+// 管理計画書作成のグローバル関数
+function createManagementPlan() {
+  console.log('createManagementPlan() が呼び出されました');
+  
+  if (!window.managementManager) {
+    console.error('managementManager が初期化されていません');
+    alert('管理計画モジュールの初期化中です。少し待ってから再試行してください。');
+    return;
+  }
+  
+  if (!window.patientManager || !patientManager.currentPatient) {
+    console.error('患者が選択されていません');
+    alert('患者を選択してください');
+    return;
+  }
+  
+  if (!window.assessmentManager || !assessmentManager.currentAssessment) {
+    console.error('検査結果がありません');
+    alert('検査を完了してから管理計画書を作成してください');
+    return;
+  }
+  
+  try {
+    managementManager.createManagementPlan();
+    console.log('管理計画書作成処理が完了しました');
+  } catch (error) {
+    console.error('管理計画書作成エラー:', error);
+    alert('管理計画書の作成に失敗しました: ' + error.message);
+  }
+}
+
+// 管理計画書保存のグローバル関数
+function saveManagementPlan() {
+  if (window.managementManager) {
+    managementManager.saveManagementPlan();
+  } else {
+    console.error('managementManager が初期化されていません');
+    alert('管理計画モジュールが初期化されていません');
+  }
+}
+
+// 管理計画書印刷のグローバル関数
+function printManagementPlan() {
+  if (window.managementManager) {
+    managementManager.printManagementPlan();
+  } else {
+    console.error('managementManager が初期化されていません');
+    alert('管理計画モジュールが初期化されていません');
+  }
+}
+
+// 管理指導記録関連のグローバル関数
+function loadProgressRecordForm() {
+  if (window.managementManager) {
+    managementManager.loadProgressRecordForm();
+  } else {
+    console.error('managementManager が初期化されていません');
+    alert('管理計画モジュールが初期化されていません');
+  }
+}
+
+function saveProgressRecord() {
+  if (window.managementManager) {
+    managementManager.saveProgressRecord();
+  } else {
+    console.error('managementManager が初期化されていません');
+    alert('管理計画モジュールが初期化されていません');
+  }
+}
+
+function printProgressRecord() {
+  if (window.managementManager) {
+    managementManager.printProgressRecord();
+  } else {
+    console.error('managementManager が初期化されていません');
+    alert('管理計画モジュールが初期化されていません');
+  }
+}
+
 // アプリケーション初期化（修正版）
 document.addEventListener('DOMContentLoaded', function() {
   console.log('DOM読み込み完了 - アプリケーション初期化開始');
@@ -450,145 +531,4 @@ window.addEventListener('beforeunload', function(e) {
     e.preventDefault();
     e.returnValue = '検査データが保存されていません。ページを離れますか？';
   }
-});
-// 安全な関数呼び出し（app.jsの最後に追加）
-
-// 管理計画書作成の安全な呼び出し
-function createManagementPlanSafe() {
-  console.log('createManagementPlanSafe() が呼び出されました');
-  
-  // managementManagerの存在確認
-  if (typeof window.managementManager === 'undefined') {
-    console.error('managementManager が定義されていません。再初期化を試行します。');
-    
-    // 少し待ってから再試行
-    setTimeout(() => {
-      if (typeof window.managementManager !== 'undefined') {
-        managementManager.createManagementPlan();
-      } else {
-        alert('管理計画書機能の初期化に失敗しました。ページを再読み込みしてください。');
-      }
-    }, 500);
-    return;
-  }
-  
-  try {
-    managementManager.createManagementPlan();
-  } catch (error) {
-    console.error('管理計画書作成エラー:', error);
-    alert('管理計画書の作成に失敗しました: ' + error.message);
-  }
-}
-
-// 履歴確認の安全な呼び出し
-function openPatientHistorySafe() {
-  console.log('openPatientHistorySafe() が呼び出されました');
-  
-  if (typeof window.patientManager === 'undefined') {
-    console.error('patientManager が定義されていません');
-    alert('患者管理機能の初期化に失敗しました。ページを再読み込みしてください。');
-    return;
-  }
-  
-  try {
-    if (window.app && typeof window.app.openTab === 'function') {
-      app.openTab('patient-history');
-    } else {
-      // 直接DOM操作
-      directTabSwitchSafe('patient-history');
-    }
-  } catch (error) {
-    console.error('履歴タブ切り替えエラー:', error);
-    alert('履歴画面の表示に失敗しました: ' + error.message);
-  }
-}
-
-// 安全なタブ切り替え
-function directTabSwitchSafe(tabName) {
-  try {
-    console.log('directTabSwitchSafe実行:', tabName);
-    
-    // すべてのタブコンテンツを非表示
-    const tabContents = document.querySelectorAll('.tab-content');
-    tabContents.forEach(content => {
-      content.classList.remove('active');
-    });
-    
-    // すべてのタブボタンを非アクティブ
-    const tabs = document.querySelectorAll('.tab');
-    tabs.forEach(tab => {
-      tab.classList.remove('active');
-    });
-    
-    // 指定されたタブコンテンツを表示
-    const targetTabContent = document.getElementById(tabName);
-    if (targetTabContent) {
-      targetTabContent.classList.add('active');
-      console.log('タブコンテンツ表示完了:', tabName);
-    } else {
-      console.error('対象タブが見つかりません:', tabName);
-      return false;
-    }
-    
-    // 対応するタブボタンをアクティブ化
-    let tabButton = null;
-    
-    // タブ名に基づいてボタンを検索
-    const tabTexts = {
-      'patient-list': '患者一覧',
-      'patient-info': '患者情報',
-      'assessment': '口腔機能精密検査',
-      'diagnosis': '診断結果',
-      'management-plan': '管理計画書',
-      'progress-record': '管理指導記録簿',
-      'patient-history': '履歴・統計',
-      'information': '参考情報'
-    };
-    
-    const expectedText = tabTexts[tabName];
-    if (expectedText) {
-      const tabs = document.querySelectorAll('.tab');
-      tabs.forEach(tab => {
-        if (tab.textContent.trim() === expectedText) {
-          tabButton = tab;
-        }
-      });
-    }
-    
-    if (tabButton) {
-      tabButton.classList.add('active');
-      console.log('タブボタンアクティブ化完了:', tabButton.textContent);
-    } else {
-      console.warn('対応するタブボタンが見つかりません');
-    }
-    
-    return true;
-    
-  } catch (error) {
-    console.error('directTabSwitchSafe エラー:', error);
-    return false;
-  }
-}
-
-// 初期化確認関数
-function checkManagersInitialization() {
-  const managers = [
-    { name: 'patientManager', obj: window.patientManager },
-    { name: 'assessmentManager', obj: window.assessmentManager },
-    { name: 'managementManager', obj: window.managementManager }
-  ];
-  
-  console.log('=== マネージャー初期化状況 ===');
-  managers.forEach(manager => {
-    console.log(`${manager.name}: ${manager.obj ? '初期化済み' : '未初期化'}`);
-  });
-  console.log('========================');
-  
-  return managers.every(manager => manager.obj);
-}
-
-// ページ読み込み完了後の追加確認
-document.addEventListener('DOMContentLoaded', function() {
-  // 少し遅延してマネージャーの初期化を確認
-  setTimeout(checkManagersInitialization, 1000);
 });
