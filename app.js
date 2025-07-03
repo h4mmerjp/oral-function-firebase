@@ -406,16 +406,27 @@ function deletePatient(patientId) {
   }
 }
 
-// ===== 管理計画関連のグローバル関数（新規追加） =====
 
-// 管理計画書作成のグローバル関数
+// 管理計画書関連のグローバル関数（新規追加）
 function createManagementPlan() {
   console.log('createManagementPlan() が呼び出されました');
   
+  // デバッグ情報
+  console.log('managementManager 存在確認:', !!window.managementManager);
+  console.log('patientManager 存在確認:', !!window.patientManager);
+  console.log('assessmentManager 存在確認:', !!window.assessmentManager);
+  
   if (!window.managementManager) {
     console.error('managementManager が初期化されていません');
-    alert('管理計画モジュールの初期化中です。少し待ってから再試行してください。');
-    return;
+    // 強制的に初期化を試行
+    if (typeof ManagementManager !== 'undefined') {
+      console.log('ManagementManager クラスが見つかりました。手動初期化を試行します。');
+      window.managementManager = new ManagementManager();
+    } else {
+      alert('管理計画モジュールが読み込まれていません。ページを再読み込みしてください。');
+      return;
+    }
+
   }
   
   if (!window.patientManager || !patientManager.currentPatient) {
@@ -426,7 +437,9 @@ function createManagementPlan() {
   
   if (!window.assessmentManager || !assessmentManager.currentAssessment) {
     console.error('検査結果がありません');
-    alert('検査を完了してから管理計画書を作成してください');
+
+    alert('検査を完了してください');
+
     return;
   }
   
@@ -439,53 +452,7 @@ function createManagementPlan() {
   }
 }
 
-// 管理計画書保存のグローバル関数
-function saveManagementPlan() {
-  if (window.managementManager) {
-    managementManager.saveManagementPlan();
-  } else {
-    console.error('managementManager が初期化されていません');
-    alert('管理計画モジュールが初期化されていません');
-  }
-}
 
-// 管理計画書印刷のグローバル関数
-function printManagementPlan() {
-  if (window.managementManager) {
-    managementManager.printManagementPlan();
-  } else {
-    console.error('managementManager が初期化されていません');
-    alert('管理計画モジュールが初期化されていません');
-  }
-}
-
-// 管理指導記録関連のグローバル関数
-function loadProgressRecordForm() {
-  if (window.managementManager) {
-    managementManager.loadProgressRecordForm();
-  } else {
-    console.error('managementManager が初期化されていません');
-    alert('管理計画モジュールが初期化されていません');
-  }
-}
-
-function saveProgressRecord() {
-  if (window.managementManager) {
-    managementManager.saveProgressRecord();
-  } else {
-    console.error('managementManager が初期化されていません');
-    alert('管理計画モジュールが初期化されていません');
-  }
-}
-
-function printProgressRecord() {
-  if (window.managementManager) {
-    managementManager.printProgressRecord();
-  } else {
-    console.error('managementManager が初期化されていません');
-    alert('管理計画モジュールが初期化されていません');
-  }
-}
 
 // アプリケーション初期化（修正版）
 document.addEventListener('DOMContentLoaded', function() {

@@ -217,20 +217,72 @@
   <!-- File input for import -->
   <input type="file" id="import-file" accept=".json" style="display: none;" onchange="handleImportFile(event)">
 
-  <script src="database.js"></script>
-  <script src="patients.js"></script>
-  <script src="assessment.js"></script>
-  <script src="management.js"></script>
-  <script src="app.js"></script>
-  
-  <!-- デバッグ用：読み込み確認 -->
+  <!-- スクリプト読み込み順序を最適化 -->
   <script>
-    console.log('All scripts loaded. Checking managers...');
-    setTimeout(() => {
-      console.log('patientManager:', !!window.patientManager);
-      console.log('assessmentManager:', !!window.assessmentManager);
-      console.log('managementManager:', !!window.managementManager);
-    }, 100);
+    // 初期化状況を監視するためのフラグ
+    window.appInitStatus = {
+      database: false,
+      patients: false,
+      assessment: false,
+      management: false,
+      app: false
+    };
+    
+    // 初期化完了を監視する関数
+    function checkInitialization() {
+      const allInitialized = Object.values(window.appInitStatus).every(status => status);
+      if (allInitialized) {
+        console.log('すべてのモジュールが初期化完了しました');
+        console.log('初期化状況:', window.appInitStatus);
+      } else {
+        console.log('初期化待機中:', window.appInitStatus);
+      }
+    }
+  </script>
+  
+  <script src="database.js"></script>
+  <script>
+    if (typeof db !== 'undefined') {
+      window.appInitStatus.database = true;
+      console.log('database.js 読み込み完了');
+    }
+  </script>
+  
+  <script src="patients.js"></script>
+  <script>
+    if (typeof patientManager !== 'undefined') {
+      window.appInitStatus.patients = true;
+      console.log('patients.js 読み込み完了');
+    }
+  </script>
+  
+  <script src="assessment.js"></script>
+  <script>
+    if (typeof assessmentManager !== 'undefined') {
+      window.appInitStatus.assessment = true;
+      console.log('assessment.js 読み込み完了');
+    }
+  </script>
+  
+  <script src="management.js"></script>
+  <script>
+    if (typeof managementManager !== 'undefined') {
+      window.appInitStatus.management = true;
+      console.log('management.js 読み込み完了');
+    }
+  </script>
+  
+  <script src="app.js"></script>
+
+  <script>
+    if (typeof app !== 'undefined' || typeof OralHealthApp !== 'undefined') {
+      window.appInitStatus.app = true;
+      console.log('app.js 読み込み完了');
+    }
+    
+    // 最終的な初期化状況を確認
+    setTimeout(checkInitialization, 1000);
+
   </script>
 </body>
 </html>
