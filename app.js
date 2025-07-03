@@ -410,10 +410,21 @@ function deletePatient(patientId) {
 function createManagementPlan() {
   console.log('createManagementPlan() が呼び出されました');
   
+  // デバッグ情報
+  console.log('managementManager 存在確認:', !!window.managementManager);
+  console.log('patientManager 存在確認:', !!window.patientManager);
+  console.log('assessmentManager 存在確認:', !!window.assessmentManager);
+  
   if (!window.managementManager) {
     console.error('managementManager が初期化されていません');
-    alert('管理計画モジュールの初期化中です。少し待ってから再試行してください。');
-    return;
+    // 強制的に初期化を試行
+    if (typeof ManagementManager !== 'undefined') {
+      console.log('ManagementManager クラスが見つかりました。手動初期化を試行します。');
+      window.managementManager = new ManagementManager();
+    } else {
+      alert('管理計画モジュールが読み込まれていません。ページを再読み込みしてください。');
+      return;
+    }
   }
   
   if (!window.patientManager || !patientManager.currentPatient) {
