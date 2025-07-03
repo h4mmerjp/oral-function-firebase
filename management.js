@@ -14,3 +14,14 @@ setTimeout(() => {
     console.error('managementManager グローバル登録確認: NG');
   }
 }, 50);
+// 確実なグローバル登録
+window.managementManager = managementManager;
+window.createManagementPlan = function() {
+  if (window.managementManager) {
+    managementManager.createManagementPlan();
+  } else {
+    alert('管理計画モジュールが初期化されていません');
+  }
+};
+
+console.log('management.js: グローバル登録完了');
