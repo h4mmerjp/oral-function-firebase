@@ -553,3 +553,86 @@ tr:hover {
     grid-template-columns: 1fr;
   }
 }
+/* 聖隷式嚥下質問紙のスタイル */
+.seiryo-question {
+  background: #f9f9f9;
+  padding: 15px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+  border-left: 3px solid #3498db;
+}
+
+.seiryo-options {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  gap: 5px;
+}
+
+.seiryo-option {
+  text-align: center;
+  flex: 1;
+  padding: 10px 8px;
+  background: #fff;
+  border: 1px solid #ddd;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+  border-radius: 4px;
+}
+
+.seiryo-option:hover {
+  background: #f5f9ff;
+  border-color: #3498db;
+}
+
+.seiryo-option.selected {
+  background: #3498db;
+  color: white;
+  border-color: #3498db;
+  font-weight: bold;
+}
+
+/* A評価（該当）の色を赤系に */
+.seiryo-option[data-value="A"].selected {
+  background: #e74c3c;
+  border-color: #e74c3c;
+}
+
+.seiryo-option[data-value="A"]:hover {
+  background: #fadbd8;
+  border-color: #e74c3c;
+}
+
+/* B評価（部分的該当）の色を黄色系に */
+.seiryo-option[data-value="B"].selected {
+  background: #f39c12;
+  border-color: #f39c12;
+}
+
+.seiryo-option[data-value="B"]:hover {
+  background: #fef9e7;
+  border-color: #f39c12;
+}
+
+/* C評価（該当なし）の色を緑系に */
+.seiryo-option[data-value="C"].selected {
+  background: #2ecc71;
+  border-color: #2ecc71;
+}
+
+.seiryo-option[data-value="C"]:hover {
+  background: #eafaf1;
+  border-color: #2ecc71;
+}
+
+/* モバイル対応 */
+@media (max-width: 768px) {
+  .seiryo-options {
+    flex-direction: column;
+  }
+  
+  .seiryo-option {
+    margin-bottom: 5px;
+  }
+}

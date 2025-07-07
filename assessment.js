@@ -12,6 +12,8 @@ class AssessmentManager {
       swallowing: false
     };
     this.eat10Scores = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    // 聖隷式嚥下質問紙用の配列を追加（15項目、初期値はすべてC）
+    this.seiryoScores = ['C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C'];
     console.log('AssessmentManager が初期化されました');
   }
 
@@ -47,6 +49,8 @@ class AssessmentManager {
       };
       
       this.eat10Scores = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      // 聖隷式スコアもリセット
+      this.seiryoScores = ['C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C'];
       
       console.log('検査データ初期化完了');
       
@@ -108,7 +112,7 @@ class AssessmentManager {
     }
   }
 
-  // 検査コンテンツの読み込み（修正版）
+  // 検査コンテンツの読み込み（聖隷式追加版）
   loadAssessmentContent() {
     console.log('検査コンテンツ読み込み開始');
     
@@ -368,16 +372,30 @@ class AssessmentManager {
           <select id="swallowing-method" onchange="assessmentManager.toggleSwallowingMethod()">
             <option value="">選択してください</option>
             <option value="eat10">嚥下スクリーニング検査（EAT-10）</option>
+            <option value="seiryo">聖隷式嚥下質問紙</option>
           </select>
         </div>
         
         <div id="eat10-method" style="display:none;">
           <p>嚥下スクリーニング質問紙（EAT-10）による評価です。</p>
           <p>各質問に対して、「0: 問題なし」から「4: ひどく問題」の5段階で回答してください。</p>
+          <p><strong>基準値: 3点以上</strong></p>
           
           ${this.generateEAT10Questions()}
           
           <div class="result-box" id="eat10-result" style="margin-top: 20px;">
+            判定結果: まだ評価されていません
+          </div>
+        </div>
+
+        <div id="seiryo-method" style="display:none;">
+          <p>聖隷式嚥下質問紙による評価です。</p>
+          <p>各質問に対して、A（しばしば/たいへん）、B（ときどき/わずかに）、C（なし）で回答してください。</p>
+          <p><strong>基準値: Aが1つ以上</strong></p>
+          
+          ${this.generateSeiryoQuestions()}
+          
+          <div class="result-box" id="seiryo-result" style="margin-top: 20px;">
             判定結果: まだ評価されていません
           </div>
         </div>
@@ -417,6 +435,55 @@ class AssessmentManager {
             <div class="eat-10-option" data-value="2" onclick="assessmentManager.selectEAT10Option(this, ${index})">2</div>
             <div class="eat-10-option" data-value="3" onclick="assessmentManager.selectEAT10Option(this, ${index})">3</div>
             <div class="eat-10-option" data-value="4" onclick="assessmentManager.selectEAT10Option(this, ${index})">4：ひどく問題</div>
+          </div>
+        </div>
+      `;
+    });
+
+    return html;
+  }
+
+  // 【新規追加】聖隷式嚥下質問紙の質問項目を生成
+  generateSeiryoQuestions() {
+    const questions = [
+      "肺炎と診断されたことがありますか？",
+      "やせてきましたか？",
+      "物が飲み込みにくいと感じることがありますか？",
+      "食事中にむせることがありますか？",
+      "お茶を飲むときにむせることがありますか？",
+      "食事中や食後、それ以外の時にものどがゴロゴロ（痰がからんだ感じ）することがありますか？",
+      "のどに食べ物が残る感じがすることがありますか？",
+      "食べるのが遅くなりましたか？",
+      "硬いものが食べにくくなりましたか？",
+      "口から食べ物がこぼれることがありますか？",
+      "口の中に食べ物が残ることがありますか？",
+      "食物や酸っぱい液が胃からのどに戻ってくることがありますか？",
+      "胸に食べ物が残ったり、つまった感じがすることがありますか？",
+      "夜、咳で眠れなかったり目覚めることがありますか？",
+      "声がかすれてきましたか？（がらがら声、かすれ声など）"
+    ];
+
+    const optionsA = [
+      "繰り返す", "明らかに", "しばしば", "しばしば", "しばしば", 
+      "しばしば", "しばしば", "たいへん", "たいへん", "しばしば",
+      "しばしば", "しばしば", "しばしば", "しばしば", "たいへん"
+    ];
+
+    const optionsB = [
+      "一度だけ", "わずかに", "ときどき", "ときどき", "ときどき",
+      "ときどき", "ときどき", "わずかに", "わずかに", "ときどき",
+      "ときどき", "ときどき", "ときどき", "ときどき", "わずかに"
+    ];
+
+    let html = '';
+    questions.forEach((question, index) => {
+      html += `
+        <div class="seiryo-question">
+          <p>${index + 1}. ${question}</p>
+          <div class="seiryo-options">
+            <div class="seiryo-option" data-value="A" onclick="assessmentManager.selectSeiryoOption(this, ${index})">A. ${optionsA[index]}</div>
+            <div class="seiryo-option" data-value="B" onclick="assessmentManager.selectSeiryoOption(this, ${index})">B. ${optionsB[index]}</div>
+            <div class="seiryo-option" data-value="C" onclick="assessmentManager.selectSeiryoOption(this, ${index})">C. なし</div>
           </div>
         </div>
       `;
@@ -800,8 +867,13 @@ class AssessmentManager {
     
     if (method === 'eat10') {
       document.getElementById('eat10-method').style.display = 'block';
+      document.getElementById('seiryo-method').style.display = 'none';
+    } else if (method === 'seiryo') {
+      document.getElementById('eat10-method').style.display = 'none';
+      document.getElementById('seiryo-method').style.display = 'block';
     } else {
       document.getElementById('eat10-method').style.display = 'none';
+      document.getElementById('seiryo-method').style.display = 'none';
     }
   }
 
@@ -843,6 +915,47 @@ class AssessmentManager {
     this.updateProgress();
   }
 
+  // 【新規追加】聖隷式嚥下質問紙の選択
+  selectSeiryoOption(element, questionIndex) {
+    const options = element.parentElement.querySelectorAll('.seiryo-option');
+    options.forEach(option => {
+      option.classList.remove('selected');
+    });
+    
+    element.classList.add('selected');
+    this.seiryoScores[questionIndex] = element.getAttribute('data-value');
+    
+    this.evaluateSeiryo();
+  }
+
+  // 【新規追加】聖隷式嚥下質問紙の評価
+  evaluateSeiryo() {
+    const aCount = this.seiryoScores.filter(score => score === 'A').length;
+    const resultElement = document.getElementById('seiryo-result');
+    
+    if (resultElement) {
+      if (aCount >= 1) {
+        resultElement.innerHTML = `<p class="red-text">判定結果: 嚥下機能低下あり（A評価: ${aCount}項目）</p>`;
+        resultElement.classList.add('result-positive');
+        resultElement.classList.remove('result-negative');
+        this.assessmentStatus.swallowing = true;
+      } else {
+        resultElement.innerHTML = `<p class="green-text">判定結果: 嚥下機能低下なし（A評価: ${aCount}項目）</p>`;
+        resultElement.classList.add('result-negative');
+        resultElement.classList.remove('result-positive');
+        this.assessmentStatus.swallowing = false;
+      }
+    }
+    
+    if (this.currentAssessment) {
+      this.currentAssessment.seiryo_a_count = aCount;
+      this.currentAssessment.seiryo_scores = JSON.stringify(this.seiryoScores);
+      this.currentAssessment.swallowing_status = this.assessmentStatus.swallowing;
+    }
+    
+    this.updateProgress();
+  }
+
   // 検査完了
   async completeAssessment() {
     if (!this.currentAssessment) {
@@ -875,7 +988,7 @@ class AssessmentManager {
     }
   }
 
-  // 診断結果の表示（修正版 - グローバル関数使用）
+  // 診断結果の表示（元の形式を維持）
   loadDiagnosisContent() {
     if (!this.currentAssessment) return;
 
@@ -999,12 +1112,24 @@ class AssessmentManager {
       `;
     }
 
-    if (this.currentAssessment.eat10_score !== undefined) {
+    // 【修正】嚥下機能の表示（EAT-10または聖隷式に対応）
+    if (this.currentAssessment.eat10_score !== undefined || this.currentAssessment.seiryo_a_count !== undefined) {
+      let value = '';
+      let criteria = '';
+      
+      if (this.currentAssessment.eat10_score !== undefined) {
+        value = `EAT-10スコア: ${this.currentAssessment.eat10_score}点`;
+        criteria = 'EAT-10: 3点以上';
+      } else if (this.currentAssessment.seiryo_a_count !== undefined) {
+        value = `聖隷式A評価: ${this.currentAssessment.seiryo_a_count}項目`;
+        criteria = '聖隷式: A評価1項目以上';
+      }
+      
       html += `
         <tr>
           <td>⑦ 嚥下機能低下</td>
-          <td>EAT-10スコア: ${this.currentAssessment.eat10_score}点</td>
-          <td>3点以上</td>
+          <td>${value}</td>
+          <td>${criteria}</td>
           <td>${this.currentAssessment.swallowing_status ? '<span class="red-text">該当</span>' : '<span class="green-text">非該当</span>'}</td>
         </tr>
       `;
@@ -1018,7 +1143,6 @@ class AssessmentManager {
       <div style="margin-top: 30px;">
         <button onclick="createManagementPlan()" class="btn-success">管理計画書作成</button>
         <button onclick="openTab('patient-history')" class="btn-secondary">履歴確認</button>
-
       </div>
     `;
 
