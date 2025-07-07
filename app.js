@@ -66,7 +66,7 @@ class OralHealthApp {
     });
     
     document.getElementById(tabName).classList.add('active');
-    document.querySelector(`.tab[onclick="app.openTab('${tabName}')"]`)?.classList.add('active');
+    document.querySelector(`.tab[onclick="openTab('${tabName}')"]`)?.classList.add('active');
 
     // タブ切り替え時の処理
     this.handleTabChange(tabName);
