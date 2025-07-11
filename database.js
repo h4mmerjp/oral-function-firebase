@@ -1,396 +1,730 @@
-// 最終修正版データベース管理クラス
+// Firebase Firestore版データベース管理クラス
 class OralHealthDatabase {
   constructor() {
-    this.storageKey = 'oralHealthApp';
-    this.init();
+    this.storageKey = "oralHealthApp_backup"; // 緊急時のローカルバックアップ用
+    this.isOnline = false;
+    this.currentUser = null;
+
+    // Firebase接続状況を監視
+    this.setupFirebaseListener();
+
+    console.log("OralHealthDatabase (Firebase版) が初期化されました");
   }
 
-  init() {
-    // ローカルストレージの初期化
-    if (!localStorage.getItem(this.storageKey)) {
-      const initialData = {
-        patients: [],
-        assessments: [],
-        generalConditions: [],
-        managementPlans: [],
-        progressRecords: [],
-        lastId: 0
-      };
-      localStorage.setItem(this.storageKey, JSON.stringify(initialData));
+  // Firebase接続状況監視
+  setupFirebaseListener() {
+    if (window.firebaseManager) {
+      // 認証状態の変更を監視
+      if (firebaseManager.auth) {
+        firebaseManager.auth.onAuthStateChanged((user) => {
+          this.currentUser = user;
+          this.isOnline = !!user;
+          console.log(
+            "データベース認証状態変更:",
+            user ? `オンライン: ${user.email}` : "オフライン"
+          );
+        });
+      }
     }
   }
 
-  getData() {
-    const data = localStorage.getItem(this.storageKey);
-    return data ? JSON.parse(data) : this.getEmptyData();
+  // Firestore参照の取得
+  getFirestore() {
+    if (!window.firebaseManager || !firebaseManager.firestore) {
+      throw new Error(
+        "Firebase Firestore が利用できません。ログインしてください。"
+      );
+    }
+    return firebaseManager.firestore;
   }
 
-  getEmptyData() {
-    return {
-      patients: [],
-      assessments: [],
-      generalConditions: [],
-      managementPlans: [],
-      progressRecords: [],
-      lastId: 0
-    };
+  // ユーザー固有のコレクション取得
+  getUserCollection(collectionName) {
+    if (!this.currentUser) {
+      throw new Error("ログインが必要です");
+    }
+
+    const firestore = this.getFirestore();
+    return firestore
+      .collection("users")
+      .doc(this.currentUser.uid)
+      .collection(collectionName);
   }
 
-  saveData(data) {
-    localStorage.setItem(this.storageKey, JSON.stringify(data));
+  // オフライン時のエラーハンドリング
+  handleOfflineError() {
+    alert(
+      "インターネット接続またはログインが必要です。\n\nオンライン機能:\n- データの保存・読み込み\n- 患者数制限管理\n- 自動バックアップ\n\nログインしてご利用ください。"
+    );
   }
 
-  // 改良版ID生成 - 重複を防ぐ
-  generateId() {
-    const data = this.getData();
-    
-    // 現在の最大IDを確認
-    let maxId = data.lastId || 0;
-    
-    // 全データから実際の最大IDを確認（安全対策）
-    const allItems = [
-      ...data.patients,
-      ...data.assessments,
-      ...data.generalConditions,
-      ...data.managementPlans,
-      ...data.progressRecords
-    ];
-    
-    allItems.forEach(item => {
-      if (item.id && parseInt(item.id) > maxId) {
-        maxId = parseInt(item.id);
-      }
-    });
-    
-    const newId = maxId + 1;
-    data.lastId = newId;
-    this.saveData(data);
-    
-    console.log('Generated new ID:', newId);
-    return newId;
-  }
-
-  // 患者関連
+  // 患者関連メソッド
   async getPatients() {
-    const data = this.getData();
-    return data.patients.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+    try {
+      if (!this.isOnline) {
+        this.handleOfflineError();
+        return [];
+      }
+
+      console.log("Firebase から患者一覧を取得中...");
+      const patientsRef = this.getUserCollection("patients");
+      const snapshot = await patientsRef.orderBy("updated_at", "desc").get();
+
+      const patients = [];
+      snapshot.forEach((doc) => {
+        patients.push({
+          id: doc.id,
+          ...doc.data(),
+        });
+      });
+
+      console.log(`${patients.length} 人の患者データを取得しました`);
+      return patients;
+    } catch (error) {
+      console.error("患者一覧取得エラー:", error);
+
+      if (error.code === "permission-denied") {
+        alert("データアクセス権限がありません。ログインし直してください。");
+      } else if (error.code === "unavailable") {
+        alert("インターネット接続を確認してください。");
+      } else {
+        alert("患者データの取得に失敗しました: " + error.message);
+      }
+
+      return [];
+    }
   }
 
   async getPatient(id) {
-    console.log('getPatient called with ID:', id, 'type:', typeof id);
-    const data = this.getData();
-    
-    // IDの型を統一（数値として比較）
-    const numericId = parseInt(id);
-    const patient = data.patients.find(p => parseInt(p.id) === numericId);
-    
-    console.log('Found patient:', patient);
-    return patient;
+    try {
+      if (!this.isOnline) {
+        this.handleOfflineError();
+        return null;
+      }
+
+      console.log("患者データ取得:", id);
+      const patientsRef = this.getUserCollection("patients");
+      const doc = await patientsRef.doc(id).get();
+
+      if (doc.exists) {
+        const patient = {
+          id: doc.id,
+          ...doc.data(),
+        };
+        console.log("患者データ取得成功:", patient);
+        return patient;
+      } else {
+        console.warn("患者が見つかりません:", id);
+        return null;
+      }
+    } catch (error) {
+      console.error("患者取得エラー:", error);
+      alert("患者情報の取得に失敗しました: " + error.message);
+      return null;
+    }
   }
 
   async createPatient(patientData) {
-    const data = this.getData();
-    
-    // 重複チェック（患者IDまたは名前+生年月日の重複）
-    const existingPatient = data.patients.find(p => 
-      p.patient_id === patientData.patient_id || 
-      (p.name === patientData.name && p.birthdate === patientData.birthdate)
-    );
-    
-    if (existingPatient) {
-      console.warn('重複する患者が見つかりました:', existingPatient);
-      throw new Error('同じ患者IDまたは患者情報が既に存在します');
+    try {
+      if (!this.isOnline) {
+        this.handleOfflineError();
+        throw new Error("オフラインのため患者を作成できません");
+      }
+
+      console.log("新規患者作成:", patientData);
+
+      // 重複チェック
+      await this.checkPatientDuplication(patientData);
+
+      const patientsRef = this.getUserCollection("patients");
+
+      const newPatient = {
+        ...patientData,
+        created_at: firebase.firestore.FieldValue.serverTimestamp(),
+        updated_at: firebase.firestore.FieldValue.serverTimestamp(),
+      };
+
+      const docRef = await patientsRef.add(newPatient);
+
+      // 作成されたドキュメントを取得
+      const createdDoc = await docRef.get();
+      const result = {
+        id: createdDoc.id,
+        ...createdDoc.data(),
+        created_at: new Date(), // タイムスタンプを Date オブジェクトに変換
+        updated_at: new Date(),
+      };
+
+      console.log("患者作成成功:", result);
+      return result;
+    } catch (error) {
+      console.error("患者作成エラー:", error);
+
+      if (error.message.includes("重複")) {
+        throw error; // 重複エラーはそのまま再スロー
+      } else {
+        throw new Error("患者の作成に失敗しました: " + error.message);
+      }
     }
-    
-    const newPatient = {
-      id: this.generateId(),
-      ...patientData,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    
-    data.patients.push(newPatient);
-    this.saveData(data);
-    
-    console.log('Created new patient:', newPatient);
-    return newPatient;
+  }
+
+  // 重複チェック
+  async checkPatientDuplication(patientData) {
+    const patientsRef = this.getUserCollection("patients");
+
+    // 患者IDの重複チェック
+    if (patientData.patient_id) {
+      const idQuery = await patientsRef
+        .where("patient_id", "==", patientData.patient_id)
+        .get();
+      if (!idQuery.empty) {
+        throw new Error("同じ患者IDが既に存在します");
+      }
+    }
+
+    // 名前+生年月日の重複チェック
+    if (patientData.name && patientData.birthdate) {
+      const nameQuery = await patientsRef
+        .where("name", "==", patientData.name)
+        .where("birthdate", "==", patientData.birthdate)
+        .get();
+
+      if (!nameQuery.empty) {
+        throw new Error("同じ患者情報（名前+生年月日）が既に存在します");
+      }
+    }
   }
 
   async updatePatient(id, patientData) {
-    const data = this.getData();
-    const numericId = parseInt(id);
-    const index = data.patients.findIndex(p => parseInt(p.id) === numericId);
-    
-    if (index !== -1) {
-      data.patients[index] = {
-        ...data.patients[index],
+    try {
+      if (!this.isOnline) {
+        this.handleOfflineError();
+        throw new Error("オフラインのため患者を更新できません");
+      }
+
+      console.log("患者更新:", id, patientData);
+
+      const patientsRef = this.getUserCollection("patients");
+      const docRef = patientsRef.doc(id);
+
+      // ドキュメントの存在確認
+      const doc = await docRef.get();
+      if (!doc.exists) {
+        throw new Error("更新対象の患者が見つかりません");
+      }
+
+      const updateData = {
         ...patientData,
-        id: numericId, // IDは変更しない
-        updated_at: new Date().toISOString()
+        updated_at: firebase.firestore.FieldValue.serverTimestamp(),
       };
-      this.saveData(data);
-      
-      console.log('Updated patient:', data.patients[index]);
-      return data.patients[index];
+
+      await docRef.update(updateData);
+
+      // 更新後のデータを取得
+      const updatedDoc = await docRef.get();
+      const result = {
+        id: updatedDoc.id,
+        ...updatedDoc.data(),
+        updated_at: new Date(),
+      };
+
+      console.log("患者更新成功:", result);
+      return result;
+    } catch (error) {
+      console.error("患者更新エラー:", error);
+      throw new Error("患者情報の更新に失敗しました: " + error.message);
     }
-    throw new Error('Patient not found');
   }
 
   async deletePatient(id) {
-    const data = this.getData();
-    const numericId = parseInt(id);
-    
-    // 削除前のチェック
-    const patientExists = data.patients.some(p => parseInt(p.id) === numericId);
-    if (!patientExists) {
-      console.warn('削除対象の患者が見つかりません:', numericId);
-      return;
+    try {
+      if (!this.isOnline) {
+        this.handleOfflineError();
+        return;
+      }
+
+      console.log("患者削除開始:", id);
+
+      const batch = this.getFirestore().batch();
+
+      // 患者ドキュメントを削除
+      const patientRef = this.getUserCollection("patients").doc(id);
+      batch.delete(patientRef);
+
+      // 関連データも削除
+      const collections = [
+        "assessments",
+        "generalConditions",
+        "managementPlans",
+        "progressRecords",
+      ];
+
+      for (const collectionName of collections) {
+        const collectionRef = this.getUserCollection(collectionName);
+        const relatedDocs = await collectionRef
+          .where("patient_id", "==", id)
+          .get();
+
+        relatedDocs.forEach((doc) => {
+          batch.delete(doc.ref);
+        });
+      }
+
+      await batch.commit();
+      console.log("患者削除完了:", id);
+    } catch (error) {
+      console.error("患者削除エラー:", error);
+      throw new Error("患者の削除に失敗しました: " + error.message);
     }
-    
-    // 関連データも削除
-    data.patients = data.patients.filter(p => parseInt(p.id) !== numericId);
-    data.assessments = data.assessments.filter(a => parseInt(a.patient_id) !== numericId);
-    data.generalConditions = data.generalConditions.filter(g => parseInt(g.patient_id) !== numericId);
-    data.managementPlans = data.managementPlans.filter(m => parseInt(m.patient_id) !== numericId);
-    data.progressRecords = data.progressRecords.filter(p => parseInt(p.patient_id) !== numericId);
-    
-    this.saveData(data);
-    console.log('Deleted patient and related data for ID:', numericId);
   }
 
-  // 検査関連
+  // 検査関連メソッド
   async getAssessments(patientId = null) {
-    const data = this.getData();
-    let assessments;
-    
-    if (patientId !== null) {
-      const numericPatientId = parseInt(patientId);
-      assessments = data.assessments.filter(a => parseInt(a.patient_id) === numericPatientId);
-      console.log(`Assessments for patient ${numericPatientId}:`, assessments);
-    } else {
-      assessments = data.assessments;
+    try {
+      if (!this.isOnline) {
+        this.handleOfflineError();
+        return [];
+      }
+
+      const assessmentsRef = this.getUserCollection("assessments");
+      let query = assessmentsRef.orderBy("assessment_date", "desc");
+
+      if (patientId) {
+        query = query.where("patient_id", "==", patientId);
+      }
+
+      const snapshot = await query.get();
+
+      const assessments = [];
+      snapshot.forEach((doc) => {
+        assessments.push({
+          id: doc.id,
+          ...doc.data(),
+        });
+      });
+
+      console.log(`${assessments.length} 件の検査データを取得しました`);
+      return assessments;
+    } catch (error) {
+      console.error("検査データ取得エラー:", error);
+      alert("検査データの取得に失敗しました: " + error.message);
+      return [];
     }
-    
-    return assessments.sort((a, b) => new Date(b.assessment_date) - new Date(a.assessment_date));
   }
 
   async getLatestAssessment(patientId) {
-    console.log('getLatestAssessment called for patient:', patientId);
-    
-    const assessments = await this.getAssessments(patientId);
-    const latest = assessments.length > 0 ? assessments[0] : null;
-    
-    console.log('Latest assessment for patient', patientId, ':', latest);
-    return latest;
+    try {
+      const assessments = await this.getAssessments(patientId);
+      return assessments.length > 0 ? assessments[0] : null;
+    } catch (error) {
+      console.error("最新検査データ取得エラー:", error);
+      return null;
+    }
   }
 
   async createAssessment(assessmentData) {
-    const data = this.getData();
-    
-    // 患者の存在確認
-    const patientExists = data.patients.some(p => parseInt(p.id) === parseInt(assessmentData.patient_id));
-    if (!patientExists) {
-      throw new Error('指定された患者が存在しません');
+    try {
+      if (!this.isOnline) {
+        this.handleOfflineError();
+        throw new Error("オフラインのため検査データを保存できません");
+      }
+
+      console.log("検査データ作成:", assessmentData);
+
+      const assessmentsRef = this.getUserCollection("assessments");
+
+      const newAssessment = {
+        ...assessmentData,
+        created_at: firebase.firestore.FieldValue.serverTimestamp(),
+      };
+
+      const docRef = await assessmentsRef.add(newAssessment);
+
+      const createdDoc = await docRef.get();
+      const result = {
+        id: createdDoc.id,
+        ...createdDoc.data(),
+        created_at: new Date(),
+      };
+
+      console.log("検査データ作成成功:", result);
+      return result;
+    } catch (error) {
+      console.error("検査データ作成エラー:", error);
+      throw new Error("検査データの保存に失敗しました: " + error.message);
     }
-    
-    const newAssessment = {
-      id: this.generateId(),
-      ...assessmentData,
-      patient_id: parseInt(assessmentData.patient_id), // 数値型で保存
-      created_at: new Date().toISOString()
-    };
-    
-    data.assessments.push(newAssessment);
-    this.saveData(data);
-    
-    console.log('Created assessment:', newAssessment);
-    return newAssessment;
   }
 
-  // 全身状態関連
+  // 全身状態関連メソッド
   async getGeneralConditions(patientId) {
-    const data = this.getData();
-    const numericPatientId = parseInt(patientId);
-    const conditions = data.generalConditions.filter(g => parseInt(g.patient_id) === numericPatientId);
-    
-    console.log(`General conditions for patient ${numericPatientId}:`, conditions);
-    return conditions.sort((a, b) => new Date(b.assessment_date) - new Date(a.assessment_date));
+    try {
+      if (!this.isOnline) {
+        this.handleOfflineError();
+        return [];
+      }
+
+      const conditionsRef = this.getUserCollection("generalConditions");
+      const snapshot = await conditionsRef
+        .where("patient_id", "==", patientId)
+        .orderBy("assessment_date", "desc")
+        .get();
+
+      const conditions = [];
+      snapshot.forEach((doc) => {
+        conditions.push({
+          id: doc.id,
+          ...doc.data(),
+        });
+      });
+
+      return conditions;
+    } catch (error) {
+      console.error("全身状態取得エラー:", error);
+      return [];
+    }
   }
 
   async getLatestGeneralCondition(patientId) {
-    console.log('getLatestGeneralCondition called for patient:', patientId);
-    
-    const conditions = await this.getGeneralConditions(patientId);
-    const latest = conditions.length > 0 ? conditions[0] : null;
-    
-    console.log('Latest general condition for patient', patientId, ':', latest);
-    return latest;
+    try {
+      const conditions = await this.getGeneralConditions(patientId);
+      return conditions.length > 0 ? conditions[0] : null;
+    } catch (error) {
+      console.error("最新全身状態取得エラー:", error);
+      return null;
+    }
   }
 
   async createGeneralCondition(conditionData) {
-    const data = this.getData();
-    
-    // 患者の存在確認
-    const patientExists = data.patients.some(p => parseInt(p.id) === parseInt(conditionData.patient_id));
-    if (!patientExists) {
-      throw new Error('指定された患者が存在しません');
+    try {
+      if (!this.isOnline) {
+        this.handleOfflineError();
+        throw new Error("オフラインのため全身状態を保存できません");
+      }
+
+      const conditionsRef = this.getUserCollection("generalConditions");
+
+      const newCondition = {
+        ...conditionData,
+        created_at: firebase.firestore.FieldValue.serverTimestamp(),
+      };
+
+      const docRef = await conditionsRef.add(newCondition);
+
+      const createdDoc = await docRef.get();
+      const result = {
+        id: createdDoc.id,
+        ...createdDoc.data(),
+        created_at: new Date(),
+      };
+
+      console.log("全身状態作成成功:", result);
+      return result;
+    } catch (error) {
+      console.error("全身状態作成エラー:", error);
+      throw new Error("全身状態の保存に失敗しました: " + error.message);
     }
-    
-    const newCondition = {
-      id: this.generateId(),
-      ...conditionData,
-      patient_id: parseInt(conditionData.patient_id), // 数値型で保存
-      created_at: new Date().toISOString()
-    };
-    
-    data.generalConditions.push(newCondition);
-    this.saveData(data);
-    
-    console.log('Created general condition:', newCondition);
-    return newCondition;
   }
 
-  // 管理計画関連
+  // 管理計画関連メソッド
   async getManagementPlans(patientId) {
-    const data = this.getData();
-    const numericPatientId = parseInt(patientId);
-    const plans = data.managementPlans.filter(m => parseInt(m.patient_id) === numericPatientId);
-    return plans.sort((a, b) => new Date(b.plan_date) - new Date(a.plan_date));
+    try {
+      if (!this.isOnline) {
+        this.handleOfflineError();
+        return [];
+      }
+
+      const plansRef = this.getUserCollection("managementPlans");
+      const snapshot = await plansRef
+        .where("patient_id", "==", patientId)
+        .orderBy("plan_date", "desc")
+        .get();
+
+      const plans = [];
+      snapshot.forEach((doc) => {
+        plans.push({
+          id: doc.id,
+          ...doc.data(),
+        });
+      });
+
+      return plans;
+    } catch (error) {
+      console.error("管理計画取得エラー:", error);
+      return [];
+    }
   }
 
   async createManagementPlan(planData) {
-    const data = this.getData();
-    const newPlan = {
-      id: this.generateId(),
-      ...planData,
-      patient_id: parseInt(planData.patient_id),
-      created_at: new Date().toISOString()
-    };
-    data.managementPlans.push(newPlan);
-    this.saveData(data);
-    return newPlan;
-  }
-
-  // 管理指導記録関連
-  async getProgressRecords(patientId) {
-    const data = this.getData();
-    const numericPatientId = parseInt(patientId);
-    const records = data.progressRecords.filter(r => parseInt(r.patient_id) === numericPatientId);
-    return records.sort((a, b) => new Date(b.record_date) - new Date(a.record_date));
-  }
-
-  async createProgressRecord(recordData) {
-    const data = this.getData();
-    const newRecord = {
-      id: this.generateId(),
-      ...recordData,
-      patient_id: parseInt(recordData.patient_id),
-      created_at: new Date().toISOString()
-    };
-    data.progressRecords.push(newRecord);
-    this.saveData(data);
-    return newRecord;
-  }
-
-  // データのエクスポート/インポート
-  exportData() {
-    const data = this.getData();
-    const exportData = {
-      ...data,
-      exportDate: new Date().toISOString(),
-      version: '1.1'
-    };
-    return JSON.stringify(exportData, null, 2);
-  }
-
-  importData(jsonData) {
     try {
-      const importedData = JSON.parse(jsonData);
-      
-      // バックアップを作成
-      const currentData = this.getData();
-      localStorage.setItem(this.storageKey + '_backup', JSON.stringify(currentData));
-      
-      // インポートデータの検証
-      if (!importedData.patients || !Array.isArray(importedData.patients)) {
-        throw new Error('無効なデータ形式です');
+      if (!this.isOnline) {
+        this.handleOfflineError();
+        throw new Error("オフラインのため管理計画を保存できません");
       }
-      
-      // IDの整合性をチェック・修正
-      this.validateAndFixImportedData(importedData);
-      
-      // データをインポート
-      this.saveData({
-        patients: importedData.patients || [],
-        assessments: importedData.assessments || [],
-        generalConditions: importedData.generalConditions || [],
-        managementPlans: importedData.managementPlans || [],
-        progressRecords: importedData.progressRecords || [],
-        lastId: importedData.lastId || 0
-      });
-      
-      return true;
+
+      const plansRef = this.getUserCollection("managementPlans");
+
+      const newPlan = {
+        ...planData,
+        created_at: firebase.firestore.FieldValue.serverTimestamp(),
+      };
+
+      const docRef = await plansRef.add(newPlan);
+
+      const createdDoc = await docRef.get();
+      const result = {
+        id: createdDoc.id,
+        ...createdDoc.data(),
+        created_at: new Date(),
+      };
+
+      console.log("管理計画作成成功:", result);
+      return result;
     } catch (error) {
-      console.error('インポートエラー:', error);
-      throw new Error('データのインポートに失敗しました: ' + error.message);
+      console.error("管理計画作成エラー:", error);
+      throw new Error("管理計画の保存に失敗しました: " + error.message);
     }
   }
 
-  // インポートデータの検証と修正
-  validateAndFixImportedData(data) {
-    let maxId = 0;
-    
-    // 最大IDを確認
-    const allItems = [
-      ...data.patients,
-      ...data.assessments,
-      ...data.generalConditions,
-      ...data.managementPlans,
-      ...data.progressRecords
-    ];
-    
-    allItems.forEach(item => {
-      if (item.id && parseInt(item.id) > maxId) {
-        maxId = parseInt(item.id);
+  // 管理指導記録関連メソッド
+  async getProgressRecords(patientId) {
+    try {
+      if (!this.isOnline) {
+        this.handleOfflineError();
+        return [];
       }
-    });
-    
-    data.lastId = maxId;
-    
-    // patient_idの数値化
-    ['assessments', 'generalConditions', 'managementPlans', 'progressRecords'].forEach(key => {
-      if (data[key]) {
-        data[key].forEach(item => {
-          if (item.patient_id) {
-            item.patient_id = parseInt(item.patient_id);
-          }
+
+      const recordsRef = this.getUserCollection("progressRecords");
+      const snapshot = await recordsRef
+        .where("patient_id", "==", patientId)
+        .orderBy("record_date", "desc")
+        .get();
+
+      const records = [];
+      snapshot.forEach((doc) => {
+        records.push({
+          id: doc.id,
+          ...doc.data(),
         });
-      }
-    });
+      });
+
+      return records;
+    } catch (error) {
+      console.error("管理指導記録取得エラー:", error);
+      return [];
+    }
   }
 
-  // データの統計
-  getStatistics() {
-    const data = this.getData();
-    const totalPatients = data.patients.length;
-    const totalAssessments = data.assessments.length;
-    
-    // 診断済み患者数の計算
-    const diagnosedPatientIds = new Set();
-    data.assessments.forEach(assessment => {
-      if (assessment.diagnosis_result) {
-        diagnosedPatientIds.add(parseInt(assessment.patient_id));
+  async createProgressRecord(recordData) {
+    try {
+      if (!this.isOnline) {
+        this.handleOfflineError();
+        throw new Error("オフラインのため管理指導記録を保存できません");
       }
-    });
-    
+
+      const recordsRef = this.getUserCollection("progressRecords");
+
+      const newRecord = {
+        ...recordData,
+        created_at: firebase.firestore.FieldValue.serverTimestamp(),
+      };
+
+      const docRef = await recordsRef.add(newRecord);
+
+      const createdDoc = await docRef.get();
+      const result = {
+        id: createdDoc.id,
+        ...createdDoc.data(),
+        created_at: new Date(),
+      };
+
+      console.log("管理指導記録作成成功:", result);
+      return result;
+    } catch (error) {
+      console.error("管理指導記録作成エラー:", error);
+      throw new Error("管理指導記録の保存に失敗しました: " + error.message);
+    }
+  }
+
+  // データのエクスポート（Firebase版）
+  async exportData() {
+    try {
+      if (!this.isOnline) {
+        this.handleOfflineError();
+        return null;
+      }
+
+      console.log("データエクスポート開始...");
+
+      const [
+        patients,
+        assessments,
+        generalConditions,
+        managementPlans,
+        progressRecords,
+      ] = await Promise.all([
+        this.getPatients(),
+        this.getAssessments(),
+        this.getUserCollection("generalConditions").get(),
+        this.getUserCollection("managementPlans").get(),
+        this.getUserCollection("progressRecords").get(),
+      ]);
+
+      const exportData = {
+        patients: patients,
+        assessments: assessments,
+        generalConditions: generalConditions.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })),
+        managementPlans: managementPlans.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })),
+        progressRecords: progressRecords.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })),
+        exportDate: new Date().toISOString(),
+        version: "2.0-firebase",
+        user: this.currentUser.email,
+      };
+
+      console.log("データエクスポート完了");
+      return JSON.stringify(exportData, null, 2);
+    } catch (error) {
+      console.error("データエクスポートエラー:", error);
+      alert("データのエクスポートに失敗しました: " + error.message);
+      return null;
+    }
+  }
+
+  // データのインポート（Firebase版）
+  async importData(jsonData) {
+    try {
+      if (!this.isOnline) {
+        this.handleOfflineError();
+        throw new Error("オフラインのためインポートできません");
+      }
+
+      console.log("データインポート開始...");
+
+      const importedData = JSON.parse(jsonData);
+
+      if (!importedData.patients || !Array.isArray(importedData.patients)) {
+        throw new Error("無効なデータ形式です");
+      }
+
+      if (
+        !confirm(
+          `${importedData.patients.length} 人の患者データをインポートしますか？\n既存のデータは保持されます。`
+        )
+      ) {
+        return false;
+      }
+
+      const batch = this.getFirestore().batch();
+
+      // 患者データのインポート
+      importedData.patients.forEach((patient) => {
+        const patientRef = this.getUserCollection("patients").doc();
+        const patientData = { ...patient };
+        delete patientData.id; // 既存のIDを削除
+        patientData.created_at =
+          firebase.firestore.FieldValue.serverTimestamp();
+        patientData.updated_at =
+          firebase.firestore.FieldValue.serverTimestamp();
+
+        batch.set(patientRef, patientData);
+      });
+
+      await batch.commit();
+
+      console.log("データインポート完了");
+      alert("データのインポートが完了しました");
+      return true;
+    } catch (error) {
+      console.error("データインポートエラー:", error);
+      throw new Error("データのインポートに失敗しました: " + error.message);
+    }
+  }
+
+  // 統計情報（Firebase版）
+  async getStatistics() {
+    try {
+      if (!this.isOnline) {
+        return {
+          totalPatients: 0,
+          totalAssessments: 0,
+          diagnosedPatients: 0,
+          normalPatients: 0,
+          message: "オフライン - ログインして統計を確認",
+        };
+      }
+
+      const [patients, assessments] = await Promise.all([
+        this.getPatients(),
+        this.getAssessments(),
+      ]);
+
+      const totalPatients = patients.length;
+      const totalAssessments = assessments.length;
+
+      // 診断済み患者数の計算
+      const diagnosedPatientIds = new Set();
+      assessments.forEach((assessment) => {
+        if (assessment.diagnosis_result) {
+          diagnosedPatientIds.add(assessment.patient_id);
+        }
+      });
+
+      return {
+        totalPatients,
+        totalAssessments,
+        diagnosedPatients: diagnosedPatientIds.size,
+        normalPatients: totalPatients - diagnosedPatientIds.size,
+        user: this.currentUser?.email || "unknown",
+      };
+    } catch (error) {
+      console.error("統計情報取得エラー:", error);
+      return {
+        totalPatients: 0,
+        totalAssessments: 0,
+        diagnosedPatients: 0,
+        normalPatients: 0,
+        error: error.message,
+      };
+    }
+  }
+
+  // 接続状態確認
+  isConnected() {
+    return this.isOnline && !!this.currentUser;
+  }
+
+  // デバッグ情報
+  getDebugInfo() {
     return {
-      totalPatients,
-      totalAssessments,
-      diagnosedPatients: diagnosedPatientIds.size,
-      normalPatients: totalPatients - diagnosedPatientIds.size
+      isOnline: this.isOnline,
+      currentUser: this.currentUser
+        ? {
+            email: this.currentUser.email,
+            uid: this.currentUser.uid,
+          }
+        : null,
+      firebaseAvailable: !!window.firebaseManager,
+      firestoreAvailable: !!(
+        window.firebaseManager && firebaseManager.firestore
+      ),
     };
   }
 }
 
 // グローバルインスタンス
 const db = new OralHealthDatabase();
+
+// デバッグ用
+window.dbDebug = () => {
+  console.log("Database Debug Info:", db.getDebugInfo());
+};
+
+console.log("database.js (Firebase版) 読み込み完了");
