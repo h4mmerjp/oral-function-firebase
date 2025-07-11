@@ -217,6 +217,11 @@
   <!-- File input for import -->
   <input type="file" id="import-file" accept=".json" style="display: none;" onchange="handleImportFile(event)">
 
+  <!-- Firebase SDKをCDNから読み込み（v8 compat版を使用） -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
   <!-- スクリプト読み込み順序を最適化 -->
   <script>
     // 初期化状況を監視するためのフラグ
@@ -225,6 +230,7 @@
       patients: false,
       assessment: false,
       management: false,
+      firebase: false,
       app: false
     };
     
@@ -237,6 +243,24 @@
       } else {
         console.log('初期化待機中:', window.appInitStatus);
       }
+    }
+  </script>
+  
+  <!-- Firebase設定を最初に読み込み -->
+  <script src="firebase-config.js"></script>
+  <script>
+    if (typeof firebaseManager !== 'undefined') {
+      window.appInitStatus.firebase = true;
+      console.log('firebase-config.js 読み込み完了');
+      
+      // Firebase初期化を非同期で実行
+      firebaseManager.initialize().then((success) => {
+        if (success) {
+          console.log('Firebase 初期化成功');
+        } else {
+          console.log('Firebase 初期化失敗 - ローカルモードで続行');
+        }
+      });
     }
   </script>
   
@@ -282,7 +306,15 @@
     
     // 最終的な初期化状況を確認
     setTimeout(checkInitialization, 1000);
-
+    
+    // デバッグ用ショートカット（開発時のみ）
+    window.addEventListener('keydown', function(e) {
+      if (e.ctrlKey && e.shiftKey && e.key === 'F') {
+        if (window.fbDebug) {
+          fbDebug();
+        }
+      }
+    });
   </script>
 </body>
 </html>
