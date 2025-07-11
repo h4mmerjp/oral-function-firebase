@@ -85,6 +85,9 @@ class FirebaseManager {
       // ユーザー情報をFirestoreに保存/更新
       await this.ensureUserDocument(user);
       
+      // 【重要】ローカルデータベースの患者数をFirebaseに同期
+      await this.syncLocalPatientCountToFirebase();
+      
       // UI更新
       this.updateAuthUI(true, user);
       
@@ -98,6 +101,29 @@ class FirebaseManager {
     } catch (error) {
       console.error('ログイン処理エラー:', error);
       this.showErrorMessage('ログイン処理でエラーが発生しました: ' + error.message);
+    }
+  }
+
+  // 【新規追加】ローカルデータベースの患者数をFirebaseに同期
+  async syncLocalPatientCountToFirebase() {
+    try {
+      if (!this.currentUser || !window.db) return;
+      
+      console.log('ローカル患者数をFirebaseに同期開始');
+      
+      // ローカルデータベースから患者数を取得
+      const localPatients = await db.getPatients();
+      const localPatientCount = localPatients.length;
+      
+      console.log('ローカル患者数:', localPatientCount);
+      
+      // Firebaseの使用量を更新
+      await this.updatePatientCount(localPatientCount);
+      
+      console.log('患者数同期完了:', localPatientCount);
+      
+    } catch (error) {
+      console.error('患者数同期エラー:', error);
     }
   }
 
@@ -263,7 +289,7 @@ class FirebaseManager {
     }
   }
 
-  // 患者数制限チェック
+  // 患者数制限チェック（修正版）
   async checkPatientLimit() {
     try {
       if (!this.currentUser) {
@@ -282,6 +308,8 @@ class FirebaseManager {
         const limit = subscription.patientLimit || 5;
         const current = usage.patientCount || 0;
         
+        console.log('制限チェック結果:', { current, limit, allowed: current < limit });
+        
         return {
           allowed: current < limit,
           current: current,
@@ -299,10 +327,12 @@ class FirebaseManager {
     }
   }
 
-  // 使用量更新
+  // 使用量更新（修正版）
   async updatePatientCount(count) {
     try {
       if (!this.currentUser) return;
+      
+      console.log('Firebase使用量更新:', count);
       
       const userRef = this.firestore.collection('users').doc(this.currentUser.uid);
       await userRef.update({
@@ -310,10 +340,69 @@ class FirebaseManager {
         'usage.lastUpdated': firebase.firestore.FieldValue.serverTimestamp()
       });
       
-      console.log('患者数使用量更新:', count);
+      console.log('Firebase使用量更新完了:', count);
       
     } catch (error) {
       console.error('使用量更新エラー:', error);
+    }
+  }
+
+  // 【新規追加】患者追加時の制限チェックと更新
+  async handlePatientCreation() {
+    try {
+      if (!this.currentUser) {
+        // ローカルモードの場合は制限なし
+        return { success: true, isLocal: true };
+      }
+      
+      // 制限チェック
+      const limitInfo = await this.checkPatientLimit();
+      
+      if (!limitInfo.allowed) {
+        console.log('患者数制限に達しています');
+        return { 
+          success: false, 
+          limitReached: true, 
+          limitInfo: limitInfo 
+        };
+      }
+      
+      // ローカルデータベースから現在の患者数を取得
+      const localPatients = await db.getPatients();
+      const newCount = localPatients.length;
+      
+      // Firebase使用量を更新
+      await this.updatePatientCount(newCount);
+      
+      return { 
+        success: true, 
+        newCount: newCount,
+        limitInfo: limitInfo 
+      };
+      
+    } catch (error) {
+      console.error('患者作成処理エラー:', error);
+      // エラー時はローカルモードとして動作
+      return { success: true, isLocal: true };
+    }
+  }
+
+  // 【新規追加】患者削除時の使用量更新
+  async handlePatientDeletion() {
+    try {
+      if (!this.currentUser) return;
+      
+      // ローカルデータベースから現在の患者数を取得
+      const localPatients = await db.getPatients();
+      const newCount = localPatients.length;
+      
+      // Firebase使用量を更新
+      await this.updatePatientCount(newCount);
+      
+      console.log('患者削除後の使用量更新完了:', newCount);
+      
+    } catch (error) {
+      console.error('患者削除後の使用量更新エラー:', error);
     }
   }
 
