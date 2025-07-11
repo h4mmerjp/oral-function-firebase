@@ -1,4 +1,4 @@
-// Firebase設定とSDK初期化（v9+ SDK使用）
+// Firebase設定とSDK初期化（認証エラー修正版）
 // 既存のローカルデータベースは温存し、Firebase機能を段階的に追加
 
 class FirebaseManager {
@@ -15,7 +15,7 @@ class FirebaseManager {
   // Firebase初期化
   async initialize() {
     try {
-      // Firebase v9+ SDK のモジュールが読み込まれているかチェック
+      // Firebase SDK の存在確認
       if (typeof window.firebase === 'undefined') {
         console.error('Firebase SDK が読み込まれていません');
         return false;
@@ -44,10 +44,15 @@ class FirebaseManager {
       this.auth = firebase.auth();
       this.firestore = firebase.firestore();
       
-      // Firestore設定（オフライン機能を無効化してエラーを防止）
-      this.firestore.settings({
-        cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
-      });
+      // Firestore設定（警告を抑制）
+      try {
+        this.firestore.settings({
+          cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED,
+          merge: true
+        });
+      } catch (error) {
+        console.log('Firestore設定警告（無視して継続）:', error.message);
+      }
       
       // 認証状態の監視
       this.setupAuthListener();
@@ -85,7 +90,7 @@ class FirebaseManager {
       // ユーザー情報をFirestoreに保存/更新
       await this.ensureUserDocument(user);
       
-      // 【重要】ローカルデータベースの患者数をFirebaseに同期
+      // ローカルデータベースの患者数をFirebaseに同期
       await this.syncLocalPatientCountToFirebase();
       
       // UI更新
@@ -104,7 +109,7 @@ class FirebaseManager {
     }
   }
 
-  // 【新規追加】ローカルデータベースの患者数をFirebaseに同期
+  // ローカルデータベースの患者数をFirebaseに同期
   async syncLocalPatientCountToFirebase() {
     try {
       if (!this.currentUser || !window.db) return;
@@ -185,7 +190,7 @@ class FirebaseManager {
     }
   }
 
-  // Google認証でログイン
+  // Google認証でログイン（修正版）
   async signInWithGoogle() {
     try {
       if (!this.isInitialized) {
@@ -194,37 +199,89 @@ class FirebaseManager {
 
       console.log('Google認証開始');
       
+      // プロバイダー設定
       const provider = new firebase.auth.GoogleAuthProvider();
       provider.addScope('email');
       provider.addScope('profile');
       
-      // ポップアップブロッカー対策
+      // カスタムパラメータ設定
       provider.setCustomParameters({
-        prompt: 'select_account'
+        prompt: 'select_account',
+        // ホスト名を明示的に指定
+        hd: '' // 特定ドメインに制限しない
       });
       
-      const result = await this.auth.signInWithPopup(provider);
-      console.log('Google認証成功:', result.user.email);
+      // 【修正】リダイレクト方式も試行できるようにする
+      let result;
       
+      try {
+        // まずポップアップ方式を試行
+        console.log('ポップアップ方式でGoogle認証を試行');
+        result = await this.auth.signInWithPopup(provider);
+      } catch (popupError) {
+        console.log('ポップアップ方式が失敗、リダイレクト方式を試行:', popupError.code);
+        
+        if (popupError.code === 'auth/popup-blocked' || 
+            popupError.code === 'auth/cancelled-popup-request') {
+          // ポップアップがブロックされた場合はリダイレクト方式
+          console.log('リダイレクト方式に切り替え');
+          await this.auth.signInWithRedirect(provider);
+          return; // リダイレクト後に認証状態が変更される
+        } else {
+          throw popupError; // その他のエラーは再スロー
+        }
+      }
+      
+      console.log('Google認証成功:', result.user.email);
       return result.user;
+      
     } catch (error) {
       console.error('Google認証エラー:', error);
       
-      // エラーメッセージの日本語化
+      // エラーメッセージの詳細化
       let errorMessage = 'ログインに失敗しました';
-      if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = 'ログインがキャンセルされました';
-      } else if (error.code === 'auth/popup-blocked') {
-        errorMessage = 'ポップアップがブロックされました。ブラウザの設定を確認してください';
-      } else if (error.code === 'auth/network-request-failed') {
-        errorMessage = 'ネットワークエラーが発生しました';
-      } else if (error.code === 'auth/cancelled-popup-request') {
-        errorMessage = 'ログイン処理がキャンセルされました';
+      
+      switch(error.code) {
+        case 'auth/popup-closed-by-user':
+          errorMessage = 'ログインがキャンセルされました';
+          break;
+        case 'auth/popup-blocked':
+          errorMessage = 'ポップアップがブロックされました。ブラウザの設定を確認してください';
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = 'ネットワークエラーが発生しました。インターネット接続を確認してください';
+          break;
+        case 'auth/cancelled-popup-request':
+          errorMessage = 'ログイン処理がキャンセルされました';
+          break;
+        case 'auth/unauthorized-domain':
+          errorMessage = 'このドメインからのログインは許可されていません。Firebase設定を確認してください';
+          break;
+        case 'auth/operation-not-allowed':
+          errorMessage = 'Google認証が有効になっていません。Firebase設定を確認してください';
+          break;
+        default:
+          errorMessage = `ログインに失敗しました: ${error.message}`;
       }
       
       this.showErrorMessage(errorMessage);
       throw new Error(errorMessage);
     }
+  }
+
+  // 【新規追加】リダイレクト結果の処理
+  async handleRedirectResult() {
+    try {
+      const result = await this.auth.getRedirectResult();
+      if (result.user) {
+        console.log('リダイレクト認証成功:', result.user.email);
+        return result.user;
+      }
+    } catch (error) {
+      console.error('リダイレクト認証エラー:', error);
+      this.showErrorMessage('認証に失敗しました: ' + error.message);
+    }
+    return null;
   }
 
   // ログアウト
@@ -289,7 +346,7 @@ class FirebaseManager {
     }
   }
 
-  // 患者数制限チェック（修正版）
+  // 患者数制限チェック
   async checkPatientLimit() {
     try {
       if (!this.currentUser) {
@@ -327,7 +384,7 @@ class FirebaseManager {
     }
   }
 
-  // 使用量更新（修正版）
+  // 使用量更新
   async updatePatientCount(count) {
     try {
       if (!this.currentUser) return;
@@ -347,7 +404,7 @@ class FirebaseManager {
     }
   }
 
-  // 【新規追加】患者追加時の制限チェックと更新
+  // 患者追加時の制限チェックと更新
   async handlePatientCreation() {
     try {
       if (!this.currentUser) {
@@ -387,7 +444,7 @@ class FirebaseManager {
     }
   }
 
-  // 【新規追加】患者削除時の使用量更新
+  // 患者削除時の使用量更新
   async handlePatientDeletion() {
     try {
       if (!this.currentUser) return;
@@ -480,7 +537,8 @@ class FirebaseManager {
         email: this.currentUser.email,
         uid: this.currentUser.uid
       } : null,
-      isAvailable: this.isAvailable()
+      isAvailable: this.isAvailable(),
+      authDomain: this.app?.options?.authDomain
     };
   }
 }
@@ -495,5 +553,12 @@ window.firebaseManager = firebaseManager;
 window.fbDebug = () => {
   console.log('Firebase Debug Info:', firebaseManager.getDebugInfo());
 };
+
+// ページ読み込み時にリダイレクト結果をチェック
+document.addEventListener('DOMContentLoaded', () => {
+  if (firebaseManager.isInitialized) {
+    firebaseManager.handleRedirectResult();
+  }
+});
 
 console.log('firebase-config.js 読み込み完了');
