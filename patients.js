@@ -1283,6 +1283,7 @@ class PatientManager {
               <th>検査日</th>
               <th>診断結果</th>
               <th>該当項目数</th>
+              <th>管理計画書</th>
               <th>操作</th>
             </tr>
           </thead>
@@ -1290,6 +1291,15 @@ class PatientManager {
       `;
 
       assessments.forEach((assessment) => {
+        // この検査に関連する管理計画書を検索
+        const relatedPlan = managementPlans.find(p => p.assessment_id === assessment.id);
+        let planInfo = "<span style='color: #999;'>未作成</span>";
+        
+        if (relatedPlan) {
+          const planDate = new Date(relatedPlan.plan_date).toLocaleDateString();
+          planInfo = `<span style='color: #007bff; cursor: pointer;' onclick="window.patientManager.viewManagementPlanDetails('${relatedPlan.id}')" title="クリックで詳細表示">${planDate}</span>`;
+        }
+
         html += `
           <tr>
             <td>${new Date(
@@ -1305,6 +1315,7 @@ class PatientManager {
               </span>
             </td>
             <td>${assessment.affected_items_count}/7項目</td>
+            <td>${planInfo}</td>
             <td>
               <button onclick="window.assessmentManager && window.assessmentManager.viewAssessmentDetails('${
                 assessment.id
@@ -1327,7 +1338,7 @@ class PatientManager {
     if (managementPlans.length === 0) {
       html += "<p>管理計画書がありません。</p>";
     } else {
-      html += `<table><thead><tr><th>作成日</th><th>対象検査</th><th>再評価予定</th><th>管理項目</th><th>操作</th></tr></thead><tbody>`;
+      html += `<table><thead><tr><th>作成日</th><th>対象検査日</th><th>診断結果</th><th>再評価予定</th><th>管理項目</th><th>操作</th></tr></thead><tbody>`;
 
       managementPlans.forEach((plan) => {
         const managementItems = [
@@ -1346,10 +1357,24 @@ class PatientManager {
           reevaluationDate.getMonth() + (plan.reevaluation_period || 6)
         );
 
+        // 対象検査を検索
+        const relatedAssessment = assessments.find(a => a.id === plan.assessment_id);
+        let assessmentInfo = "関連検査なし";
+        let diagnosisInfo = "-";
+        
+        if (relatedAssessment) {
+          const assessmentDate = new Date(relatedAssessment.assessment_date).toLocaleDateString();
+          assessmentInfo = `<span style='color: #007bff; cursor: pointer;' onclick="window.assessmentManager && window.assessmentManager.viewAssessmentDetails('${relatedAssessment.id}')" title="クリックで検査詳細表示">${assessmentDate}</span>`;
+          diagnosisInfo = `<span class="status-badge ${
+            relatedAssessment.diagnosis_result ? "status-diagnosed" : "status-normal"
+          }">${relatedAssessment.diagnosis_result ? "口腔機能低下症" : "正常"}</span>`;
+        }
+
         html += `
           <tr>
             <td>${planDate.toLocaleDateString()}</td>
-            <td>検査ID: ${plan.assessment_id || "N/A"}</td>
+            <td>${assessmentInfo}</td>
+            <td>${diagnosisInfo}</td>
             <td>${reevaluationDate.toLocaleDateString()}</td>
             <td>${managementItems}項目</td>
             <td>
@@ -1414,13 +1439,16 @@ class PatientManager {
       // データベース準備完了を待つ
       await this.waitForDatabaseReady();
 
-      const managementPlans = await window.db.getManagementPlans(
-        this.currentPatient.id
-      );
+      const [managementPlans, assessments] = await Promise.all([
+        window.db.getManagementPlans(this.currentPatient.id),
+        window.db.getAssessments(this.currentPatient.id)
+      ]);
+      
       const plan = managementPlans.find((p) => p.id === planId);
 
       if (plan) {
-        this.displayManagementPlanDetails(plan);
+        const relatedAssessment = assessments.find(a => a.id === plan.assessment_id);
+        this.displayManagementPlanDetails(plan, relatedAssessment);
       }
     } catch (error) {
       console.error("管理計画書詳細表示エラー:", error);
@@ -1431,7 +1459,7 @@ class PatientManager {
     }
   }
 
-  displayManagementPlanDetails(plan) {
+  displayManagementPlanDetails(plan, relatedAssessment = null) {
     const content = document.getElementById("management-plan-content");
 
     if (!content) {
@@ -1458,11 +1486,27 @@ class PatientManager {
       reevaluationDate.getMonth() + (plan.reevaluation_period || 6)
     );
 
+    // 対象検査情報
+    let assessmentInfo = "";
+    if (relatedAssessment) {
+      const assessmentDate = new Date(relatedAssessment.assessment_date).toLocaleDateString();
+      const diagnosisText = relatedAssessment.diagnosis_result ? "口腔機能低下症" : "正常";
+      const statusClass = relatedAssessment.diagnosis_result ? "status-diagnosed" : "status-normal";
+      
+      assessmentInfo = `
+        <p>対象検査日: ${assessmentDate}</p>
+        <p>診断結果: <span class="status-badge ${statusClass}">${diagnosisText}</span> (${relatedAssessment.affected_items_count}/7項目該当)</p>
+      `;
+    } else {
+      assessmentInfo = `<p>対象検査: <span style="color: #999;">関連検査が見つかりません</span></p>`;
+    }
+
     content.innerHTML = `
       <div class="summary-card">
         <h3>管理計画書詳細</h3>
         <p>患者名: ${this.currentPatient.name}</p>
         <p>作成日: ${planDate.toLocaleDateString()}</p>
+        ${assessmentInfo}
         <p>再評価予定: ${reevaluationDate.toLocaleDateString()} (${
       plan.reevaluation_period || 6
     }か月後)</p>
