@@ -1,9 +1,53 @@
-// Firebase完全移行版患者管理モジュール - 修正版
+// 患者管理モジュール（最小修正版 - 既存機能との完全互換性維持）
 class PatientManager {
   constructor() {
     this.currentPatient = null;
     this.selectedManagementOptions = {};
-    console.log("PatientManager (Firebase版) が初期化されました");
+    console.log("PatientManager (最小修正版) が初期化されました");
+  }
+
+  // データベース接続確認（安全版）
+  isDatabaseReady() {
+    // window.dbの存在確認
+    if (!window.db) {
+      console.log("window.db が存在しません");
+      return false;
+    }
+
+    // isConnected メソッドの存在と実行
+    if (typeof window.db.isConnected === "function") {
+      try {
+        return window.db.isConnected();
+      } catch (error) {
+        console.log("isConnected() 実行エラー:", error);
+        return false;
+      }
+    }
+
+    // Firebase版の場合の追加チェック
+    if (window.db.isOnline !== undefined) {
+      return window.db.isOnline && window.db.currentUser;
+    }
+
+    // 従来版の場合、基本的な存在確認のみ
+    console.log("従来版データベースとして動作");
+    return true;
+  }
+
+  // データベース準備完了を待つ（安全版）
+  async waitForDatabaseReady() {
+    return new Promise((resolve) => {
+      const checkReady = () => {
+        if (this.isDatabaseReady()) {
+          console.log("データベース準備完了");
+          resolve(true);
+        } else {
+          console.log("データベース準備待機中...");
+          setTimeout(checkReady, 200);
+        }
+      };
+      checkReady();
+    });
   }
 
   // 患者数制限チェック（Firebase専用）
@@ -164,16 +208,15 @@ class PatientManager {
     }, 5000);
   }
 
-  // 患者一覧の読み込み（Firebase版）
+  // 患者一覧の読み込み（最小修正版）
   async loadPatients() {
     try {
       console.log("患者一覧読み込み開始");
 
-      // dbオブジェクトの存在確認
-      if (!window.db) {
-        throw new Error("データベース接続が初期化されていません");
-      }
+      // データベース準備完了を待つ（安全版）
+      await this.waitForDatabaseReady();
 
+      console.log("データベース準備完了 - 患者データ取得開始");
       const patients = await window.db.getPatients();
       console.log("取得した患者数:", patients.length);
 
@@ -183,8 +226,10 @@ class PatientManager {
       console.error("患者一覧読み込みエラー:", error);
 
       if (error.message.includes("ログイン")) {
+        console.log("ログインエラーのため、オフライン表示に切り替え");
         this.displayOfflineMessage();
       } else {
+        console.log("その他のエラーのため、空の患者一覧を表示");
         this.displayPatients([]);
         this.showNotification("患者一覧の読み込みに失敗しました", "error");
       }
@@ -305,7 +350,7 @@ class PatientManager {
     });
   }
 
-  // 患者一覧を表示（Firebase版）
+  // 患者一覧を表示（修正版 - エラーハンドリング強化）
   async displayPatients(patients) {
     const container = document.getElementById("patients-grid");
     if (!container) {
@@ -338,7 +383,7 @@ class PatientManager {
 
       let latestAssessment = null;
       try {
-        if (window.db) {
+        if (this.isDatabaseReady()) {
           latestAssessment = await window.db.getLatestAssessment(patient.id);
         }
       } catch (error) {
@@ -449,16 +494,14 @@ class PatientManager {
     });
   }
 
-  // 患者選択（Firebase版）
+  // 患者選択（最小修正版）
   async selectPatient(patientId) {
     try {
       console.log("=== 患者選択開始 ===");
       console.log("選択された患者ID:", patientId);
 
-      if (!window.db || !window.db.isConnected()) {
-        this.handleOfflineError();
-        return;
-      }
+      // データベース準備完了を待つ
+      await this.waitForDatabaseReady();
 
       this.clearAllPatientData();
 
@@ -589,7 +632,7 @@ class PatientManager {
     console.log("データクリア完了");
   }
 
-  // 患者情報を読み込み（Firebase版）
+  // 患者情報を読み込み（最小修正版）
   async loadPatientInfo() {
     if (!this.currentPatient) {
       console.error("currentPatient が設定されていません");
@@ -614,9 +657,9 @@ class PatientManager {
       <div class="summary-card">
         <h3>基本情報</h3>
         <p style="background: #e3f2fd; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
-          <strong>選択中の患者:</strong> ${
-            this.currentPatient.name
-          } (Firebase ID: ${this.currentPatient.id})
+          <strong>選択中の患者:</strong> ${this.currentPatient.name} (ID: ${
+      this.currentPatient.id
+    })
         </p>
         <div class="grid-container">
           <div><strong>患者氏名:</strong> ${this.currentPatient.name}</div>
@@ -808,15 +851,13 @@ class PatientManager {
     }
   }
 
-  // 全身状態の保存
+  // 全身状態の保存（最小修正版）
   async saveGeneralConditions() {
     if (!this.currentPatient) return;
 
     try {
-      if (!window.db || !window.db.isConnected()) {
-        this.handleOfflineError();
-        return;
-      }
+      // データベース準備完了を待つ
+      await this.waitForDatabaseReady();
 
       const diseases = Array.from(
         document.querySelectorAll(
@@ -869,10 +910,8 @@ class PatientManager {
     try {
       console.log("全身状態読み込み - 患者ID:", this.currentPatient.id);
 
-      if (!window.db) {
-        console.warn("dbオブジェクトが利用できません");
-        return;
-      }
+      // データベース準備完了を待つ
+      await this.waitForDatabaseReady();
 
       const condition = await window.db.getLatestGeneralCondition(
         this.currentPatient.id
@@ -999,27 +1038,30 @@ class PatientManager {
     }
   }
 
-  // モーダル関連
-  showAddPatientModal() {
-    if (!window.db || !window.db.isConnected()) {
-      this.handleOfflineError();
-      return;
+  // モーダル関連（最小修正版）
+  async showAddPatientModal() {
+    try {
+      // データベース準備完了を待つ
+      await this.waitForDatabaseReady();
+
+      const modalTitle = document.getElementById("modal-title");
+      const patientForm = document.getElementById("patient-form");
+      const editPatientId = document.getElementById("edit-patient-id");
+      const addPatientModal = document.getElementById("addPatientModal");
+
+      if (!modalTitle || !patientForm || !editPatientId || !addPatientModal) {
+        console.error("モーダル要素が見つかりません");
+        return;
+      }
+
+      modalTitle.textContent = "新規患者登録";
+      patientForm.reset();
+      editPatientId.value = "";
+      addPatientModal.style.display = "block";
+    } catch (error) {
+      console.error("患者登録モーダル表示エラー:", error);
+      this.showNotification("モーダルの表示に失敗しました", "error");
     }
-
-    const modalTitle = document.getElementById("modal-title");
-    const patientForm = document.getElementById("patient-form");
-    const editPatientId = document.getElementById("edit-patient-id");
-    const addPatientModal = document.getElementById("addPatientModal");
-
-    if (!modalTitle || !patientForm || !editPatientId || !addPatientModal) {
-      console.error("モーダル要素が見つかりません");
-      return;
-    }
-
-    modalTitle.textContent = "新規患者登録";
-    patientForm.reset();
-    editPatientId.value = "";
-    addPatientModal.style.display = "block";
   }
 
   closeAddPatientModal() {
@@ -1031,10 +1073,8 @@ class PatientManager {
 
   async editPatient(patientId) {
     try {
-      if (!window.db || !window.db.isConnected()) {
-        this.handleOfflineError();
-        return;
-      }
+      // データベース準備完了を待つ
+      await this.waitForDatabaseReady();
 
       const patient = await window.db.getPatient(patientId);
       if (patient) {
@@ -1074,7 +1114,7 @@ class PatientManager {
     if (modalAddress) modalAddress.value = patient.address || "";
   }
 
-  // 患者削除（Firebase版）
+  // 患者削除（最小修正版）
   async deletePatient(patientId) {
     if (
       !confirm(
@@ -1085,16 +1125,14 @@ class PatientManager {
     }
 
     try {
-      if (!window.db || !window.db.isConnected()) {
-        this.handleOfflineError();
-        return;
-      }
+      // データベース準備完了を待つ
+      await this.waitForDatabaseReady();
 
       console.log("=== 患者削除処理開始 ===");
       console.log("削除対象患者ID:", patientId);
 
       await window.db.deletePatient(patientId);
-      console.log("Firestore削除完了");
+      console.log("削除完了");
 
       if (window.firebaseManager && window.firebaseManager.isAvailable()) {
         await window.firebaseManager.handlePatientDeletion();
@@ -1116,15 +1154,13 @@ class PatientManager {
     }
   }
 
-  // 患者フォーム送信処理（Firebase版）
+  // 患者フォーム送信処理（最小修正版）
   async handlePatientFormSubmit(event) {
     event.preventDefault();
 
     try {
-      if (!window.db || !window.db.isConnected()) {
-        this.handleOfflineError();
-        return;
-      }
+      // データベース準備完了を待つ
+      await this.waitForDatabaseReady();
 
       const editIdElement = document.getElementById("edit-patient-id");
       const editId = editIdElement ? editIdElement.value : "";
@@ -1194,7 +1230,7 @@ class PatientManager {
     }
   }
 
-  // 履歴表示（Firebase版）
+  // 履歴表示（最小修正版）
   async loadPatientHistory() {
     if (!this.currentPatient) return;
 
@@ -1205,10 +1241,8 @@ class PatientManager {
     }
 
     try {
-      if (!window.db || !window.db.isConnected()) {
-        content.innerHTML = "<p>履歴を表示するにはログインが必要です。</p>";
-        return;
-      }
+      // データベース準備完了を待つ
+      await this.waitForDatabaseReady();
 
       const [assessments, progressRecords, managementPlans] = await Promise.all(
         [
@@ -1377,10 +1411,8 @@ class PatientManager {
 
   async viewManagementPlanDetails(planId) {
     try {
-      if (!window.db || !window.db.isConnected()) {
-        this.handleOfflineError();
-        return;
-      }
+      // データベース準備完了を待つ
+      await this.waitForDatabaseReady();
 
       const managementPlans = await window.db.getManagementPlans(
         this.currentPatient.id
@@ -1500,4 +1532,6 @@ window.selectPatient = (patientId) => patientManager.selectPatient(patientId);
 window.editPatient = (patientId) => patientManager.editPatient(patientId);
 window.deletePatient = (patientId) => patientManager.deletePatient(patientId);
 
-console.log("patients.js (Firebase版) 読み込み完了");
+console.log(
+  "patients.js (最小修正版 - 既存機能との完全互換性維持) 読み込み完了"
+);

@@ -1,4 +1,4 @@
-// Firebase設定とSDK初期化（Firestore直接保存版）
+// Firebase設定とSDK初期化（最小修正版 - 既存機能との完全互換性維持）
 class FirebaseManager {
   constructor() {
     this.app = null;
@@ -52,7 +52,7 @@ class FirebaseManager {
         console.log("Firestore設定警告（無視して継続）:", error.message);
       }
 
-      // 認証状態の監視
+      // 認証状態の監視（最小修正版）
       this.setupAuthListener();
 
       this.isInitialized = true;
@@ -66,7 +66,27 @@ class FirebaseManager {
     }
   }
 
-  // 認証状態監視
+  // データベース準備完了を待つ（安全版）
+  async waitForDatabaseReady() {
+    return new Promise((resolve) => {
+      const checkReady = () => {
+        if (window.db && window.patientManager) {
+          // データベースと患者マネージャーの基本準備確認
+          console.log("基本コンポーネント準備完了");
+          resolve(true);
+        } else {
+          console.log("基本コンポーネント準備待機中...", {
+            db: !!window.db,
+            patientManager: !!window.patientManager,
+          });
+          setTimeout(checkReady, 100);
+        }
+      };
+      checkReady();
+    });
+  }
+
+  // 認証状態監視（最小修正版）
   setupAuthListener() {
     this.auth.onAuthStateChanged(async (user) => {
       console.log(
@@ -76,6 +96,9 @@ class FirebaseManager {
       this.currentUser = user;
 
       if (user) {
+        // 基本コンポーネントの準備を待ってからユーザーログイン処理を実行
+        console.log("基本コンポーネントの準備完了を待機中...");
+        await this.waitForDatabaseReady();
         await this.onUserLogin(user);
       } else {
         this.onUserLogout();
@@ -83,10 +106,23 @@ class FirebaseManager {
     });
   }
 
-  // ユーザーログイン時の処理
+  // ユーザーログイン時の処理（最小修正版）
   async onUserLogin(user) {
     try {
       console.log("ユーザーログイン処理開始:", user.email);
+
+      // データベースの基本準備確認
+      if (!window.db) {
+        console.log("データベース準備待機中...");
+        // 短時間待機してから再確認
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        if (!window.db) {
+          console.warn("データベースが準備されていません");
+          this.updateAuthUI(true, user);
+          return;
+        }
+      }
 
       // ユーザー情報をFirestoreに保存/更新
       await this.ensureUserDocument(user);
@@ -97,9 +133,19 @@ class FirebaseManager {
       // UI更新
       this.updateAuthUI(true, user);
 
-      // 患者一覧を再読み込み
-      if (window.patientManager) {
-        await patientManager.loadPatients();
+      // 患者一覧を再読み込み（安全な呼び出し）
+      if (
+        window.patientManager &&
+        typeof window.patientManager.loadPatients === "function"
+      ) {
+        try {
+          await window.patientManager.loadPatients();
+        } catch (error) {
+          console.error("患者一覧読み込みエラー（ログイン時）:", error);
+          // エラーが発生してもログイン処理は継続
+        }
+      } else {
+        console.warn("patientManager が利用できません");
       }
 
       console.log("ユーザーログイン処理完了");
@@ -111,7 +157,7 @@ class FirebaseManager {
     }
   }
 
-  // Firestoreから患者数を直接取得して同期
+  // Firestoreから患者数を直接取得して同期（エラーハンドリング強化）
   async syncPatientCountFromFirestore() {
     try {
       if (!this.currentUser || !window.db) return;
@@ -135,6 +181,7 @@ class FirebaseManager {
       console.log("患者数同期完了:", patientCount);
     } catch (error) {
       console.error("患者数同期エラー:", error);
+      // エラーが発生しても処理を継続
     }
   }
 
@@ -145,10 +192,17 @@ class FirebaseManager {
     // UI更新
     this.updateAuthUI(false, null);
 
-    // 患者一覧をクリア（オフライン表示）
-    if (window.patientManager) {
-      patientManager.displayPatients([]);
-      patientManager.clearAllPatientData();
+    // 患者一覧をクリア（安全な呼び出し）
+    if (
+      window.patientManager &&
+      typeof window.patientManager.displayPatients === "function"
+    ) {
+      try {
+        window.patientManager.displayPatients([]);
+        window.patientManager.clearAllPatientData();
+      } catch (error) {
+        console.error("ログアウト時のデータクリアエラー:", error);
+      }
     }
 
     console.log("オフラインモードに切り替え");
@@ -624,4 +678,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-console.log("firebase-config.js (Firestore版) 読み込み完了");
+console.log(
+  "firebase-config.js (最小修正版 - 既存機能との完全互換性維持) 読み込み完了"
+);

@@ -1,22 +1,52 @@
-// Firebase Firestore版データベース管理クラス
+// Firebase Firestore版データベース管理クラス（インデックスエラー修正版 - 既存機能との互換性維持）
 class OralHealthDatabase {
   constructor() {
     this.storageKey = "oralHealthApp_backup"; // 緊急時のローカルバックアップ用
     this.isOnline = false;
     this.currentUser = null;
+    this.isInitialized = false; // 初期化完了フラグを追加
 
-    // Firebase接続状況を監視
-    this.setupFirebaseListener();
-
-    console.log("OralHealthDatabase (Firebase版) が初期化されました");
+    console.log("OralHealthDatabase (Firebase版) 初期化開始");
   }
 
-  // Firebase接続状況監視
+  // 既存のapp.jsとの互換性のためのinit()メソッド（修正版）
+  init() {
+    console.log("database.init() が呼び出されました（互換性のため）");
+
+    // 既に初期化が開始されていない場合のみ実行
+    if (!this.isInitialized) {
+      this.initialize();
+    }
+
+    return true; // 既存コードとの互換性のため
+  }
+
+  // 初期化処理（修正版）
+  async initialize() {
+    try {
+      console.log("データベース初期化開始");
+
+      // Firebase接続状況を監視
+      this.setupFirebaseListener();
+
+      this.isInitialized = true;
+      console.log("データベース初期化完了");
+
+      return true;
+    } catch (error) {
+      console.error("データベース初期化エラー:", error);
+      this.isInitialized = false;
+      return false;
+    }
+  }
+
+  // Firebase接続状況監視（修正版）
   setupFirebaseListener() {
-    if (window.firebaseManager) {
-      // 認証状態の変更を監視
-      if (firebaseManager.auth) {
-        firebaseManager.auth.onAuthStateChanged((user) => {
+    // Firebase Managerの存在確認と監視設定を遅延実行
+    const setupListener = () => {
+      if (window.firebaseManager && window.firebaseManager.auth) {
+        // 認証状態の変更を監視
+        window.firebaseManager.auth.onAuthStateChanged((user) => {
           this.currentUser = user;
           this.isOnline = !!user;
           console.log(
@@ -24,31 +54,57 @@ class OralHealthDatabase {
             user ? `オンライン: ${user.email}` : "オフライン"
           );
         });
+        console.log("Firebase認証監視設定完了");
+      } else {
+        console.log("Firebase Manager待機中...");
+        // Firebase Managerがまだ利用できない場合は少し待ってから再試行
+        setTimeout(setupListener, 100);
       }
-    }
+    };
+
+    setupListener();
   }
 
-  // Firestore参照の取得
+  // 初期化完了を待つ（新規追加）
+  async waitForInitialization() {
+    return new Promise((resolve) => {
+      const checkInit = () => {
+        if (this.isInitialized) {
+          resolve(true);
+        } else {
+          setTimeout(checkInit, 50);
+        }
+      };
+      checkInit();
+    });
+  }
+
+  // Firestore参照の取得（エラーハンドリング強化）
   getFirestore() {
-    if (!window.firebaseManager || !firebaseManager.firestore) {
+    if (!window.firebaseManager || !window.firebaseManager.firestore) {
       throw new Error(
         "Firebase Firestore が利用できません。ログインしてください。"
       );
     }
-    return firebaseManager.firestore;
+    return window.firebaseManager.firestore;
   }
 
-  // ユーザー固有のコレクション取得
+  // ユーザー固有のコレクション取得（安全性向上）
   getUserCollection(collectionName) {
     if (!this.currentUser) {
       throw new Error("ログインが必要です");
     }
 
-    const firestore = this.getFirestore();
-    return firestore
-      .collection("users")
-      .doc(this.currentUser.uid)
-      .collection(collectionName);
+    try {
+      const firestore = this.getFirestore();
+      return firestore
+        .collection("users")
+        .doc(this.currentUser.uid)
+        .collection(collectionName);
+    } catch (error) {
+      console.error("ユーザーコレクション取得エラー:", error);
+      throw error;
+    }
   }
 
   // オフライン時のエラーハンドリング
@@ -58,10 +114,21 @@ class OralHealthDatabase {
     );
   }
 
-  // 患者関連メソッド
+  // 接続状態確認（修正版）
+  isConnected() {
+    return this.isOnline && !!this.currentUser && this.isInitialized;
+  }
+
+  // 患者関連メソッド（エラーハンドリング強化）
   async getPatients() {
     try {
-      if (!this.isOnline) {
+      // 初期化完了を待つ
+      await this.waitForInitialization();
+
+      if (!this.isConnected()) {
+        console.log(
+          "オフラインまたは未ログイン状態のため患者データを返せません"
+        );
         this.handleOfflineError();
         return [];
       }
@@ -97,7 +164,9 @@ class OralHealthDatabase {
 
   async getPatient(id) {
     try {
-      if (!this.isOnline) {
+      await this.waitForInitialization();
+
+      if (!this.isConnected()) {
         this.handleOfflineError();
         return null;
       }
@@ -126,7 +195,9 @@ class OralHealthDatabase {
 
   async createPatient(patientData) {
     try {
-      if (!this.isOnline) {
+      await this.waitForInitialization();
+
+      if (!this.isConnected()) {
         this.handleOfflineError();
         throw new Error("オフラインのため患者を作成できません");
       }
@@ -168,36 +239,48 @@ class OralHealthDatabase {
     }
   }
 
-  // 重複チェック
+  // 重複チェック（エラーハンドリング強化）
   async checkPatientDuplication(patientData) {
-    const patientsRef = this.getUserCollection("patients");
+    try {
+      const patientsRef = this.getUserCollection("patients");
 
-    // 患者IDの重複チェック
-    if (patientData.patient_id) {
-      const idQuery = await patientsRef
-        .where("patient_id", "==", patientData.patient_id)
-        .get();
-      if (!idQuery.empty) {
-        throw new Error("同じ患者IDが既に存在します");
+      // 患者IDの重複チェック
+      if (patientData.patient_id) {
+        const idQuery = await patientsRef
+          .where("patient_id", "==", patientData.patient_id)
+          .get();
+        if (!idQuery.empty) {
+          throw new Error("同じ患者IDが既に存在します");
+        }
       }
-    }
 
-    // 名前+生年月日の重複チェック
-    if (patientData.name && patientData.birthdate) {
-      const nameQuery = await patientsRef
-        .where("name", "==", patientData.name)
-        .where("birthdate", "==", patientData.birthdate)
-        .get();
+      // 名前+生年月日の重複チェック
+      if (patientData.name && patientData.birthdate) {
+        const nameQuery = await patientsRef
+          .where("name", "==", patientData.name)
+          .where("birthdate", "==", patientData.birthdate)
+          .get();
 
-      if (!nameQuery.empty) {
-        throw new Error("同じ患者情報（名前+生年月日）が既に存在します");
+        if (!nameQuery.empty) {
+          throw new Error("同じ患者情報（名前+生年月日）が既に存在します");
+        }
+      }
+    } catch (error) {
+      if (error.message.includes("同じ患者")) {
+        throw error; // 重複エラーはそのまま再スロー
+      } else {
+        console.error("重複チェックエラー:", error);
+        // 重複チェックに失敗した場合でも作成は継続（警告のみ）
+        console.warn("重複チェックをスキップして続行します");
       }
     }
   }
 
   async updatePatient(id, patientData) {
     try {
-      if (!this.isOnline) {
+      await this.waitForInitialization();
+
+      if (!this.isConnected()) {
         this.handleOfflineError();
         throw new Error("オフラインのため患者を更新できません");
       }
@@ -238,7 +321,9 @@ class OralHealthDatabase {
 
   async deletePatient(id) {
     try {
-      if (!this.isOnline) {
+      await this.waitForInitialization();
+
+      if (!this.isConnected()) {
         this.handleOfflineError();
         return;
       }
@@ -278,37 +363,169 @@ class OralHealthDatabase {
     }
   }
 
-  // 検査関連メソッド
+  // 検査関連メソッド（インデックスエラー修正版）
   async getAssessments(patientId = null) {
     try {
-      if (!this.isOnline) {
+      await this.waitForInitialization();
+
+      if (!this.isConnected()) {
         this.handleOfflineError();
         return [];
       }
 
       const assessmentsRef = this.getUserCollection("assessments");
-      let query = assessmentsRef.orderBy("assessment_date", "desc");
 
+      let query;
       if (patientId) {
-        query = query.where("patient_id", "==", patientId);
+        // 特定患者の検査データ取得時は、複合インデックス回避のためシンプルなクエリを使用
+        console.log("特定患者の検査データ取得 - patient_id:", patientId);
+
+        try {
+          // まず patient_id でフィルタリングのみ実行
+          query = assessmentsRef.where("patient_id", "==", patientId);
+          const snapshot = await query.get();
+
+          // クライアントサイドで日付順にソート
+          const assessments = [];
+          snapshot.forEach((doc) => {
+            assessments.push({
+              id: doc.id,
+              ...doc.data(),
+            });
+          });
+
+          // assessment_date で降順ソート（クライアントサイド）
+          assessments.sort((a, b) => {
+            const dateA = new Date(a.assessment_date || 0);
+            const dateB = new Date(b.assessment_date || 0);
+            return dateB - dateA;
+          });
+
+          console.log(
+            `患者ID ${patientId} の検査データ ${assessments.length} 件を取得しました`
+          );
+          return assessments;
+        } catch (indexError) {
+          console.warn("患者別検査データ取得でインデックスエラー:", indexError);
+
+          // フォールバック: 全検査データを取得してクライアントサイドでフィルタリング
+          console.log("フォールバック: 全検査データからフィルタリング");
+          const allSnapshot = await assessmentsRef.get();
+          const filteredAssessments = [];
+
+          allSnapshot.forEach((doc) => {
+            const data = doc.data();
+            if (data.patient_id === patientId) {
+              filteredAssessments.push({
+                id: doc.id,
+                ...data,
+              });
+            }
+          });
+
+          // 日付順ソート
+          filteredAssessments.sort((a, b) => {
+            const dateA = new Date(a.assessment_date || 0);
+            const dateB = new Date(b.assessment_date || 0);
+            return dateB - dateA;
+          });
+
+          console.log(
+            `フォールバック方式で患者ID ${patientId} の検査データ ${filteredAssessments.length} 件を取得しました`
+          );
+          return filteredAssessments;
+        }
+      } else {
+        // 全検査データ取得時もシンプルなクエリを使用
+        console.log("全検査データ取得");
+
+        try {
+          // まずソートなしで全データを取得
+          const snapshot = await assessmentsRef.get();
+          const assessments = [];
+
+          snapshot.forEach((doc) => {
+            assessments.push({
+              id: doc.id,
+              ...doc.data(),
+            });
+          });
+
+          // クライアントサイドで日付順ソート
+          assessments.sort((a, b) => {
+            const dateA = new Date(a.assessment_date || 0);
+            const dateB = new Date(b.assessment_date || 0);
+            return dateB - dateA;
+          });
+
+          console.log(`${assessments.length} 件の検査データを取得しました`);
+          return assessments;
+        } catch (indexError) {
+          console.warn("全検査データ取得でエラー:", indexError);
+          // 基本的な取得にフォールバック
+          const snapshot = await assessmentsRef.get();
+          const assessments = [];
+
+          snapshot.forEach((doc) => {
+            assessments.push({
+              id: doc.id,
+              ...doc.data(),
+            });
+          });
+
+          console.log(
+            `フォールバック方式で ${assessments.length} 件の検査データを取得しました`
+          );
+          return assessments;
+        }
       }
-
-      const snapshot = await query.get();
-
-      const assessments = [];
-      snapshot.forEach((doc) => {
-        assessments.push({
-          id: doc.id,
-          ...doc.data(),
-        });
-      });
-
-      console.log(`${assessments.length} 件の検査データを取得しました`);
-      return assessments;
     } catch (error) {
       console.error("検査データ取得エラー:", error);
-      alert("検査データの取得に失敗しました: " + error.message);
-      return [];
+
+      // 具体的なエラーメッセージを表示
+      if (error.message.includes("index")) {
+        console.warn(
+          "Firestoreインデックスエラーが発生しました。基本的な取得方法に切り替えます。"
+        );
+
+        try {
+          // 最終フォールバック: インデックス不要の基本取得
+          const assessmentsRef = this.getUserCollection("assessments");
+          const snapshot = await assessmentsRef.get();
+          const assessments = [];
+
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            if (!patientId || data.patient_id === patientId) {
+              assessments.push({
+                id: doc.id,
+                ...data,
+              });
+            }
+          });
+
+          // クライアントサイドソート
+          assessments.sort((a, b) => {
+            const dateA = new Date(a.assessment_date || 0);
+            const dateB = new Date(b.assessment_date || 0);
+            return dateB - dateA;
+          });
+
+          console.log(
+            `最終フォールバック方式で ${assessments.length} 件の検査データを取得しました`
+          );
+          return assessments;
+        } catch (fallbackError) {
+          console.error("最終フォールバックも失敗:", fallbackError);
+          alert(
+            "検査データの取得に失敗しました。ページを再読み込みしてください。"
+          );
+          return [];
+        }
+      } else {
+        alert("検査データの取得に失敗しました: " + error.message);
+        return [];
+      }
     }
   }
 
@@ -324,7 +541,9 @@ class OralHealthDatabase {
 
   async createAssessment(assessmentData) {
     try {
-      if (!this.isOnline) {
+      await this.waitForInitialization();
+
+      if (!this.isConnected()) {
         this.handleOfflineError();
         throw new Error("オフラインのため検査データを保存できません");
       }
@@ -355,29 +574,66 @@ class OralHealthDatabase {
     }
   }
 
-  // 全身状態関連メソッド
+  // 全身状態関連メソッド（インデックスエラー対応版）
   async getGeneralConditions(patientId) {
     try {
-      if (!this.isOnline) {
+      await this.waitForInitialization();
+
+      if (!this.isConnected()) {
         this.handleOfflineError();
         return [];
       }
 
       const conditionsRef = this.getUserCollection("generalConditions");
-      const snapshot = await conditionsRef
-        .where("patient_id", "==", patientId)
-        .orderBy("assessment_date", "desc")
-        .get();
 
-      const conditions = [];
-      snapshot.forEach((doc) => {
-        conditions.push({
-          id: doc.id,
-          ...doc.data(),
+      try {
+        // まず patient_id でのフィルタリングのみ試行
+        const snapshot = await conditionsRef
+          .where("patient_id", "==", patientId)
+          .get();
+
+        const conditions = [];
+        snapshot.forEach((doc) => {
+          conditions.push({
+            id: doc.id,
+            ...doc.data(),
+          });
         });
-      });
 
-      return conditions;
+        // クライアントサイドで日付順ソート
+        conditions.sort((a, b) => {
+          const dateA = new Date(a.assessment_date || 0);
+          const dateB = new Date(b.assessment_date || 0);
+          return dateB - dateA;
+        });
+
+        return conditions;
+      } catch (indexError) {
+        console.warn("全身状態取得でインデックスエラー:", indexError);
+
+        // フォールバック: 全データ取得後にフィルタリング
+        const snapshot = await conditionsRef.get();
+        const conditions = [];
+
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.patient_id === patientId) {
+            conditions.push({
+              id: doc.id,
+              ...data,
+            });
+          }
+        });
+
+        // クライアントサイドソート
+        conditions.sort((a, b) => {
+          const dateA = new Date(a.assessment_date || 0);
+          const dateB = new Date(b.assessment_date || 0);
+          return dateB - dateA;
+        });
+
+        return conditions;
+      }
     } catch (error) {
       console.error("全身状態取得エラー:", error);
       return [];
@@ -396,7 +652,9 @@ class OralHealthDatabase {
 
   async createGeneralCondition(conditionData) {
     try {
-      if (!this.isOnline) {
+      await this.waitForInitialization();
+
+      if (!this.isConnected()) {
         this.handleOfflineError();
         throw new Error("オフラインのため全身状態を保存できません");
       }
@@ -425,29 +683,64 @@ class OralHealthDatabase {
     }
   }
 
-  // 管理計画関連メソッド
+  // 管理計画関連メソッド（インデックスエラー対応版）
   async getManagementPlans(patientId) {
     try {
-      if (!this.isOnline) {
+      await this.waitForInitialization();
+
+      if (!this.isConnected()) {
         this.handleOfflineError();
         return [];
       }
 
       const plansRef = this.getUserCollection("managementPlans");
-      const snapshot = await plansRef
-        .where("patient_id", "==", patientId)
-        .orderBy("plan_date", "desc")
-        .get();
 
-      const plans = [];
-      snapshot.forEach((doc) => {
-        plans.push({
-          id: doc.id,
-          ...doc.data(),
+      try {
+        const snapshot = await plansRef
+          .where("patient_id", "==", patientId)
+          .get();
+
+        const plans = [];
+        snapshot.forEach((doc) => {
+          plans.push({
+            id: doc.id,
+            ...doc.data(),
+          });
         });
-      });
 
-      return plans;
+        // クライアントサイドでソート
+        plans.sort((a, b) => {
+          const dateA = new Date(a.plan_date || 0);
+          const dateB = new Date(b.plan_date || 0);
+          return dateB - dateA;
+        });
+
+        return plans;
+      } catch (indexError) {
+        console.warn("管理計画取得でインデックスエラー:", indexError);
+
+        // フォールバック処理
+        const snapshot = await plansRef.get();
+        const plans = [];
+
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.patient_id === patientId) {
+            plans.push({
+              id: doc.id,
+              ...data,
+            });
+          }
+        });
+
+        plans.sort((a, b) => {
+          const dateA = new Date(a.plan_date || 0);
+          const dateB = new Date(b.plan_date || 0);
+          return dateB - dateA;
+        });
+
+        return plans;
+      }
     } catch (error) {
       console.error("管理計画取得エラー:", error);
       return [];
@@ -456,7 +749,9 @@ class OralHealthDatabase {
 
   async createManagementPlan(planData) {
     try {
-      if (!this.isOnline) {
+      await this.waitForInitialization();
+
+      if (!this.isConnected()) {
         this.handleOfflineError();
         throw new Error("オフラインのため管理計画を保存できません");
       }
@@ -485,29 +780,64 @@ class OralHealthDatabase {
     }
   }
 
-  // 管理指導記録関連メソッド
+  // 管理指導記録関連メソッド（インデックスエラー対応版）
   async getProgressRecords(patientId) {
     try {
-      if (!this.isOnline) {
+      await this.waitForInitialization();
+
+      if (!this.isConnected()) {
         this.handleOfflineError();
         return [];
       }
 
       const recordsRef = this.getUserCollection("progressRecords");
-      const snapshot = await recordsRef
-        .where("patient_id", "==", patientId)
-        .orderBy("record_date", "desc")
-        .get();
 
-      const records = [];
-      snapshot.forEach((doc) => {
-        records.push({
-          id: doc.id,
-          ...doc.data(),
+      try {
+        const snapshot = await recordsRef
+          .where("patient_id", "==", patientId)
+          .get();
+
+        const records = [];
+        snapshot.forEach((doc) => {
+          records.push({
+            id: doc.id,
+            ...doc.data(),
+          });
         });
-      });
 
-      return records;
+        // クライアントサイドでソート
+        records.sort((a, b) => {
+          const dateA = new Date(a.record_date || 0);
+          const dateB = new Date(b.record_date || 0);
+          return dateB - dateA;
+        });
+
+        return records;
+      } catch (indexError) {
+        console.warn("管理指導記録取得でインデックスエラー:", indexError);
+
+        // フォールバック処理
+        const snapshot = await recordsRef.get();
+        const records = [];
+
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.patient_id === patientId) {
+            records.push({
+              id: doc.id,
+              ...data,
+            });
+          }
+        });
+
+        records.sort((a, b) => {
+          const dateA = new Date(a.record_date || 0);
+          const dateB = new Date(b.record_date || 0);
+          return dateB - dateA;
+        });
+
+        return records;
+      }
     } catch (error) {
       console.error("管理指導記録取得エラー:", error);
       return [];
@@ -516,7 +846,9 @@ class OralHealthDatabase {
 
   async createProgressRecord(recordData) {
     try {
-      if (!this.isOnline) {
+      await this.waitForInitialization();
+
+      if (!this.isConnected()) {
         this.handleOfflineError();
         throw new Error("オフラインのため管理指導記録を保存できません");
       }
@@ -545,42 +877,50 @@ class OralHealthDatabase {
     }
   }
 
-  // データのエクスポート（Firebase版）
-  async exportData() {
+  // 既存のapp.jsとの互換性のためのメソッド群（追加）
+  exportData() {
+    console.log("exportData() 呼び出し - Firebase版では非同期で実行");
+    return this.exportDataAsync();
+  }
+
+  async exportDataAsync() {
     try {
-      if (!this.isOnline) {
+      await this.waitForInitialization();
+
+      if (!this.isConnected()) {
         this.handleOfflineError();
         return null;
       }
 
       console.log("データエクスポート開始...");
 
-      const [
-        patients,
-        assessments,
-        generalConditions,
-        managementPlans,
-        progressRecords,
-      ] = await Promise.all([
-        this.getPatients(),
-        this.getAssessments(),
-        this.getUserCollection("generalConditions").get(),
-        this.getUserCollection("managementPlans").get(),
-        this.getUserCollection("progressRecords").get(),
-      ]);
+      // データを安全に取得（インデックスエラー対応）
+      const patients = await this.getPatients();
+      const assessments = await this.getAssessments();
+
+      // 残りのデータも安全に取得
+      const generalConditionsSnapshot = await this.getUserCollection(
+        "generalConditions"
+      ).get();
+      const managementPlansSnapshot = await this.getUserCollection(
+        "managementPlans"
+      ).get();
+      const progressRecordsSnapshot = await this.getUserCollection(
+        "progressRecords"
+      ).get();
 
       const exportData = {
         patients: patients,
         assessments: assessments,
-        generalConditions: generalConditions.docs.map((doc) => ({
+        generalConditions: generalConditionsSnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         })),
-        managementPlans: managementPlans.docs.map((doc) => ({
+        managementPlans: managementPlansSnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         })),
-        progressRecords: progressRecords.docs.map((doc) => ({
+        progressRecords: progressRecordsSnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         })),
@@ -598,10 +938,12 @@ class OralHealthDatabase {
     }
   }
 
-  // データのインポート（Firebase版）
+  // 既存のapp.jsとの互換性のためのimportData
   async importData(jsonData) {
     try {
-      if (!this.isOnline) {
+      await this.waitForInitialization();
+
+      if (!this.isConnected()) {
         this.handleOfflineError();
         throw new Error("オフラインのためインポートできません");
       }
@@ -648,10 +990,12 @@ class OralHealthDatabase {
     }
   }
 
-  // 統計情報（Firebase版）
+  // 既存のapp.jsとの互換性のためのgetStatistics
   async getStatistics() {
     try {
-      if (!this.isOnline) {
+      await this.waitForInitialization();
+
+      if (!this.isConnected()) {
         return {
           totalPatients: 0,
           totalAssessments: 0,
@@ -696,15 +1040,11 @@ class OralHealthDatabase {
     }
   }
 
-  // 接続状態確認
-  isConnected() {
-    return this.isOnline && !!this.currentUser;
-  }
-
   // デバッグ情報
   getDebugInfo() {
     return {
       isOnline: this.isOnline,
+      isInitialized: this.isInitialized,
       currentUser: this.currentUser
         ? {
             email: this.currentUser.email,
@@ -713,7 +1053,7 @@ class OralHealthDatabase {
         : null,
       firebaseAvailable: !!window.firebaseManager,
       firestoreAvailable: !!(
-        window.firebaseManager && firebaseManager.firestore
+        window.firebaseManager && window.firebaseManager.firestore
       ),
     };
   }
@@ -722,9 +1062,14 @@ class OralHealthDatabase {
 // グローバルインスタンス
 const db = new OralHealthDatabase();
 
+// ウィンドウオブジェクトに登録
+window.db = db;
+
 // デバッグ用
 window.dbDebug = () => {
   console.log("Database Debug Info:", db.getDebugInfo());
 };
 
-console.log("database.js (Firebase版) 読み込み完了");
+console.log(
+  "database.js (インデックスエラー修正版 - 既存機能との互換性維持) 読み込み完了"
+);
