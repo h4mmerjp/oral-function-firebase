@@ -161,6 +161,31 @@
     </div>
   </div>
 
+  <!-- Release Notes Section -->
+  <footer class="app-footer no-print">
+    <div style="text-align: center; padding: 20px; border-top: 1px solid #eee; margin-top: 30px;">
+      <button onclick="showReleaseNotes()" class="btn-secondary" style="margin: 5px;">
+        📋 更新情報・リリースノート
+      </button>
+      <p style="font-size: 12px; color: #666; margin: 10px 0;">
+        口腔機能低下症診断・管理アプリ | 最新の更新情報はこちらから確認できます
+      </p>
+    </div>
+  </footer>
+
+  <!-- Release Notes Modal -->
+  <div id="releaseNotesModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeReleaseNotesModal()">&times;</span>
+      <h2>📋 更新情報・リリースノート</h2>
+      <div id="release-notes-content">
+        <div style="text-align: center; padding: 20px;">
+          <p>更新情報を読み込み中...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Add Patient Modal -->
   <div id="addPatientModal" class="modal">
     <div class="modal-content">

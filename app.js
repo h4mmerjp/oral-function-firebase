@@ -536,6 +536,184 @@ function createManagementPlan() {
 
 
 
+// リリースノート管理クラス
+class ReleaseNotesManager {
+  constructor() {
+    this.repositoryUrl = 'https://api.github.com/repos/h4mmerjp/oral-function-firebase';
+    this.cache = null;
+    this.cacheTime = null;
+    this.cacheExpiry = 30 * 60 * 1000; // 30分
+  }
+
+  // GitHubからリリース情報を取得
+  async fetchReleases() {
+    try {
+      // キャッシュチェック
+      if (this.cache && this.cacheTime && (Date.now() - this.cacheTime < this.cacheExpiry)) {
+        console.log('リリース情報をキャッシュから取得');
+        return this.cache;
+      }
+
+      console.log('GitHubからリリース情報を取得中...');
+      const response = await fetch(`${this.repositoryUrl}/releases`);
+      
+      if (!response.ok) {
+        throw new Error(`GitHub API エラー: ${response.status}`);
+      }
+      
+      const releases = await response.json();
+      
+      // キャッシュ更新
+      this.cache = releases;
+      this.cacheTime = Date.now();
+      
+      console.log('リリース情報取得完了:', releases.length, '件');
+      return releases;
+      
+    } catch (error) {
+      console.error('リリース情報取得エラー:', error);
+      // フォールバック: 最新コミット情報を取得
+      return this.fetchLatestCommits();
+    }
+  }
+
+  // フォールバック: 最新コミット情報を取得
+  async fetchLatestCommits() {
+    try {
+      console.log('最新コミット情報を取得中...');
+      const response = await fetch(`${this.repositoryUrl}/commits?per_page=10`);
+      
+      if (!response.ok) {
+        throw new Error(`GitHub API エラー: ${response.status}`);
+      }
+      
+      const commits = await response.json();
+      
+      // コミット情報をリリース形式に変換
+      return commits.map((commit, index) => ({
+        tag_name: `v${new Date(commit.commit.author.date).toISOString().split('T')[0]}`,
+        name: `更新 ${index === 0 ? '(最新)' : ''}`,
+        body: commit.commit.message,
+        published_at: commit.commit.author.date,
+        html_url: commit.html_url,
+        isCommit: true
+      }));
+      
+    } catch (error) {
+      console.error('コミット情報取得エラー:', error);
+      return this.getDefaultReleaseNotes();
+    }
+  }
+
+  // デフォルトのリリースノート
+  getDefaultReleaseNotes() {
+    return [{
+      tag_name: 'v1.0.0',
+      name: '口腔機能低下症診断・管理アプリ',
+      body: `## 主な機能
+      
+- **患者管理**: 患者情報の登録・編集・検索
+- **口腔機能精密検査**: 7項目の検査実施と診断
+- **管理計画書作成**: 診断結果に基づく管理方針設定
+- **管理指導記録**: 継続的な指導記録の管理
+- **データエクスポート**: CSV形式でのデータ出力
+- **印刷機能**: A4サイズ最適化された印刷レイアウト
+
+## 技術仕様
+
+- Firebase Firestore によるクラウドデータベース
+- レスポンシブデザイン対応
+- PWA対応（オフライン機能）`,
+      published_at: new Date().toISOString(),
+      html_url: 'https://github.com/h4mmerjp/oral-function-firebase',
+      isDefault: true
+    }];
+  }
+
+  // リリースノートのHTML生成
+  generateReleaseNotesHTML(releases) {
+    if (!releases || releases.length === 0) {
+      return '<div style="text-align: center; padding: 40px;"><p>リリース情報がありません</p></div>';
+    }
+
+    let html = '';
+    
+    releases.slice(0, 5).forEach((release, index) => {
+      const date = new Date(release.published_at).toLocaleDateString('ja-JP');
+      const isLatest = index === 0 && !release.isDefault;
+      
+      html += `
+        <div class="release-item" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; ${isLatest ? 'border-left: 5px solid #2ecc71;' : ''}">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h3 style="margin: 0; color: #3498db;">
+              ${release.name || release.tag_name}
+              ${isLatest ? '<span style="background: #2ecc71; color: white; font-size: 12px; padding: 2px 6px; border-radius: 3px; margin-left: 8px;">最新</span>' : ''}
+            </h3>
+            <span style="color: #666; font-size: 14px;">${date}</span>
+          </div>
+          
+          ${release.tag_name ? `<div style="margin-bottom: 8px;"><code style="background: #f8f9fa; padding: 2px 6px; border-radius: 3px; font-size: 12px;">${release.tag_name}</code></div>` : ''}
+          
+          <div style="white-space: pre-line; line-height: 1.6; color: #555;">
+            ${this.formatReleaseBody(release.body || '更新内容の詳細は準備中です')}
+          </div>
+          
+          ${release.html_url ? `<div style="margin-top: 10px;"><a href="${release.html_url}" target="_blank" style="color: #3498db; text-decoration: none; font-size: 14px;">📖 詳細を見る</a></div>` : ''}
+        </div>
+      `;
+    });
+
+    return html;
+  }
+
+  // リリース本文のフォーマット
+  formatReleaseBody(body) {
+    if (!body) return '更新内容の詳細は準備中です';
+    
+    // Markdown風の簡単なフォーマット
+    return body
+      .replace(/^## (.+)$/gm, '<strong style="color: #2c3e50;">$1</strong>')
+      .replace(/^- (.+)$/gm, '• $1')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/`(.+?)`/g, '<code style="background: #f8f9fa; padding: 1px 4px; border-radius: 3px;">$1</code>')
+      .substring(0, 500) + (body.length > 500 ? '...' : '');
+  }
+}
+
+// グローバルインスタンス
+const releaseNotesManager = new ReleaseNotesManager();
+
+// リリースノート表示関数
+async function showReleaseNotes() {
+  const modal = document.getElementById('releaseNotesModal');
+  const content = document.getElementById('release-notes-content');
+  
+  // モーダル表示
+  modal.style.display = 'block';
+  
+  // ローディング状態
+  content.innerHTML = '<div style="text-align: center; padding: 40px;"><p>📡 更新情報を読み込み中...</p></div>';
+  
+  try {
+    const releases = await releaseNotesManager.fetchReleases();
+    const html = releaseNotesManager.generateReleaseNotesHTML(releases);
+    content.innerHTML = html;
+  } catch (error) {
+    console.error('リリースノート表示エラー:', error);
+    content.innerHTML = `
+      <div style="text-align: center; padding: 40px; color: #e74c3c;">
+        <p>⚠️ 更新情報の読み込みに失敗しました</p>
+        <p style="font-size: 14px;">インターネット接続を確認してからもう一度お試しください</p>
+      </div>
+    `;
+  }
+}
+
+// リリースノートモーダル閉じる
+function closeReleaseNotesModal() {
+  document.getElementById('releaseNotesModal').style.display = 'none';
+}
+
 // アプリケーション初期化（修正版）
 document.addEventListener('DOMContentLoaded', function() {
   console.log('DOM読み込み完了 - アプリケーション初期化開始');
