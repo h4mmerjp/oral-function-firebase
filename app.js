@@ -112,66 +112,164 @@ class OralHealthApp {
     }
   }
 
-  // データエクスポート
-  exportDatabase() {
+  // CSVエクスポート機能
+  async exportDatabaseCSV() {
     try {
-      const data = db.exportData();
-      const blob = new Blob([data], { type: 'application/json' });
+      console.log('=== CSVエクスポート開始 ===');
+      
+      // データベース接続確認
+      if (!window.db) {
+        throw new Error('データベースが初期化されていません');
+      }
+      
+      if (typeof window.db.exportDataAsync !== 'function') {
+        throw new Error('エクスポート機能が利用できません');
+      }
+      
+      // データ取得
+      console.log('データ取得開始...');
+      const exportResult = await window.db.exportDataAsync();
+      
+      if (!exportResult) {
+        throw new Error('エクスポートデータが空です。ログインが必要な可能性があります。');
+      }
+      
+      const data = JSON.parse(exportResult);
+      console.log('データ解析完了:', {
+        patients: data.patients?.length || 0,
+        assessments: data.assessments?.length || 0
+      });
+      
+      // CSV形式に変換
+      const csvContent = this.convertToCSV(data);
+      
+      // ファイルダウンロード
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       
       const a = document.createElement('a');
       a.href = url;
-      a.download = `oral_health_data_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `oral_health_data_${new Date().toISOString().split('T')[0]}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
-      alert('データのエクスポートが完了しました');
+      alert('CSVエクスポートが完了しました');
+      console.log('=== CSVエクスポート完了 ===');
+      
     } catch (error) {
-      console.error('エクスポートエラー:', error);
-      alert('エクスポートに失敗しました');
+      console.error('=== CSVエクスポートエラー ===', error);
+      alert('CSVエクスポートに失敗しました: ' + error.message);
+    }
+  }
+  
+  // データをCSV形式に変換
+  convertToCSV(data) {
+    let csv = '';
+    
+    // 患者IDマップを作成（内部ID → 患者ID）
+    const patientIdMap = {};
+    if (data.patients && data.patients.length > 0) {
+      data.patients.forEach(patient => {
+        patientIdMap[patient.id] = patient.patient_id || patient.id;
+      });
+    }
+    
+    // 患者データのCSV
+    if (data.patients && data.patients.length > 0) {
+      csv += '=== 患者データ ===\n';
+      csv += '患者ID,患者名,フリガナ,生年月日,性別,電話番号,住所,作成日\n';
+      
+      data.patients.forEach(patient => {
+        csv += [
+          this.escapeCSV(patient.patient_id || ''),
+          this.escapeCSV(patient.name || ''),
+          this.escapeCSV(patient.name_kana || ''),
+          this.escapeCSV(patient.birthdate || ''),
+          this.escapeCSV(patient.gender === 'male' ? '男性' : patient.gender === 'female' ? '女性' : ''),
+          this.escapeCSV(patient.phone || ''),
+          this.escapeCSV(patient.address || ''),
+          this.escapeCSV(patient.created_at ? new Date(patient.created_at.seconds * 1000).toLocaleDateString() : '')
+        ].join(',') + '\n';
+      });
+      csv += '\n';
+    }
+    
+    // 検査データのCSV
+    if (data.assessments && data.assessments.length > 0) {
+      csv += '=== 検査データ ===\n';
+      csv += '検査ID,患者ID,検査日,診断結果,該当項目数,TCI値,口腔乾燥,咬合力,舌口唇運動,舌圧,咀嚼機能,嚥下機能\n';
+      
+      data.assessments.forEach(assessment => {
+        const patientId = patientIdMap[assessment.patient_id] || assessment.patient_id || '';
+        csv += [
+          this.escapeCSV(assessment.id || ''),
+          this.escapeCSV(patientId),
+          this.escapeCSV(assessment.assessment_date || ''),
+          this.escapeCSV(assessment.diagnosis_result ? '口腔機能低下症' : '正常'),
+          this.escapeCSV(assessment.affected_items_count?.toString() || '0'),
+          this.escapeCSV(assessment.tci_value?.toString() || ''),
+          this.escapeCSV(assessment.dryness_status ? '低下' : '正常'),
+          this.escapeCSV(assessment.bite_force_status ? '低下' : '正常'),
+          this.escapeCSV(assessment.oral_diadochokinesis_status ? '低下' : '正常'),
+          this.escapeCSV(assessment.tongue_pressure_status ? '低下' : '正常'),
+          this.escapeCSV(assessment.mastication_status ? '低下' : '正常'),
+          this.escapeCSV(assessment.swallowing_status ? '低下' : '正常')
+        ].join(',') + '\n';
+      });
+      csv += '\n';
+    }
+    
+    // 管理計画書データのCSV
+    if (data.managementPlans && data.managementPlans.length > 0) {
+      csv += '=== 管理計画書データ ===\n';
+      csv += '計画ID,患者ID,検査ID,作成日,口腔衛生,口腔乾燥,咬合力,舌口唇運動,舌圧,咀嚼機能,嚥下機能,再評価期間\n';
+      
+      data.managementPlans.forEach(plan => {
+        const patientId = patientIdMap[plan.patient_id] || plan.patient_id || '';
+        csv += [
+          this.escapeCSV(plan.id || ''),
+          this.escapeCSV(patientId),
+          this.escapeCSV(plan.assessment_id || ''),
+          this.escapeCSV(plan.plan_date || ''),
+          this.escapeCSV(this.getPlanText(plan.hygiene_plan)),
+          this.escapeCSV(this.getPlanText(plan.dryness_plan)),
+          this.escapeCSV(this.getPlanText(plan.bite_plan)),
+          this.escapeCSV(this.getPlanText(plan.lip_plan)),
+          this.escapeCSV(this.getPlanText(plan.tongue_pressure_plan)),
+          this.escapeCSV(this.getPlanText(plan.mastication_plan)),
+          this.escapeCSV(this.getPlanText(plan.swallowing_plan)),
+          this.escapeCSV(plan.reevaluation_period?.toString() || '6')
+        ].join(',') + '\n';
+      });
+      csv += '\n';
+    }
+    
+    return csv;
+  }
+  
+  // CSV用の文字列エスケープ
+  escapeCSV(str) {
+    if (str === null || str === undefined) return '';
+    str = str.toString();
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+  }
+  
+  // 管理方針テキストの変換
+  getPlanText(value) {
+    switch(value) {
+      case 1: return '問題なし';
+      case 2: return '機能維持';
+      case 3: return '機能向上';
+      default: return '未設定';
     }
   }
 
-  // データインポート
-  importDatabase() {
-    const fileInput = document.getElementById('import-file');
-    fileInput.click();
-  }
 
-  // インポートファイル処理
-  handleImportFile(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const jsonData = e.target.result;
-        db.importData(jsonData);
-        alert('データのインポートが完了しました');
-        
-        // データを再読み込み
-        patientManager.loadPatients();
-        
-        // 現在の患者情報をクリア
-        patientManager.currentPatient = null;
-        assessmentManager.currentAssessment = null;
-        
-        // 患者一覧タブに移動
-        this.openTab('patient-list');
-      } catch (error) {
-        console.error('インポートエラー:', error);
-        alert('インポートに失敗しました: ' + error.message);
-      }
-    };
-    
-    reader.readAsText(file);
-    
-    // ファイル入力をリセット
-    event.target.value = '';
-  }
 
   // アプリケーション統計情報の表示
   showStatistics() {
@@ -281,25 +379,9 @@ function openTab(tabName) {
   }
 }
 
-function exportDatabase() {
+async function exportDatabaseCSV() {
   if (app) {
-    app.exportDatabase();
-  } else {
-    console.error('アプリケーションが初期化されていません');
-  }
-}
-
-function importDatabase() {
-  if (app) {
-    app.importDatabase();
-  } else {
-    console.error('アプリケーションが初期化されていません');
-  }
-}
-
-function handleImportFile(event) {
-  if (app) {
-    app.handleImportFile(event);
+    await app.exportDatabaseCSV();
   } else {
     console.error('アプリケーションが初期化されていません');
   }

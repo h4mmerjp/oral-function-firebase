@@ -12,8 +12,7 @@
       <h1>口腔機能低下症 診断・管理アプリ</h1>
       <p>日本老年歯科医学会の基準に基づく診断・管理ツール</p>
       <div style="margin-top: 10px;">
-        <button onclick="exportDatabase()" class="btn-secondary no-print">データエクスポート</button>
-        <button onclick="importDatabase()" class="btn-secondary no-print">データインポート</button>
+        <button onclick="exportDatabaseCSV()" class="btn-secondary no-print">CSVエクスポート</button>
         <button onclick="window.print()" class="btn-secondary no-print">印刷</button>
       </div>
     </header>
@@ -215,7 +214,6 @@
   </div>
 
   <!-- File input for import -->
-  <input type="file" id="import-file" accept=".json" style="display: none;" onchange="handleImportFile(event)">
 
   <!-- Firebase SDKをCDNから読み込み（v8 compat版を使用） -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
