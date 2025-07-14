@@ -83,6 +83,7 @@ class ManagementManager {
         <p>患者名: ${patientManager.currentPatient.name} (ID: ${patientManager.currentPatient.patient_id})</p>
         <p>診断結果: ${assessment.diagnosis_result ? '口腔機能低下症' : '口腔機能低下症ではありません'}</p>
         <p>該当項目数: ${assessment.affected_items_count}/7項目</p>
+        <p><button onclick="assessmentManager.viewAssessmentDetails(${assessment.id})" class="btn-secondary" style="margin-top: 10px;">検査結果詳細を確認</button></p>
       </div>
 
       <div class="summary-card">
@@ -550,6 +551,15 @@ class ManagementManager {
       
       if (record) {
         this.displayProgressRecordDetails(record);
+        
+        // タブ切り替え
+        if (window.app) {
+          app.openTab('progress-record');
+        } else {
+          this.directTabSwitch('progress-record');
+        }
+      } else {
+        alert('指定された管理指導記録が見つかりません');
       }
     } catch (error) {
       console.error('管理指導記録詳細表示エラー:', error);
@@ -650,6 +660,7 @@ class ManagementManager {
       </div>
 
       <div style="margin-top: 30px;">
+        <button onclick="window.patientManager.openPatientHistory()" class="btn-secondary">履歴に戻る</button>
         <button onclick="managementManager.loadProgressRecordForm()" class="btn-secondary">新規記録作成</button>
         <button onclick="managementManager.printProgressRecord()" class="btn-secondary">印刷</button>
       </div>

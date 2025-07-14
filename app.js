@@ -112,66 +112,164 @@ class OralHealthApp {
     }
   }
 
-  // データエクスポート
-  exportDatabase() {
+  // CSVエクスポート機能
+  async exportDatabaseCSV() {
     try {
-      const data = db.exportData();
-      const blob = new Blob([data], { type: 'application/json' });
+      console.log('=== CSVエクスポート開始 ===');
+      
+      // データベース接続確認
+      if (!window.db) {
+        throw new Error('データベースが初期化されていません');
+      }
+      
+      if (typeof window.db.exportDataAsync !== 'function') {
+        throw new Error('エクスポート機能が利用できません');
+      }
+      
+      // データ取得
+      console.log('データ取得開始...');
+      const exportResult = await window.db.exportDataAsync();
+      
+      if (!exportResult) {
+        throw new Error('エクスポートデータが空です。ログインが必要な可能性があります。');
+      }
+      
+      const data = JSON.parse(exportResult);
+      console.log('データ解析完了:', {
+        patients: data.patients?.length || 0,
+        assessments: data.assessments?.length || 0
+      });
+      
+      // CSV形式に変換
+      const csvContent = this.convertToCSV(data);
+      
+      // ファイルダウンロード
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       
       const a = document.createElement('a');
       a.href = url;
-      a.download = `oral_health_data_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `oral_health_data_${new Date().toISOString().split('T')[0]}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
-      alert('データのエクスポートが完了しました');
+      alert('CSVエクスポートが完了しました');
+      console.log('=== CSVエクスポート完了 ===');
+      
     } catch (error) {
-      console.error('エクスポートエラー:', error);
-      alert('エクスポートに失敗しました');
+      console.error('=== CSVエクスポートエラー ===', error);
+      alert('CSVエクスポートに失敗しました: ' + error.message);
+    }
+  }
+  
+  // データをCSV形式に変換
+  convertToCSV(data) {
+    let csv = '';
+    
+    // 患者IDマップを作成（内部ID → 患者ID）
+    const patientIdMap = {};
+    if (data.patients && data.patients.length > 0) {
+      data.patients.forEach(patient => {
+        patientIdMap[patient.id] = patient.patient_id || patient.id;
+      });
+    }
+    
+    // 患者データのCSV
+    if (data.patients && data.patients.length > 0) {
+      csv += '=== 患者データ ===\n';
+      csv += '患者ID,患者名,フリガナ,生年月日,性別,電話番号,住所,作成日\n';
+      
+      data.patients.forEach(patient => {
+        csv += [
+          this.escapeCSV(patient.patient_id || ''),
+          this.escapeCSV(patient.name || ''),
+          this.escapeCSV(patient.name_kana || ''),
+          this.escapeCSV(patient.birthdate || ''),
+          this.escapeCSV(patient.gender === 'male' ? '男性' : patient.gender === 'female' ? '女性' : ''),
+          this.escapeCSV(patient.phone || ''),
+          this.escapeCSV(patient.address || ''),
+          this.escapeCSV(patient.created_at ? new Date(patient.created_at.seconds * 1000).toLocaleDateString() : '')
+        ].join(',') + '\n';
+      });
+      csv += '\n';
+    }
+    
+    // 検査データのCSV
+    if (data.assessments && data.assessments.length > 0) {
+      csv += '=== 検査データ ===\n';
+      csv += '検査ID,患者ID,検査日,診断結果,該当項目数,TCI値,口腔乾燥,咬合力,舌口唇運動,舌圧,咀嚼機能,嚥下機能\n';
+      
+      data.assessments.forEach(assessment => {
+        const patientId = patientIdMap[assessment.patient_id] || assessment.patient_id || '';
+        csv += [
+          this.escapeCSV(assessment.id || ''),
+          this.escapeCSV(patientId),
+          this.escapeCSV(assessment.assessment_date || ''),
+          this.escapeCSV(assessment.diagnosis_result ? '口腔機能低下症' : '正常'),
+          this.escapeCSV(assessment.affected_items_count?.toString() || '0'),
+          this.escapeCSV(assessment.tci_value?.toString() || ''),
+          this.escapeCSV(assessment.dryness_status ? '低下' : '正常'),
+          this.escapeCSV(assessment.bite_force_status ? '低下' : '正常'),
+          this.escapeCSV(assessment.oral_diadochokinesis_status ? '低下' : '正常'),
+          this.escapeCSV(assessment.tongue_pressure_status ? '低下' : '正常'),
+          this.escapeCSV(assessment.mastication_status ? '低下' : '正常'),
+          this.escapeCSV(assessment.swallowing_status ? '低下' : '正常')
+        ].join(',') + '\n';
+      });
+      csv += '\n';
+    }
+    
+    // 管理計画書データのCSV
+    if (data.managementPlans && data.managementPlans.length > 0) {
+      csv += '=== 管理計画書データ ===\n';
+      csv += '計画ID,患者ID,検査ID,作成日,口腔衛生,口腔乾燥,咬合力,舌口唇運動,舌圧,咀嚼機能,嚥下機能,再評価期間\n';
+      
+      data.managementPlans.forEach(plan => {
+        const patientId = patientIdMap[plan.patient_id] || plan.patient_id || '';
+        csv += [
+          this.escapeCSV(plan.id || ''),
+          this.escapeCSV(patientId),
+          this.escapeCSV(plan.assessment_id || ''),
+          this.escapeCSV(plan.plan_date || ''),
+          this.escapeCSV(this.getPlanText(plan.hygiene_plan)),
+          this.escapeCSV(this.getPlanText(plan.dryness_plan)),
+          this.escapeCSV(this.getPlanText(plan.bite_plan)),
+          this.escapeCSV(this.getPlanText(plan.lip_plan)),
+          this.escapeCSV(this.getPlanText(plan.tongue_pressure_plan)),
+          this.escapeCSV(this.getPlanText(plan.mastication_plan)),
+          this.escapeCSV(this.getPlanText(plan.swallowing_plan)),
+          this.escapeCSV(plan.reevaluation_period?.toString() || '6')
+        ].join(',') + '\n';
+      });
+      csv += '\n';
+    }
+    
+    return csv;
+  }
+  
+  // CSV用の文字列エスケープ
+  escapeCSV(str) {
+    if (str === null || str === undefined) return '';
+    str = str.toString();
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+  }
+  
+  // 管理方針テキストの変換
+  getPlanText(value) {
+    switch(value) {
+      case 1: return '問題なし';
+      case 2: return '機能維持';
+      case 3: return '機能向上';
+      default: return '未設定';
     }
   }
 
-  // データインポート
-  importDatabase() {
-    const fileInput = document.getElementById('import-file');
-    fileInput.click();
-  }
 
-  // インポートファイル処理
-  handleImportFile(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const jsonData = e.target.result;
-        db.importData(jsonData);
-        alert('データのインポートが完了しました');
-        
-        // データを再読み込み
-        patientManager.loadPatients();
-        
-        // 現在の患者情報をクリア
-        patientManager.currentPatient = null;
-        assessmentManager.currentAssessment = null;
-        
-        // 患者一覧タブに移動
-        this.openTab('patient-list');
-      } catch (error) {
-        console.error('インポートエラー:', error);
-        alert('インポートに失敗しました: ' + error.message);
-      }
-    };
-    
-    reader.readAsText(file);
-    
-    // ファイル入力をリセット
-    event.target.value = '';
-  }
 
   // アプリケーション統計情報の表示
   showStatistics() {
@@ -281,25 +379,9 @@ function openTab(tabName) {
   }
 }
 
-function exportDatabase() {
+async function exportDatabaseCSV() {
   if (app) {
-    app.exportDatabase();
-  } else {
-    console.error('アプリケーションが初期化されていません');
-  }
-}
-
-function importDatabase() {
-  if (app) {
-    app.importDatabase();
-  } else {
-    console.error('アプリケーションが初期化されていません');
-  }
-}
-
-function handleImportFile(event) {
-  if (app) {
-    app.handleImportFile(event);
+    await app.exportDatabaseCSV();
   } else {
     console.error('アプリケーションが初期化されていません');
   }
@@ -453,6 +535,184 @@ function createManagementPlan() {
 }
 
 
+
+// リリースノート管理クラス
+class ReleaseNotesManager {
+  constructor() {
+    this.repositoryUrl = 'https://api.github.com/repos/h4mmerjp/oral-function-firebase';
+    this.cache = null;
+    this.cacheTime = null;
+    this.cacheExpiry = 30 * 60 * 1000; // 30分
+  }
+
+  // GitHubからリリース情報を取得
+  async fetchReleases() {
+    try {
+      // キャッシュチェック
+      if (this.cache && this.cacheTime && (Date.now() - this.cacheTime < this.cacheExpiry)) {
+        console.log('リリース情報をキャッシュから取得');
+        return this.cache;
+      }
+
+      console.log('GitHubからリリース情報を取得中...');
+      const response = await fetch(`${this.repositoryUrl}/releases`);
+      
+      if (!response.ok) {
+        throw new Error(`GitHub API エラー: ${response.status}`);
+      }
+      
+      const releases = await response.json();
+      
+      // キャッシュ更新
+      this.cache = releases;
+      this.cacheTime = Date.now();
+      
+      console.log('リリース情報取得完了:', releases.length, '件');
+      return releases;
+      
+    } catch (error) {
+      console.error('リリース情報取得エラー:', error);
+      // フォールバック: 最新コミット情報を取得
+      return this.fetchLatestCommits();
+    }
+  }
+
+  // フォールバック: 最新コミット情報を取得
+  async fetchLatestCommits() {
+    try {
+      console.log('最新コミット情報を取得中...');
+      const response = await fetch(`${this.repositoryUrl}/commits?per_page=10`);
+      
+      if (!response.ok) {
+        throw new Error(`GitHub API エラー: ${response.status}`);
+      }
+      
+      const commits = await response.json();
+      
+      // コミット情報をリリース形式に変換
+      return commits.map((commit, index) => ({
+        tag_name: `v${new Date(commit.commit.author.date).toISOString().split('T')[0]}`,
+        name: `更新 ${index === 0 ? '(最新)' : ''}`,
+        body: commit.commit.message,
+        published_at: commit.commit.author.date,
+        html_url: commit.html_url,
+        isCommit: true
+      }));
+      
+    } catch (error) {
+      console.error('コミット情報取得エラー:', error);
+      return this.getDefaultReleaseNotes();
+    }
+  }
+
+  // デフォルトのリリースノート
+  getDefaultReleaseNotes() {
+    return [{
+      tag_name: 'v1.0.0',
+      name: '口腔機能低下症診断・管理アプリ',
+      body: `## 主な機能
+      
+- **患者管理**: 患者情報の登録・編集・検索
+- **口腔機能精密検査**: 7項目の検査実施と診断
+- **管理計画書作成**: 診断結果に基づく管理方針設定
+- **管理指導記録**: 継続的な指導記録の管理
+- **データエクスポート**: CSV形式でのデータ出力
+- **印刷機能**: A4サイズ最適化された印刷レイアウト
+
+## 技術仕様
+
+- Firebase Firestore によるクラウドデータベース
+- レスポンシブデザイン対応
+- PWA対応（オフライン機能）`,
+      published_at: new Date().toISOString(),
+      html_url: 'https://github.com/h4mmerjp/oral-function-firebase',
+      isDefault: true
+    }];
+  }
+
+  // リリースノートのHTML生成
+  generateReleaseNotesHTML(releases) {
+    if (!releases || releases.length === 0) {
+      return '<div style="text-align: center; padding: 40px;"><p>リリース情報がありません</p></div>';
+    }
+
+    let html = '';
+    
+    releases.slice(0, 5).forEach((release, index) => {
+      const date = new Date(release.published_at).toLocaleDateString('ja-JP');
+      const isLatest = index === 0 && !release.isDefault;
+      
+      html += `
+        <div class="release-item" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; ${isLatest ? 'border-left: 5px solid #2ecc71;' : ''}">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h3 style="margin: 0; color: #3498db;">
+              ${release.name || release.tag_name}
+              ${isLatest ? '<span style="background: #2ecc71; color: white; font-size: 12px; padding: 2px 6px; border-radius: 3px; margin-left: 8px;">最新</span>' : ''}
+            </h3>
+            <span style="color: #666; font-size: 14px;">${date}</span>
+          </div>
+          
+          ${release.tag_name ? `<div style="margin-bottom: 8px;"><code style="background: #f8f9fa; padding: 2px 6px; border-radius: 3px; font-size: 12px;">${release.tag_name}</code></div>` : ''}
+          
+          <div style="white-space: pre-line; line-height: 1.6; color: #555;">
+            ${this.formatReleaseBody(release.body || '更新内容の詳細は準備中です')}
+          </div>
+          
+          ${release.html_url ? `<div style="margin-top: 10px;"><a href="${release.html_url}" target="_blank" style="color: #3498db; text-decoration: none; font-size: 14px;">📖 詳細を見る</a></div>` : ''}
+        </div>
+      `;
+    });
+
+    return html;
+  }
+
+  // リリース本文のフォーマット
+  formatReleaseBody(body) {
+    if (!body) return '更新内容の詳細は準備中です';
+    
+    // Markdown風の簡単なフォーマット
+    return body
+      .replace(/^## (.+)$/gm, '<strong style="color: #2c3e50;">$1</strong>')
+      .replace(/^- (.+)$/gm, '• $1')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/`(.+?)`/g, '<code style="background: #f8f9fa; padding: 1px 4px; border-radius: 3px;">$1</code>')
+      .substring(0, 500) + (body.length > 500 ? '...' : '');
+  }
+}
+
+// グローバルインスタンス
+const releaseNotesManager = new ReleaseNotesManager();
+
+// リリースノート表示関数
+async function showReleaseNotes() {
+  const modal = document.getElementById('releaseNotesModal');
+  const content = document.getElementById('release-notes-content');
+  
+  // モーダル表示
+  modal.style.display = 'block';
+  
+  // ローディング状態
+  content.innerHTML = '<div style="text-align: center; padding: 40px;"><p>📡 更新情報を読み込み中...</p></div>';
+  
+  try {
+    const releases = await releaseNotesManager.fetchReleases();
+    const html = releaseNotesManager.generateReleaseNotesHTML(releases);
+    content.innerHTML = html;
+  } catch (error) {
+    console.error('リリースノート表示エラー:', error);
+    content.innerHTML = `
+      <div style="text-align: center; padding: 40px; color: #e74c3c;">
+        <p>⚠️ 更新情報の読み込みに失敗しました</p>
+        <p style="font-size: 14px;">インターネット接続を確認してからもう一度お試しください</p>
+      </div>
+    `;
+  }
+}
+
+// リリースノートモーダル閉じる
+function closeReleaseNotesModal() {
+  document.getElementById('releaseNotesModal').style.display = 'none';
+}
 
 // アプリケーション初期化（修正版）
 document.addEventListener('DOMContentLoaded', function() {

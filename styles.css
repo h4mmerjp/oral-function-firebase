@@ -510,15 +510,220 @@ tr:hover {
 }
 
 @media print {
-  .no-print {
+  /* 非印刷要素を非表示 */
+  .no-print, .tabs, header, .tab, button, .btn-success, .btn-secondary, .btn-danger, .btn-warning {
     display: none !important;
   }
   
+  /* ページ設定 */
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+  
+  /* 基本レイアウト */
   body, .container {
-    background: white;
-    padding: 0;
-    margin: 0;
-    box-shadow: none;
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+    color: #000 !important;
+  }
+  
+  /* アクティブなタブコンテンツのみ表示 */
+  .tab-content {
+    display: none !important;
+  }
+  
+  .tab-content.active {
+    display: block !important;
+    page-break-inside: avoid;
+  }
+  
+  /* 見出し調整 */
+  h1 {
+    font-size: 18px !important;
+    margin: 0 0 10px 0 !important;
+    text-align: center;
+  }
+  
+  h2 {
+    font-size: 14px !important;
+    margin: 10px 0 5px 0 !important;
+    border-left: 3px solid #000;
+    padding-left: 5px;
+  }
+  
+  h3 {
+    font-size: 12px !important;
+    margin: 8px 0 4px 0 !important;
+    border-bottom: 1px solid #000;
+    padding-bottom: 2px;
+  }
+  
+  /* サマリーカード */
+  .summary-card {
+    margin-bottom: 8px !important;
+    padding: 6px !important;
+    border: 1px solid #ccc !important;
+    border-radius: 0 !important;
+    page-break-inside: avoid;
+  }
+  
+  /* テーブル調整 */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 9px !important;
+    margin: 5px 0 !important;
+  }
+  
+  th, td {
+    border: 1px solid #000 !important;
+    padding: 3px !important;
+    text-align: left !important;
+  }
+  
+  th {
+    background-color: #f0f0f0 !important;
+    font-weight: bold !important;
+  }
+  
+  /* フォーム要素 */
+  .form-group {
+    margin-bottom: 4px !important;
+  }
+  
+  .grid-container {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 5px !important;
+  }
+  
+  /* 結果ボックス */
+  .result-box {
+    border: 1px solid #000 !important;
+    padding: 4px !important;
+    margin: 3px 0 !important;
+    background: #f9f9f9 !important;
+  }
+  
+  /* ステータスバッジ */
+  .status-badge {
+    border: 1px solid #000 !important;
+    padding: 2px 4px !important;
+    border-radius: 0 !important;
+    background: white !important;
+    color: #000 !important;
+  }
+  
+  /* TCI グリッド */
+  .tci-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 2px !important;
+    max-width: 200px !important;
+  }
+  
+  .tci-cell {
+    border: 1px solid #000 !important;
+    padding: 3px !important;
+    text-align: center !important;
+    background: white !important;
+    color: #000 !important;
+  }
+  
+  /* 評価オプション */
+  .rating-options {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 2px !important;
+  }
+  
+  .rating-option {
+    border: 1px solid #000 !important;
+    padding: 2px 4px !important;
+    font-size: 8px !important;
+    background: white !important;
+    color: #000 !important;
+  }
+  
+  .rating-option.selected {
+    background: #000 !important;
+    color: white !important;
+  }
+  
+  /* EAT-10・聖隷式質問 */
+  .eat-10-question, .seiryo-question {
+    margin-bottom: 4px !important;
+    page-break-inside: avoid;
+  }
+  
+  .eat-10-options, .seiryo-options {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 1px !important;
+  }
+  
+  .eat-10-option, .seiryo-option {
+    border: 1px solid #000 !important;
+    padding: 1px 3px !important;
+    font-size: 7px !important;
+    background: white !important;
+    color: #000 !important;
+  }
+  
+  .eat-10-option.selected, .seiryo-option.selected {
+    background: #000 !important;
+    color: white !important;
+  }
+  
+  /* テキストエリア */
+  textarea {
+    border: 1px solid #000 !important;
+    width: 100% !important;
+    background: white !important;
+    color: #000 !important;
+    font-size: 9px !important;
+    line-height: 1.2 !important;
+  }
+  
+  /* プログレスバー */
+  .progress-bar-container, .progress-bar {
+    display: none !important;
+  }
+  
+  /* 改ページ制御 */
+  .summary-card:nth-child(n+4) {
+    page-break-before: auto;
+  }
+  
+  /* 色付きテキスト */
+  .red-text {
+    color: #000 !important;
+    font-weight: bold !important;
+  }
+  
+  .green-text {
+    color: #000 !important;
+  }
+  
+  /* 入力グループ */
+  .input-group {
+    display: flex !important;
+    align-items: center !important;
+  }
+  
+  .input-group input {
+    border: 1px solid #000 !important;
+    margin-right: 5px !important;
+    padding: 2px !important;
+  }
+  
+  .input-group-append {
+    font-size: 9px !important;
   }
 }
 
@@ -635,4 +840,42 @@ tr:hover {
   .seiryo-option {
     margin-bottom: 5px;
   }
+}
+
+/* アプリフッター（リリースノート）のスタイル */
+.app-footer {
+  background: #f8f9fa;
+  border-top: 1px solid #eee;
+  margin-top: 30px;
+}
+
+.release-item {
+  transition: box-shadow 0.2s;
+}
+
+.release-item:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* モーダルの追加スタイル */
+#releaseNotesModal .modal-content {
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* リリースノート内のコードブロック */
+.release-item code {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 11px;
+}
+
+/* リリースノート内のリンク */
+.release-item a:hover {
+  text-decoration: underline;
+}
+
+/* 最新リリースのハイライト */
+.release-item.latest {
+  border-left: 5px solid #2ecc71;
+  background: #f8fff9;
 }
