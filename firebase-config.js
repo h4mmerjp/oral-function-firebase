@@ -41,22 +41,22 @@ class FirebaseManager {
         return false;
       }
 
-      // Firebase設定（環境変数対応）
-      const firebaseConfig = {
-        apiKey: this.getEnvVar('FIREBASE_API_KEY') || "AIzaSyC8_B2eo47C2plYkGPq_ek6VaD113tNEBk",
-        authDomain: this.getEnvVar('FIREBASE_AUTH_DOMAIN') || "oral-health-diagnosis-ap-b3592.firebaseapp.com",
-        projectId: this.getEnvVar('FIREBASE_PROJECT_ID') || "oral-health-diagnosis-ap-b3592",
-        storageBucket: this.getEnvVar('FIREBASE_STORAGE_BUCKET') || "oral-health-diagnosis-ap-b3592.firebasestorage.app",
-        messagingSenderId: this.getEnvVar('FIREBASE_MESSAGING_SENDER_ID') || "338073541462",
-        appId: this.getEnvVar('FIREBASE_APP_ID') || "1:338073541462:web:f48f281cf84710ce7794f7",
-        measurementId: this.getEnvVar('FIREBASE_MEASUREMENT_ID') || "G-XLQ1FVCHN5",
-      };
+      // firebase-config.js
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+};
 
-      // 設定の妥当性チェック
-      if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-        console.error('Firebase設定が不完全です。環境変数を確認してください。');
-        throw new Error('Firebase configuration is incomplete');
-      }
+// 設定の妥当性チェック
+if (!firebaseConfig.apiKey) {
+  console.error('Firebase設定が不完全です');
+  throw new Error('Firebase configuration is incomplete');
+}
 
       console.log('Firebase設定読み込み完了:', {
         projectId: firebaseConfig.projectId,
