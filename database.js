@@ -877,68 +877,97 @@ class OralHealthDatabase {
     }
   }
 
-  // 既存のapp.jsとの互換性のためのメソッド群（追加）
+  // ローカルストレージ版との互換性は削除 - Firebase専用
   exportData() {
-    console.log("exportData() 呼び出し - Firebase版では非同期で実行");
-    return this.exportDataAsync();
+    console.error("ローカルストレージ版はサポートされていません。Firebase版のexportDataAsync()を使用してください。");
+    throw new Error("ローカルストレージ版はサポートされていません。Firebase版のexportDataAsync()を使用してください。");
   }
 
   async exportDataAsync() {
     try {
+      console.log("=== exportDataAsync開始 ===");
       await this.waitForInitialization();
 
       if (!this.isConnected()) {
+        console.error("Firebase未接続のためエクスポートできません");
         this.handleOfflineError();
         return null;
       }
 
       console.log("データエクスポート開始...");
 
-      // データを安全に取得（インデックスエラー対応）
-      const patients = await this.getPatients();
-      const assessments = await this.getAssessments();
+      // 全てのデータを並列取得
+      console.log("患者データ取得開始...");
+      const patientsSnapshot = await this.getUserCollection("patients").get();
+      const patients = patientsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      console.log("患者データ取得完了:", patients.length, "件");
 
-      // 残りのデータも安全に取得
-      const generalConditionsSnapshot = await this.getUserCollection(
-        "generalConditions"
-      ).get();
-      const managementPlansSnapshot = await this.getUserCollection(
-        "managementPlans"
-      ).get();
-      const progressRecordsSnapshot = await this.getUserCollection(
-        "progressRecords"
-      ).get();
+      console.log("検査データ取得開始...");
+      const assessmentsSnapshot = await this.getUserCollection("assessments").get();
+      const assessments = assessmentsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      console.log("検査データ取得完了:", assessments.length, "件");
+
+      console.log("全身状態データ取得開始...");
+      const generalConditionsSnapshot = await this.getUserCollection("generalConditions").get();
+      const generalConditions = generalConditionsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      console.log("全身状態データ取得完了:", generalConditions.length, "件");
+
+      console.log("管理計画書データ取得開始...");
+      const managementPlansSnapshot = await this.getUserCollection("managementPlans").get();
+      const managementPlans = managementPlansSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      console.log("管理計画書データ取得完了:", managementPlans.length, "件");
+
+      console.log("管理指導記録データ取得開始...");
+      const progressRecordsSnapshot = await this.getUserCollection("progressRecords").get();
+      const progressRecords = progressRecordsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      console.log("管理指導記録データ取得完了:", progressRecords.length, "件");
 
       const exportData = {
         patients: patients,
         assessments: assessments,
-        generalConditions: generalConditionsSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })),
-        managementPlans: managementPlansSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })),
-        progressRecords: progressRecordsSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })),
+        generalConditions: generalConditions,
+        managementPlans: managementPlans,
+        progressRecords: progressRecords,
         exportDate: new Date().toISOString(),
         version: "2.0-firebase",
-        user: this.currentUser.email,
+        user: this.currentUser?.email || "unknown",
       };
 
-      console.log("データエクスポート完了");
-      return JSON.stringify(exportData, null, 2);
+      console.log("エクスポートデータ構築完了:", {
+        patients: exportData.patients.length,
+        assessments: exportData.assessments.length,
+        generalConditions: exportData.generalConditions.length,
+        managementPlans: exportData.managementPlans.length,
+        progressRecords: exportData.progressRecords.length
+      });
+
+      const jsonString = JSON.stringify(exportData, null, 2);
+      console.log("JSON文字列化完了, 長さ:", jsonString.length);
+      console.log("=== exportDataAsync完了 ===");
+      
+      return jsonString;
     } catch (error) {
-      console.error("データエクスポートエラー:", error);
-      alert("データのエクスポートに失敗しました: " + error.message);
-      return null;
+      console.error("=== exportDataAsyncエラー ===", error);
+      throw new Error("データのエクスポートに失敗しました: " + error.message);
     }
   }
 
-  // 既存のapp.jsとの互換性のためのimportData
+  // 既存のapp.jsとの互換性のためのimportData（完全版）
   async importData(jsonData) {
     try {
       await this.waitForInitialization();
@@ -956,33 +985,128 @@ class OralHealthDatabase {
         throw new Error("無効なデータ形式です");
       }
 
-      if (
-        !confirm(
-          `${importedData.patients.length} 人の患者データをインポートしますか？\n既存のデータは保持されます。`
-        )
-      ) {
-        return false;
-      }
-
-      const batch = this.getFirestore().batch();
-
-      // 患者データのインポート
-      importedData.patients.forEach((patient) => {
-        const patientRef = this.getUserCollection("patients").doc();
-        const patientData = { ...patient };
-        delete patientData.id; // 既存のIDを削除
-        patientData.created_at =
-          firebase.firestore.FieldValue.serverTimestamp();
-        patientData.updated_at =
-          firebase.firestore.FieldValue.serverTimestamp();
-
-        batch.set(patientRef, patientData);
+      console.log("インポートデータ内容:", {
+        patients: importedData.patients?.length || 0,
+        assessments: importedData.assessments?.length || 0,
+        generalConditions: importedData.generalConditions?.length || 0,
+        managementPlans: importedData.managementPlans?.length || 0,
+        progressRecords: importedData.progressRecords?.length || 0
       });
 
-      await batch.commit();
+      // IDマッピング用のMap
+      const patientIdMap = new Map(); // 旧ID -> 新ID
+      const assessmentIdMap = new Map(); // 旧ID -> 新ID
+
+      // 患者データのインポート
+      console.log("患者データインポート開始...");
+      for (const patient of importedData.patients) {
+        const oldPatientId = patient.id;
+        const patientData = { ...patient };
+        delete patientData.id; // 既存のIDを削除
+        patientData.created_at = firebase.firestore.FieldValue.serverTimestamp();
+        patientData.updated_at = firebase.firestore.FieldValue.serverTimestamp();
+
+        const newPatientRef = await this.getUserCollection("patients").add(patientData);
+        patientIdMap.set(oldPatientId, newPatientRef.id);
+        console.log(`患者 ${patient.name} をインポート: ${oldPatientId} -> ${newPatientRef.id}`);
+      }
+
+      // 検査データのインポート
+      if (importedData.assessments && importedData.assessments.length > 0) {
+        console.log("検査データインポート開始...");
+        for (const assessment of importedData.assessments) {
+          const oldAssessmentId = assessment.id;
+          const oldPatientId = assessment.patient_id;
+          const newPatientId = patientIdMap.get(oldPatientId);
+          
+          if (newPatientId) {
+            const assessmentData = { ...assessment };
+            delete assessmentData.id;
+            assessmentData.patient_id = newPatientId;
+            assessmentData.created_at = firebase.firestore.FieldValue.serverTimestamp();
+            assessmentData.updated_at = firebase.firestore.FieldValue.serverTimestamp();
+
+            const newAssessmentRef = await this.getUserCollection("assessments").add(assessmentData);
+            assessmentIdMap.set(oldAssessmentId, newAssessmentRef.id);
+            console.log(`検査データをインポート: ${oldAssessmentId} -> ${newAssessmentRef.id}`);
+          }
+        }
+      }
+
+      // 全身状態データのインポート
+      if (importedData.generalConditions && importedData.generalConditions.length > 0) {
+        console.log("全身状態データインポート開始...");
+        for (const condition of importedData.generalConditions) {
+          const oldPatientId = condition.patient_id;
+          const newPatientId = patientIdMap.get(oldPatientId);
+          
+          if (newPatientId) {
+            const conditionData = { ...condition };
+            delete conditionData.id;
+            conditionData.patient_id = newPatientId;
+            conditionData.created_at = firebase.firestore.FieldValue.serverTimestamp();
+            conditionData.updated_at = firebase.firestore.FieldValue.serverTimestamp();
+
+            await this.getUserCollection("generalConditions").add(conditionData);
+            console.log(`全身状態データをインポート: 患者ID ${newPatientId}`);
+          }
+        }
+      }
+
+      // 管理計画書データのインポート
+      if (importedData.managementPlans && importedData.managementPlans.length > 0) {
+        console.log("管理計画書データインポート開始...");
+        for (const plan of importedData.managementPlans) {
+          const oldPatientId = plan.patient_id;
+          const oldAssessmentId = plan.assessment_id;
+          const newPatientId = patientIdMap.get(oldPatientId);
+          const newAssessmentId = assessmentIdMap.get(oldAssessmentId);
+          
+          if (newPatientId) {
+            const planData = { ...plan };
+            delete planData.id;
+            planData.patient_id = newPatientId;
+            if (newAssessmentId) {
+              planData.assessment_id = newAssessmentId;
+            }
+            planData.created_at = firebase.firestore.FieldValue.serverTimestamp();
+            planData.updated_at = firebase.firestore.FieldValue.serverTimestamp();
+
+            await this.getUserCollection("managementPlans").add(planData);
+            console.log(`管理計画書をインポート: 患者ID ${newPatientId}`);
+          }
+        }
+      }
+
+      // 管理指導記録データのインポート
+      if (importedData.progressRecords && importedData.progressRecords.length > 0) {
+        console.log("管理指導記録データインポート開始...");
+        for (const record of importedData.progressRecords) {
+          const oldPatientId = record.patient_id;
+          const newPatientId = patientIdMap.get(oldPatientId);
+          
+          if (newPatientId) {
+            const recordData = { ...record };
+            delete recordData.id;
+            recordData.patient_id = newPatientId;
+            recordData.created_at = firebase.firestore.FieldValue.serverTimestamp();
+            recordData.updated_at = firebase.firestore.FieldValue.serverTimestamp();
+
+            await this.getUserCollection("progressRecords").add(recordData);
+            console.log(`管理指導記録をインポート: 患者ID ${newPatientId}`);
+          }
+        }
+      }
 
       console.log("データインポート完了");
-      alert("データのインポートが完了しました");
+      console.log("インポート結果:", {
+        患者数: patientIdMap.size,
+        検査数: assessmentIdMap.size,
+        全身状態: importedData.generalConditions?.length || 0,
+        管理計画書: importedData.managementPlans?.length || 0,
+        管理指導記録: importedData.progressRecords?.length || 0
+      });
+      
       return true;
     } catch (error) {
       console.error("データインポートエラー:", error);
