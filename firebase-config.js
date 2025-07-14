@@ -20,15 +20,22 @@ class FirebaseManager {
       }
 
       // Firebase設定
+      // firebase-config.js
       const firebaseConfig = {
-        apiKey: "AIzaSyC8_B2eo47C2plYkGPq_ek6VaD113tNEBk",
-        authDomain: "oral-health-diagnosis-ap-b3592.firebaseapp.com",
-        projectId: "oral-health-diagnosis-ap-b3592",
-        storageBucket: "oral-health-diagnosis-ap-b3592.firebasestorage.app",
-        messagingSenderId: "338073541462",
-        appId: "1:338073541462:web:f48f281cf84710ce7794f7",
-        measurementId: "G-XLQ1FVCHN5",
+        apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+        authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+        messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+        appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+        measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
       };
+
+      // 設定の妥当性チェック
+      if (!firebaseConfig.apiKey) {
+        console.error("Firebase設定が不完全です");
+        throw new Error("Firebase configuration is incomplete");
+      }
 
       // Firebase初期化
       if (!firebase.apps.length) {
