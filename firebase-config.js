@@ -10,6 +10,28 @@ class FirebaseManager {
     console.log("FirebaseManager 初期化開始");
   }
 
+  // 環境変数取得（Vercel対応）
+  getEnvVar(name) {
+    // Vercelの環境変数（NEXT_PUBLIC_プレフィックス）
+    const vercelVar = window.process?.env?.[`NEXT_PUBLIC_${name}`];
+    
+    // 通常の環境変数
+    const normalVar = window.process?.env?.[name];
+    
+    // window.ENVから取得（手動設定用）
+    const windowVar = window.ENV?.[name];
+    
+    return vercelVar || normalVar || windowVar || null;
+  }
+
+  // 本番環境判定
+  isProduction() {
+    return window.location.hostname !== 'localhost' && 
+           window.location.hostname !== '127.0.0.1' &&
+           !window.location.hostname.includes('dev') &&
+           !window.location.hostname.includes('test');
+  }
+
   // Firebase初期化
   async initialize() {
     try {
@@ -19,16 +41,28 @@ class FirebaseManager {
         return false;
       }
 
-      // Firebase設定
+      // Firebase設定（環境変数対応）
       const firebaseConfig = {
-        apiKey: "AIzaSyC8_B2eo47C2plYkGPq_ek6VaD113tNEBk",
-        authDomain: "oral-health-diagnosis-ap-b3592.firebaseapp.com",
-        projectId: "oral-health-diagnosis-ap-b3592",
-        storageBucket: "oral-health-diagnosis-ap-b3592.firebasestorage.app",
-        messagingSenderId: "338073541462",
-        appId: "1:338073541462:web:f48f281cf84710ce7794f7",
-        measurementId: "G-XLQ1FVCHN5",
+        apiKey: this.getEnvVar('FIREBASE_API_KEY') || "AIzaSyC8_B2eo47C2plYkGPq_ek6VaD113tNEBk",
+        authDomain: this.getEnvVar('FIREBASE_AUTH_DOMAIN') || "oral-health-diagnosis-ap-b3592.firebaseapp.com",
+        projectId: this.getEnvVar('FIREBASE_PROJECT_ID') || "oral-health-diagnosis-ap-b3592",
+        storageBucket: this.getEnvVar('FIREBASE_STORAGE_BUCKET') || "oral-health-diagnosis-ap-b3592.firebasestorage.app",
+        messagingSenderId: this.getEnvVar('FIREBASE_MESSAGING_SENDER_ID') || "338073541462",
+        appId: this.getEnvVar('FIREBASE_APP_ID') || "1:338073541462:web:f48f281cf84710ce7794f7",
+        measurementId: this.getEnvVar('FIREBASE_MEASUREMENT_ID') || "G-XLQ1FVCHN5",
       };
+
+      // 設定の妥当性チェック
+      if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+        console.error('Firebase設定が不完全です。環境変数を確認してください。');
+        throw new Error('Firebase configuration is incomplete');
+      }
+
+      console.log('Firebase設定読み込み完了:', {
+        projectId: firebaseConfig.projectId,
+        authDomain: firebaseConfig.authDomain,
+        isProduction: this.isProduction()
+      });
 
       // Firebase初期化
       if (!firebase.apps.length) {

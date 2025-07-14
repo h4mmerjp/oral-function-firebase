@@ -112,10 +112,127 @@ oral-health-app/
 ├── patients.js             # 患者管理
 ├── assessment.js           # 検査管理
 ├── management.js           # 管理計画・記録
+├── .env.example            # 環境変数テンプレート
 └── README.md              # このファイル
 ```
 
-### 2. 起動方法
+### 2. Vercelでのデプロイ設定
+
+#### 🔐 環境変数の設定（セキュリティ最重要）
+
+Vercelダッシュボードの「Environment Variables」で以下を設定：
+
+```bash
+# Firebase設定（すべて必須）
+NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=your-measurement-id
+```
+
+#### 🛡️ セキュリティ設定
+
+**Firebase Console での設定：**
+
+1. **Authentication > Settings > Authorized domains**
+   ```
+   your-domain.vercel.app
+   your-custom-domain.com
+   ```
+
+2. **Firestore Security Rules**（本番環境用）
+   ```javascript
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       // ユーザーは自分のデータのみアクセス可能
+       match /users/{userId} {
+         allow read, write: if request.auth != null && request.auth.uid == userId;
+         
+         // 患者データ
+         match /patients/{patientId} {
+           allow read, write: if request.auth != null && request.auth.uid == userId;
+           
+           // 検査データ
+           match /assessments/{assessmentId} {
+             allow read, write: if request.auth != null && request.auth.uid == userId;
+           }
+           
+           // 管理計画データ
+           match /management/{managementId} {
+             allow read, write: if request.auth != null && request.auth.uid == userId;
+           }
+         }
+       }
+       
+       // 管理者専用データ（オプション）
+       match /admin/{document=**} {
+         allow read, write: if request.auth != null && 
+           request.auth.token.admin == true;
+       }
+     }
+   }
+   ```
+
+3. **Firebase Hosting（必要に応じて）**
+   ```json
+   {
+     "hosting": {
+       "public": "dist",
+       "rewrites": [
+         {
+           "source": "**",
+           "destination": "/index.html"
+         }
+       ],
+       "headers": [
+         {
+           "source": "**",
+           "headers": [
+             {
+               "key": "X-Content-Type-Options",
+               "value": "nosniff"
+             },
+             {
+               "key": "X-Frame-Options",
+               "value": "DENY"
+             },
+             {
+               "key": "X-XSS-Protection",
+               "value": "1; mode=block"
+             }
+           ]
+         }
+       ]
+     }
+   }
+   ```
+
+#### 🚀 デプロイ手順
+
+1. **Vercelプロジェクト作成**
+   ```bash
+   npm install -g vercel
+   vercel login
+   vercel
+   ```
+
+2. **環境変数設定**
+   - Vercelダッシュボード > Settings > Environment Variables
+   - 上記の Firebase 環境変数を設定
+
+3. **ドメイン設定**
+   - Vercelダッシュボード > Settings > Domains
+   - カスタムドメイン追加（オプション）
+
+4. **自動デプロイ設定**
+   - GitHubリポジトリと連携
+   - 自動デプロイ有効化
+
+### 3. 起動方法
 
 #### 📱 オンライン使用（推奨）
 1. Webブラウザで `index.html` を開く
@@ -137,11 +254,42 @@ php -S localhost:8000
 
 ブラウザで `http://localhost:8000` にアクセス
 
-### 3. 初期設定
+### 4. 初期設定
 
 - **初回起動時**: データベースが自動初期化されます
 - **認証設定**: Googleアカウントでログインが必要
 - **デモデータ**: `Ctrl+Shift+D` で作成可能（開発時のみ）
+
+### 5. セキュリティベストプラクティス
+
+#### 🔒 環境変数管理
+```bash
+# 絶対に公開しないこと
+NEXT_PUBLIC_FIREBASE_API_KEY=    # API キー
+NEXT_PUBLIC_FIREBASE_PROJECT_ID= # プロジェクトID
+
+# 環境別設定
+# 開発環境: .env.local
+# 本番環境: Vercelダッシュボード
+```
+
+#### 🛡️ セキュリティ設定チェックリスト
+- [ ] Firebase API キーの適切な制限設定
+- [ ] Firestore セキュリティルールの厳密な設定
+- [ ] 認証ドメインの制限
+- [ ] CORS設定の適切な制限
+- [ ] 定期的なセキュリティ監査
+
+#### 🚨 セキュリティ監視
+- Firebase Console > Authentication > Usage で異常なアクセスを監視
+- Cloud Firestore > Usage で異常なデータアクセスを監視
+- Vercel Analytics で異常なトラフィックを監視
+
+#### 🔐 データ保護
+- 患者データの暗号化（Firebase標準）
+- ユーザーごとの完全データ分離
+- 定期的なバックアップ（自動）
+- GDPR準拠のデータ削除機能
 
 ## 📖 使用方法
 
