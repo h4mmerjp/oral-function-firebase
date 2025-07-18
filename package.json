@@ -1,0 +1,17 @@
+{
+  "name": "oral-function-firebase",
+  "version": "1.0.0",
+  "description": "日本老年歯科医学会の基準に基づく口腔機能低下症の診断・管理を支援するWebアプリケーションです。",
+  "main": "app.js",
+  "scripts": {
+    "test": "jest --testEnvironment=node",
+    "test:watch": "jest --testEnvironment=node --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "jest": "^30.0.4"
+  }
+}
