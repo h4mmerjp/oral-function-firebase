@@ -1,0 +1,169 @@
+name: 🐛 不具合報告
+description: アプリの不具合を報告する
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        不具合のご報告ありがとうございます。詳細をお聞かせください。
+
+  - type: input
+    id: reporter
+    attributes:
+      label: 報告者
+      description: お名前またはニックネーム
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: 重要度
+      options:
+        - 低（軽微な問題）
+        - 中（一部機能が使えない）
+        - 高（アプリが使用困難）
+        - 緊急（データ損失の可能性）
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 不具合の詳細
+      description: 何が起こったか、期待した動作との違いを説明してください
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順
+      description: |
+        不具合を再現するための手順を教えてください
+        1. 最初にすること
+        2. 次にすること
+        3. 不具合が発生する
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: 使用環境
+      description: ブラウザ、OS、デバイスを教えてください
+      placeholder: "例: Chrome 120, Windows 11, iPhone Safari など"
+
+---
+
+# .github/ISSUE_TEMPLATE/feature_request.yml
+name: ✨ 機能要望
+description: 新機能や改善の提案
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        機能要望をありがとうございます。詳細をお聞かせください。
+
+  - type: input
+    id: requester
+    attributes:
+      label: 要望者
+      description: お名前またはニックネーム
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 優先度
+      options:
+        - 低（あると便利）
+        - 中（改善につながる）
+        - 高（業務効率に大きく影響）
+    validations:
+      required: true
+
+  - type: textarea
+    id: feature_description
+    attributes:
+      label: 要望する機能
+      description: どのような機能を追加・改善したいですか？
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: 使用場面
+      description: どのような場面でその機能を使いますか？
+    validations:
+      required: true
+
+  - type: textarea
+    id: current_workaround
+    attributes:
+      label: 現在の代替手段
+      description: 現在はどのように対応していますか？（任意）
+
+---
+
+# .github/ISSUE_TEMPLATE/question.yml
+name: ❓ 質問・使い方
+description: アプリの使い方について質問する
+title: "[Question] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ご質問ありがとうございます。お答えできるよう詳細をお聞かせください。
+
+  - type: input
+    id: questioner
+    attributes:
+      label: 質問者
+      description: お名前またはニックネーム
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: 質問カテゴリー
+      options:
+        - ログイン・アカウント
+        - 患者管理
+        - 検査実施
+        - 診断結果
+        - 管理計画
+        - データ管理
+        - その他
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: 質問内容
+      description: 具体的な質問をお書きください
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: 試したこと
+      description: すでに試したことがあれば教えてください（任意）
+
+---
+
+# .github/ISSUE_TEMPLATE/config.yml
+blank_issues_enabled: false
+contact_links:
+  - name: 📋 お問い合わせフォーム
+    url: https://oral-function-firebase.vercel.app/contact.html
+    about: WebフォームからGitHub Issueを作成
