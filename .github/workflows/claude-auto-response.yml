@@ -146,31 +146,33 @@ jobs:
           ISSUE_TITLE="${{ steps.parse-issue.outputs.issue_title }}"
           ISSUE_AUTHOR="${{ steps.parse-issue.outputs.issue_author }}"
 
-          # プロンプトを環境変数として設定
-          CLAUDE_PROMPT="# 口腔機能低下症診断・管理アプリ - 技術サポート分析
+          # プロンプトを作成してファイルに保存
+          cat > claude_prompt.txt << 'EOF'
+          # 口腔機能低下症診断・管理アプリ - 技術サポート分析
 
           ## 担当AI
           あなたは口腔機能低下症診断・管理アプリの上級技術サポートAIです。
 
           ## 問い合わせ情報
-          - **Issue番号**: #${ISSUE_NUMBER}
-          - **カテゴリ**: ${CATEGORY}
-          - **優先度**: ${PRIORITY}
-          - **報告者**: ${ISSUE_AUTHOR}
-          - **タイトル**: ${ISSUE_TITLE}
+          EOF
 
-          ### 詳細内容
-          $(cat issue_body.txt)"
+          echo "- **Issue番号**: #${ISSUE_NUMBER}" >> claude_prompt.txt
+          echo "- **カテゴリ**: ${CATEGORY}" >> claude_prompt.txt
+          echo "- **優先度**: ${PRIORITY}" >> claude_prompt.txt
+          echo "- **報告者**: ${ISSUE_AUTHOR}" >> claude_prompt.txt
+          echo "- **タイトル**: ${ISSUE_TITLE}" >> claude_prompt.txt
+          echo "" >> claude_prompt.txt
+          echo "### 詳細内容" >> claude_prompt.txt
+          cat issue_body.txt >> claude_prompt.txt
 
           if [ "${{ steps.parse-issue.outputs.has_comment }}" = "true" ]; then
-            CLAUDE_PROMPT="${CLAUDE_PROMPT}
-
-          ### 追加コメント
-          - **コメント者**: ${{ steps.parse-issue.outputs.comment_author }}
-          $(cat comment_body.txt)"
+            echo "" >> claude_prompt.txt
+            echo "### 追加コメント" >> claude_prompt.txt
+            echo "- **コメント者**: ${{ steps.parse-issue.outputs.comment_author }}" >> claude_prompt.txt
+            cat comment_body.txt >> claude_prompt.txt
           fi
 
-          CLAUDE_PROMPT="${CLAUDE_PROMPT}
+          cat >> claude_prompt.txt << 'EOF'
 
           ## アプリ技術情報
           - **フロントエンド**: HTML5, CSS3, JavaScript (ES6+)
@@ -197,10 +199,15 @@ jobs:
           4. **テスト手順**: 検証方法
           5. **再発防止策**: 今後の予防策
 
-          医療従事者向けアプリのため、データの安全性とプライバシー保護を最優先に考慮してください。"
+          医療従事者向けアプリのため、データの安全性とプライバシー保護を最優先に考慮してください。
+          EOF
 
-          # プロンプトを一時ファイルに保存
-          echo "${CLAUDE_PROMPT}" > claude_prompt.txt
+          # プロンプトを出力変数に設定（multiline対応）
+          {
+            echo 'claude_prompt<<EOF'
+            cat claude_prompt.txt
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
 
           echo "Claude分析プロンプト作成完了"
 
@@ -210,8 +217,8 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           direct_prompt: ${{ steps.create-prompt.outputs.claude_prompt }}
-          trigger_phrase: "auto-analysis"
-          custom_instructions: "Issue #${{ steps.parse-issue.outputs.issue_number }}の技術サポート分析を実行してください。"
+          trigger_phrase: ".*"
+          custom_instructions: "Issue #${{ steps.parse-issue.outputs.issue_number }}の技術サポート分析を実行してください。常に詳細な技術分析を提供してください。"
 
       - name: Create Fallback Response
         id: fallback-response
