@@ -1,5 +1,5 @@
-# .github/workflows/gemini-auto-response.yml (修正版)
-name: AI Auto Response (Gemini API直接版)
+# .github/workflows/gemini-auto-response.yml (YAML構文修正版)
+name: AI Auto Response (Gemini API)
 
 on:
   issues:
@@ -23,7 +23,7 @@ jobs:
       with:
         node-version: '18'
 
-    - name: Gemini AI Response (直接API版)
+    - name: Gemini AI Response
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -33,8 +33,7 @@ jobs:
         ISSUE_LABELS: ${{ join(github.event.issue.labels.*.name, ',') }}
         ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
       run: |
-        # Gemini API直接呼び出し版（確実動作版）
-        cat > gemini_response.js << 'SCRIPT'
+        cat > gemini_response.js << 'EOF'
         const https = require('https');
 
         async function main() {
@@ -49,21 +48,17 @@ jobs:
             
             console.log(`処理対象: Issue #${issueNumber} - ${issueTitle}`);
             
-            // 基本的な分類
             const category = classifyIssue(issueTitle, issueBody, issueLabels);
             console.log(`分類結果: ${category}`);
             
-            // Gemini API呼び出し（修正案生成版）
             const response = await generateGeminiResponse(category, issueTitle, issueBody, issueAuthor);
             
-            // GitHub APIに投稿（高度分析版）
             await postToGitHub(response, issueNumber);
             
             console.log('✅ 自動応答完了');
             
           } catch (error) {
             console.error('❌ エラー発生:', error.message);
-            // フォールバック応答
             await postFallbackResponse(process.env.ISSUE_NUMBER);
           }
         }
@@ -85,25 +80,25 @@ jobs:
         async function generateGeminiResponse(category, title, body, author) {
           const prompt = `あなたは口腔機能低下症診断・管理アプリの上級技術サポートAIです。
 
-問い合わせ情報:
-- カテゴリ: ${category}
-- ユーザー: ${author}
-- タイトル: ${title}
-- 内容: ${body}
+        問い合わせ情報:
+        - カテゴリ: ${category}
+        - ユーザー: ${author}
+        - タイトル: ${title}
+        - 内容: ${body}
 
-以下のJSON形式で詳細な分析と修正案を提供してください：
+        以下のJSON形式で詳細な分析と修正案を提供してください：
 
-{
-  "response": "問い合わせに対する適切な回答（Markdown形式）",
-  "analysis": "問題の技術的分析",
-  "solution_steps": ["具体的な解決手順1", "具体的な解決手順2", "具体的な解決手順3"],
-  "code_fix": "該当する場合のコード修正案",
-  "prevention": "今後の予防策",
-  "priority": "low|medium|high|critical",
-  "estimated_time": "解決予想時間"
-}
+        {
+          "response": "問い合わせに対する適切な回答（Markdown形式）",
+          "analysis": "問題の技術的分析",
+          "solution_steps": ["具体的な解決手順1", "具体的な解決手順2", "具体的な解決手順3"],
+          "code_fix": "該当する場合のコード修正案",
+          "prevention": "今後の予防策",
+          "priority": "low|medium|high|critical",
+          "estimated_time": "解決予想時間"
+        }
 
-医療従事者向けアプリなので、専門的で実用的な回答をお願いします。`;
+        医療従事者向けアプリなので、専門的で実用的な回答をお願いします。`;
 
           try {
             return await callGeminiAPI(prompt);
@@ -167,7 +162,6 @@ jobs:
             req.write(postData);
             req.end();
 
-            // 30秒でタイムアウト
             setTimeout(() => {
               req.destroy();
               reject(new Error('API call timeout'));
@@ -175,134 +169,10 @@ jobs:
           });
         }
 
-        function generateTemplateResponse(category) {
-          const responses = {
-            bug: `## 🐛 バグ報告への自動応答
-
-バグレポートをありがとうございます。
-
-### 📊 初期分析
-問題の詳細を分析中です。以下の手順で初期対応を行ってください。
-
-### 🛠️ 解決手順
-1. **ブラウザ再読み込み** (Ctrl+F5) をお試しください
-2. **別のブラウザ**で同じ操作を確認してください
-3. **開発者ツール** (F12) でエラーメッセージを確認してください
-4. **ブラウザのキャッシュをクリア**してください
-
-### 💻 一般的な修正案
-- ブラウザの互換性問題の可能性があります
-- JavaScript エラーが発生している可能性があります
-- ネットワーク接続の問題の可能性があります
-
-### 🛡️ 予防策
-- 推奨ブラウザ（Chrome、Firefox最新版）をご使用ください
-- 定期的なブラウザ更新を行ってください
-
-### 📋 対応情報
-- **優先度**: 🟡 MEDIUM
-- **予想解決時間**: 2-4時間以内
-
-### 🚀 次のステップ
-開発チームが詳細を調査し、24時間以内に具体的な修正案を含む回答いたします。`,
-
-            feature: `## ✨ 機能要望への自動応答
-
-貴重なご提案をありがとうございます。
-
-### 📊 要望分析
-ご提案いただいた機能について詳細分析を行います。
-
-### 🛠️ 検討手順
-1. **既存機能との重複確認**
-2. **技術的実現可能性の評価**
-3. **開発リソースとスケジュールの確認**
-4. **ユーザー影響度の評価**
-5. **実装計画への組み込み検討**
-
-### 💻 実装案（概要）
-- 要望内容の技術的検討を行います
-- 既存アーキテクチャとの整合性を確認します
-- UX/UIへの影響を評価します
-
-### 🛡️ 品質保証
-- 十分なテスト計画を策定します
-- 既存機能への影響を最小化します
-
-### 📋 対応情報
-- **優先度**: 🟢 LOW-MEDIUM
-- **予想検討時間**: 1週間以内
-
-### 🚀 次のステップ
-ご提案内容を詳細検討し、1週間以内に実装可能性と予定時期を含む検討結果をお知らせします。`,
-
-            question: `## ❓ ご質問への自動応答
-
-ご質問をありがとうございます。
-
-### 📊 質問分析
-お問い合わせ内容を分析し、最適な回答をご提供します。
-
-### 🛠️ 解決手順
-1. **[README.md](./README.md)** で基本的な使用方法をご確認ください
-2. **[過去のQ&A](../../issues?q=label%3Aquestion)** で同様の質問がないかご確認ください
-3. **アプリ内のヘルプセクション**をご参照ください
-
-### 💻 よくある解決策
-- ログイン関連: Googleアカウントでの再ログインをお試しください
-- データ保存関連: ブラウザの設定でCookieが有効かご確認ください
-- 表示関連: ブラウザの縮小・拡大設定をリセットしてください
-
-### 🛡️ 予防策
-- 最新ブラウザをご使用ください
-- ポップアップブロッカーを無効にしてください
-
-### 📋 対応情報
-- **優先度**: 🟢 LOW
-- **予想回答時間**: 4-8時間以内
-
-### 🚀 次のステップ
-上記で解決しない場合は、より詳細なサポートを提供いたします。具体的な操作手順や環境情報をお知らせください。`,
-
-            general: `## 📝 お問い合わせへの自動応答
-
-お問い合わせをありがとうございます。
-
-### 📊 内容分析
-お問い合わせ内容を分析し、適切な担当者による回答を準備しています。
-
-### 🛠️ 対応手順
-1. **お問い合わせ内容の分類と優先度設定**
-2. **適切な担当者への振り分け**
-3. **必要に応じた技術チームとの連携**
-4. **詳細回答の準備**
-
-### 💻 一般的な対応方針
-- 技術的な問題: 開発チームが対応
-- 利用方法の質問: サポートチームが対応
-- 機能要望: プロダクトチームが検討
-
-### 🛡️ 品質保証
-- 正確で実用的な情報提供を心がけます
-- 医療従事者向けの専門性を維持します
-
-### 📋 対応情報
-- **一般的な質問**: 24時間以内
-- **技術的な問題**: 48時間以内
-- **緊急事項**: 4時間以内
-
-### 🚀 次のステップ
-内容を確認し、適切な担当者が詳細な回答と必要に応じた修正案をお送りします。`
-          };
-
-          return responses[category] || responses.general;
-        }
-
         async function postToGitHub(geminiOutput, issueNumber) {
           let responseBody;
           
           try {
-            // JSON部分を抽出して解析
             const jsonMatch = geminiOutput.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
               const aiResponse = JSON.parse(jsonMatch[0]);
@@ -317,17 +187,17 @@ jobs:
 
           const body = `${responseBody}
 
----
+        ---
 
-### 🤖 AI自動応答システム
-- **処理時刻**: ${new Date().toLocaleString('ja-JP', {timeZone: 'Asia/Tokyo'})}
-- **システム**: Gemini AI (無料枠)
-- **分析レベル**: 高度分析
-- **コスト**: ¥0
+        ### 🤖 AI自動応答システム
+        - **処理時刻**: ${new Date().toLocaleString('ja-JP', {timeZone: 'Asia/Tokyo'})}
+        - **システム**: Gemini AI (無料枠)
+        - **分析レベル**: 高度分析
+        - **コスト**: ¥0
 
----
+        ---
 
-<sub>この応答はAIによって自動生成されています。修正案は参考として提供されており、実装前に十分な検証を行ってください。</sub>`;
+        <sub>この応答はAIによって自動生成されています。修正案は参考として提供されており、実装前に十分な検証を行ってください。</sub>`;
 
           await makeGitHubAPICall(body, issueNumber);
         }
@@ -342,13 +212,13 @@ jobs:
 
           let response = `## 🔍 AI技術分析 & 修正案
 
-${aiResponse.response}
+        ${aiResponse.response}
 
-### 📊 技術的分析
-${aiResponse.analysis}
+        ### 📊 技術的分析
+        ${aiResponse.analysis}
 
-### 🛠️ 解決手順
-`;
+        ### 🛠️ 解決手順
+        `;
 
           aiResponse.solution_steps.forEach((step, index) => {
             response += `${index + 1}. ${step}\n`;
@@ -356,26 +226,26 @@ ${aiResponse.analysis}
 
           if (aiResponse.code_fix) {
             response += `
-### 💻 修正案（コード）
-\`\`\`
-${aiResponse.code_fix}
-\`\`\`
-`;
+        ### 💻 修正案（コード）
+        \`\`\`
+        ${aiResponse.code_fix}
+        \`\`\`
+        `;
           }
 
           response += `
-### 🛡️ 予防策
-${aiResponse.prevention}
+        ### 🛡️ 予防策
+        ${aiResponse.prevention}
 
-### 📋 対応情報
-- **優先度**: ${priorityEmoji[aiResponse.priority] || '⚪'} ${aiResponse.priority.toUpperCase()}
-- **予想解決時間**: ${aiResponse.estimated_time}
+        ### 📋 対応情報
+        - **優先度**: ${priorityEmoji[aiResponse.priority] || '⚪'} ${aiResponse.priority.toUpperCase()}
+        - **予想解決時間**: ${aiResponse.estimated_time}
 
-### 🚀 次のステップ
-1. 上記の解決手順を順番に実行してください
-2. 修正案がある場合は、まずテスト環境で検証してください
-3. 問題が解決しない場合は、追加情報をお知らせください
-4. 緊急の場合は、Issue に「緊急」ラベルを追加してください`;
+        ### 🚀 次のステップ
+        1. 上記の解決手順を順番に実行してください
+        2. 修正案がある場合は、まずテスト環境で検証してください
+        3. 問題が解決しない場合は、追加情報をお知らせください
+        4. 緊急の場合は、Issue に「緊急」ラベルを追加してください`;
 
           return response;
         }
@@ -383,35 +253,158 @@ ${aiResponse.prevention}
         function formatFallbackResponse(rawOutput) {
           return `## 🤖 自動応答
 
-お問い合わせをありがとうございます。
+        お問い合わせをありがとうございます。
 
-### 📝 受信内容
-問い合わせ内容を確認いたしました。
+        ### 📝 受信内容
+        問い合わせ内容を確認いたしました。
 
-### 🔄 処理状況
-AI分析システムで一時的な問題が発生しましたが、基本的な対応は以下の通りです：
+        ### 🔄 処理状況
+        AI分析システムで一時的な問題が発生しましたが、基本的な対応は以下の通りです：
 
-1. **初期確認**: ブラウザの再読み込み（Ctrl+F5）をお試しください
-2. **環境確認**: 別のブラウザでも同様の問題が発生するかご確認ください
-3. **詳細情報**: 可能であれば、エラーメッセージやスクリーンショットを共有してください
+        1. **初期確認**: ブラウザの再読み込み（Ctrl+F5）をお試しください
+        2. **環境確認**: 別のブラウザでも同様の問題が発生するかご確認ください
+        3. **詳細情報**: 可能であれば、エラーメッセージやスクリーンショットを共有してください
 
-### ⏱️ 対応予定
-開発チームが手動で詳細分析を行い、**24時間以内**に具体的な修正案を含む回答をお送りします。
+        ### ⏱️ 対応予定
+        開発チームが手動で詳細分析を行い、**24時間以内**に具体的な修正案を含む回答をお送りします。
 
-${rawOutput ? `\n### 🤖 AI出力（参考）\n${rawOutput.substring(0, 500)}${rawOutput.length > 500 ? '...' : ''}` : ''}`;
+        ${rawOutput ? `\n### 🤖 AI出力（参考）\n${rawOutput.substring(0, 500)}${rawOutput.length > 500 ? '...' : ''}` : ''}`;
+        }
+
+        function generateTemplateResponse(category) {
+          const responses = {
+            bug: `## 🐛 バグ報告への自動応答
+
+        バグレポートをありがとうございます。
+
+        ### 📊 初期分析
+        問題の詳細を分析中です。以下の手順で初期対応を行ってください。
+
+        ### 🛠️ 解決手順
+        1. **ブラウザ再読み込み** (Ctrl+F5) をお試しください
+        2. **別のブラウザ**で同じ操作を確認してください
+        3. **開発者ツール** (F12) でエラーメッセージを確認してください
+        4. **ブラウザのキャッシュをクリア**してください
+
+        ### 💻 一般的な修正案
+        - ブラウザの互換性問題の可能性があります
+        - JavaScript エラーが発生している可能性があります
+        - ネットワーク接続の問題の可能性があります
+
+        ### 🛡️ 予防策
+        - 推奨ブラウザ（Chrome、Firefox最新版）をご使用ください
+        - 定期的なブラウザ更新を行ってください
+
+        ### 📋 対応情報
+        - **優先度**: 🟡 MEDIUM
+        - **予想解決時間**: 2-4時間以内
+
+        ### 🚀 次のステップ
+        開発チームが詳細を調査し、24時間以内に具体的な修正案を含む回答いたします。`,
+
+            feature: `## ✨ 機能要望への自動応答
+
+        貴重なご提案をありがとうございます。
+
+        ### 📊 要望分析
+        ご提案いただいた機能について詳細分析を行います。
+
+        ### 🛠️ 検討手順
+        1. **既存機能との重複確認**
+        2. **技術的実現可能性の評価**
+        3. **開発リソースとスケジュールの確認**
+        4. **ユーザー影響度の評価**
+        5. **実装計画への組み込み検討**
+
+        ### 💻 実装案（概要）
+        - 要望内容の技術的検討を行います
+        - 既存アーキテクチャとの整合性を確認します
+        - UX/UIへの影響を評価します
+
+        ### 🛡️ 品質保証
+        - 十分なテスト計画を策定します
+        - 既存機能への影響を最小化します
+
+        ### 📋 対応情報
+        - **優先度**: 🟢 LOW-MEDIUM
+        - **予想検討時間**: 1週間以内
+
+        ### 🚀 次のステップ
+        ご提案内容を詳細検討し、1週間以内に実装可能性と予定時期を含む検討結果をお知らせします。`,
+
+            question: `## ❓ ご質問への自動応答
+
+        ご質問をありがとうございます。
+
+        ### 📊 質問分析
+        お問い合わせ内容を分析し、最適な回答をご提供します。
+
+        ### 🛠️ 解決手順
+        1. **[README.md](./README.md)** で基本的な使用方法をご確認ください
+        2. **[過去のQ&A](../../issues?q=label%3Aquestion)** で同様の質問がないかご確認ください
+        3. **アプリ内のヘルプセクション**をご参照ください
+
+        ### 💻 よくある解決策
+        - ログイン関連: Googleアカウントでの再ログインをお試しください
+        - データ保存関連: ブラウザの設定でCookieが有効かご確認ください
+        - 表示関連: ブラウザの縮小・拡大設定をリセットしてください
+
+        ### 🛡️ 予防策
+        - 最新ブラウザをご使用ください
+        - ポップアップブロッカーを無効にしてください
+
+        ### 📋 対応情報
+        - **優先度**: 🟢 LOW
+        - **予想回答時間**: 4-8時間以内
+
+        ### 🚀 次のステップ
+        上記で解決しない場合は、より詳細なサポートを提供いたします。具体的な操作手順や環境情報をお知らせください。`,
+
+            general: `## 📝 お問い合わせへの自動応答
+
+        お問い合わせをありがとうございます。
+
+        ### 📊 内容分析
+        お問い合わせ内容を分析し、適切な担当者による回答を準備しています。
+
+        ### 🛠️ 対応手順
+        1. **お問い合わせ内容の分類と優先度設定**
+        2. **適切な担当者への振り分け**
+        3. **必要に応じた技術チームとの連携**
+        4. **詳細回答の準備**
+
+        ### 💻 一般的な対応方針
+        - 技術的な問題: 開発チームが対応
+        - 利用方法の質問: サポートチームが対応
+        - 機能要望: プロダクトチームが検討
+
+        ### 🛡️ 品質保証
+        - 正確で実用的な情報提供を心がけます
+        - 医療従事者向けの専門性を維持します
+
+        ### 📋 対応情報
+        - **一般的な質問**: 24時間以内
+        - **技術的な問題**: 48時間以内
+        - **緊急事項**: 4時間以内
+
+        ### 🚀 次のステップ
+        内容を確認し、適切な担当者が詳細な回答と必要に応じた修正案をお送りします。`
+          };
+
+          return responses[category] || responses.general;
         }
 
         async function postFallbackResponse(issueNumber) {
           const body = `## 🤖 自動応答システム
 
-お問い合わせをありがとうございます。
+        お問い合わせをありがとうございます。
 
-現在、AI応答システムに一時的な問題が発生しております。開発チームが手動で確認し、24時間以内に返信いたします。
+        現在、AI応答システムに一時的な問題が発生しております。開発チームが手動で確認し、24時間以内に返信いたします。
 
-緊急の問題の場合は、Issue本文に **「緊急」** を追記してください。
+        緊急の問題の場合は、Issue本文に **「緊急」** を追記してください。
 
----
-<sub>自動応答システム | ${new Date().toLocaleString('ja-JP', {timeZone: 'Asia/Tokyo'})}</sub>`;
+        ---
+        <sub>自動応答システム | ${new Date().toLocaleString('ja-JP', {timeZone: 'Asia/Tokyo'})}</sub>`;
 
           await makeGitHubAPICall(body, issueNumber);
         }
@@ -462,12 +455,10 @@ ${rawOutput ? `\n### 🤖 AI出力（参考）\n${rawOutput.substring(0, 500)}${
           });
         }
 
-        // メイン実行
         main().catch(error => {
           console.error('❌ 致命的エラー:', error);
           process.exit(1);
         });
-        SCRIPT
+        EOF
 
-        # Node.jsスクリプト実行
         node gemini_response.js
