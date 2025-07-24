@@ -147,14 +147,14 @@ jobs:
           ISSUE_AUTHOR="${{ steps.parse-issue.outputs.issue_author }}"
 
           # プロンプト作成
-          cat > claude_prompt.md << 'PROMPT_EOF'
+          cat > claude_prompt.md << 'EOF'
           # 口腔機能低下症診断・管理アプリ - 技術サポート分析
 
           ## 担当AI
           あなたは口腔機能低下症診断・管理アプリの上級技術サポートAIです。
 
           ## 問い合わせ情報
-          PROMPT_EOF
+          EOF
 
           echo "- **Issue番号**: #${ISSUE_NUMBER}" >> claude_prompt.md
           echo "- **カテゴリ**: ${CATEGORY}" >> claude_prompt.md
@@ -172,7 +172,7 @@ jobs:
             cat comment_body.txt >> claude_prompt.md
           fi
 
-          cat >> claude_prompt.md << 'PROMPT_EOF'
+          cat >> claude_prompt.md << 'EOF'
 
           ## アプリ技術情報
           - **フロントエンド**: HTML5, CSS3, JavaScript (ES6+)
@@ -224,7 +224,7 @@ jobs:
           ```
 
           医療従事者向けアプリのため、データの安全性とプライバシー保護を最優先に考慮してください。
-          PROMPT_EOF
+          EOF
 
           echo "Claude Codeプロンプト生成完了"
 
@@ -249,7 +249,7 @@ jobs:
           echo "${CLAUDE_OUTPUT}" > claude_raw_output.txt
 
           # JSONの抽出を試行
-          if echo "${CLAUDE_OUTPUT}" | grep -q "```json"; then
+          if echo "${CLAUDE_OUTPUT}" | grep -q '```json'; then
             # JSONブロックから抽出
             echo "${CLAUDE_OUTPUT}" | sed -n '/```json/,/```/p' | sed '1d;$d' > claude_response.json
           elif echo "${CLAUDE_OUTPUT}" | grep -q "{"; then
@@ -257,7 +257,7 @@ jobs:
             echo "${CLAUDE_OUTPUT}" | grep -o '{.*}' | head -1 > claude_response.json
           else
             # JSONが見つからない場合はフォールバック応答を生成
-            cat > claude_response.json << 'FALLBACK_EOF'
+            cat > claude_response.json << 'EOF'
           {
             "analysis": "Claude Code分析システムで一時的な問題が発生しました。手動で詳細分析を行います。",
             "category_specific_info": "問い合わせ内容を確認し、適切な技術サポートを提供します。",
@@ -279,14 +279,14 @@ jobs:
             "difficulty": "medium",
             "follow_up": "詳細分析後に追加の質問や確認事項をお送りする可能性があります。"
           }
-          FALLBACK_EOF
+          EOF
           fi
 
           # JSON検証
           if ! python3 -m json.tool claude_response.json > /dev/null 2>&1; then
             echo "⚠️ JSON形式が無効のため、フォールバック応答を使用"
             # フォールバック応答を再生成
-            cat > claude_response.json << 'FALLBACK2_EOF'
+            cat > claude_response.json << 'EOF'
           {
             "analysis": "自動分析システムで問題が発生しました。手動分析に切り替えます。",
             "immediate_steps": ["ブラウザ再読み込み", "開発者ツールでエラー確認", "別ブラウザで検証"],
@@ -294,7 +294,7 @@ jobs:
             "estimated_time": "24時間以内",
             "difficulty": "medium"
           }
-          FALLBACK2_EOF
+          EOF
           fi
 
           echo "Claude応答処理完了"
@@ -362,7 +362,7 @@ jobs:
           FOLLOW_UP=$(python3 -c "import json; print(json.load(open('claude_response.json')).get('follow_up', '必要に応じてフォローアップします'))" 2>/dev/null || echo "必要に応じてフォローアップします")
 
           # 即座の解決手順を取得
-          python3 << 'PYTHON_EOF' > immediate_steps.txt
+          python3 << 'EOF' > immediate_steps.txt
           import json
           try:
               with open('claude_response.json') as f:
@@ -374,10 +374,10 @@ jobs:
               print("1. ブラウザの再読み込み（Ctrl+F5）をお試しください")
               print("2. 開発者ツール（F12）でエラーメッセージを確認してください")
               print("3. 別のブラウザでも同様の問題が発生するかご確認ください")
-          PYTHON_EOF
+          EOF
 
           # テスト手順を取得
-          python3 << 'PYTHON_EOF' > testing_steps.txt
+          python3 << 'EOF' > testing_steps.txt
           import json
           try:
               with open('claude_response.json') as f:
@@ -389,10 +389,10 @@ jobs:
               print("1. 問題の再現手順を記録してください")
               print("2. 使用環境（ブラウザ、OS）をお知らせください")
               print("3. エラーメッセージがあればスクリーンショットを共有してください")
-          PYTHON_EOF
+          EOF
 
           # コード提案を取得
-          python3 << 'PYTHON_EOF' > code_suggestions.txt
+          python3 << 'EOF' > code_suggestions.txt
           import json
           try:
               with open('claude_response.json') as f:
@@ -412,10 +412,10 @@ jobs:
                   print("コード修正案は現在検討中です。")
           except Exception as e:
               print("コード提案の取得でエラーが発生しました。")
-          PYTHON_EOF
+          EOF
 
           # GitHub応答を作成
-          cat > github_response.md << RESPONSE_EOF
+          cat > github_response.md << 'EOF'
           ## ${EMOJI} ${TITLE}
 
           @${ISSUE_AUTHOR} さん、お問い合わせありがとうございます！
@@ -428,7 +428,7 @@ jobs:
 
           ${ANALYSIS}
 
-          RESPONSE_EOF
+          EOF
 
           if [ -n "$CATEGORY_INFO" ]; then
             echo "" >> github_response.md
@@ -436,20 +436,20 @@ jobs:
             echo "$CATEGORY_INFO" >> github_response.md
           fi
 
-          cat >> github_response.md << RESPONSE_EOF
+          cat >> github_response.md << 'EOF'
 
           ### 🚀 即座の対応手順
 
-          RESPONSE_EOF
+          EOF
           cat immediate_steps.txt >> github_response.md
 
-          cat >> github_response.md << RESPONSE_EOF
+          cat >> github_response.md << 'EOF'
 
           ### 🛠️ 技術的解決策
 
           ${TECH_SOLUTION}
 
-          RESPONSE_EOF
+          EOF
 
           # コード提案がある場合は追加
           if [ -s code_suggestions.txt ] && ! grep -q "検討中" code_suggestions.txt; then
@@ -458,14 +458,14 @@ jobs:
             cat code_suggestions.txt >> github_response.md
           fi
 
-          cat >> github_response.md << RESPONSE_EOF
+          cat >> github_response.md << 'EOF'
 
           ### 🧪 検証・テスト手順
 
-          RESPONSE_EOF
+          EOF
           cat testing_steps.txt >> github_response.md
 
-          cat >> github_response.md << RESPONSE_EOF
+          cat >> github_response.md << 'EOF'
 
           ### 🛡️ 再発防止策
 
@@ -494,13 +494,26 @@ jobs:
 
           ### ⚡ 緊急時の対応
 
-          - 緊急性が高い場合は、Issue タイトルに \`[緊急]\` を追記してください
+          - 緊急性が高い場合は、Issue タイトルに `[緊急]` を追記してください
           - データ損失の可能性がある場合は、即座に使用を停止し、バックアップをご確認ください
 
           ---
 
           <sub>この分析は AI により自動生成されています。修正案は参考として提供されており、実装前に十分な検証を行ってください。追加のサポートが必要な場合は、お気軽にコメントでお知らせください。</sub>
-          RESPONSE_EOF
+          EOF
+
+          # 変数を展開してファイルに書き込み
+          sed -i "s/\${EMOJI}/$EMOJI/g" github_response.md
+          sed -i "s/\${TITLE}/$TITLE/g" github_response.md
+          sed -i "s/\${ISSUE_AUTHOR}/$ISSUE_AUTHOR/g" github_response.md
+          sed -i "s/\${PRIORITY_BADGE}/$PRIORITY_BADGE/g" github_response.md
+          sed -i "s/\${ESTIMATED_TIME}/$ESTIMATED_TIME/g" github_response.md
+          sed -i "s/\${DIFFICULTY}/$DIFFICULTY/g" github_response.md
+          sed -i "s/\${ANALYSIS}/$ANALYSIS/g" github_response.md
+          sed -i "s/\${TECH_SOLUTION}/$TECH_SOLUTION/g" github_response.md
+          sed -i "s/\${PREVENTION}/$PREVENTION/g" github_response.md
+          sed -i "s/\${FOLLOW_UP}/$FOLLOW_UP/g" github_response.md
+          sed -i "s/\${CATEGORY}/$CATEGORY/g" github_response.md
 
           echo "GitHub応答フォーマット完了"
 
@@ -514,11 +527,11 @@ jobs:
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
             "${{ github.api_url }}/repos/${{ github.repository }}/issues/${{ steps.parse-issue.outputs.issue_number }}/comments" \
-            -d @- << CURL_EOF
+            -d @- << 'EOF'
           {
             "body": $(cat github_response.md | jq -Rs .)
           }
-          CURL_EOF
+          EOF
 
           echo "GitHub応答投稿完了"
 
