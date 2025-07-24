@@ -135,10 +135,10 @@ jobs:
 
           echo "分類: ${CATEGORY}, 優先度: ${PRIORITY}"
 
-      - name: Generate Claude Code Response
-        id: claude-response
+      - name: Create Claude Analysis Prompt
+        id: create-prompt
         run: |
-          echo "=== Claude Code応答生成 ==="
+          echo "=== Claude分析プロンプト作成 ==="
 
           CATEGORY="${{ steps.categorize.outputs.category }}"
           PRIORITY="${{ steps.categorize.outputs.priority }}"
@@ -146,33 +146,31 @@ jobs:
           ISSUE_TITLE="${{ steps.parse-issue.outputs.issue_title }}"
           ISSUE_AUTHOR="${{ steps.parse-issue.outputs.issue_author }}"
 
-          # プロンプト作成
-          cat > claude_prompt.md << 'EOF'
-          # 口腔機能低下症診断・管理アプリ - 技術サポート分析
+          # プロンプトを環境変数として設定
+          CLAUDE_PROMPT="# 口腔機能低下症診断・管理アプリ - 技術サポート分析
 
           ## 担当AI
           あなたは口腔機能低下症診断・管理アプリの上級技術サポートAIです。
 
           ## 問い合わせ情報
-          EOF
+          - **Issue番号**: #${ISSUE_NUMBER}
+          - **カテゴリ**: ${CATEGORY}
+          - **優先度**: ${PRIORITY}
+          - **報告者**: ${ISSUE_AUTHOR}
+          - **タイトル**: ${ISSUE_TITLE}
 
-          echo "- **Issue番号**: #${ISSUE_NUMBER}" >> claude_prompt.md
-          echo "- **カテゴリ**: ${CATEGORY}" >> claude_prompt.md
-          echo "- **優先度**: ${PRIORITY}" >> claude_prompt.md
-          echo "- **報告者**: ${ISSUE_AUTHOR}" >> claude_prompt.md
-          echo "- **タイトル**: ${ISSUE_TITLE}" >> claude_prompt.md
-          echo "" >> claude_prompt.md
-          echo "### 詳細内容" >> claude_prompt.md
-          cat issue_body.txt >> claude_prompt.md
+          ### 詳細内容
+          $(cat issue_body.txt)"
 
           if [ "${{ steps.parse-issue.outputs.has_comment }}" = "true" ]; then
-            echo "" >> claude_prompt.md
-            echo "### 追加コメント" >> claude_prompt.md
-            echo "- **コメント者**: ${{ steps.parse-issue.outputs.comment_author }}" >> claude_prompt.md
-            cat comment_body.txt >> claude_prompt.md
+            CLAUDE_PROMPT="${CLAUDE_PROMPT}
+
+          ### 追加コメント
+          - **コメント者**: ${{ steps.parse-issue.outputs.comment_author }}
+          $(cat comment_body.txt)"
           fi
 
-          cat >> claude_prompt.md << 'EOF'
+          CLAUDE_PROMPT="${CLAUDE_PROMPT}
 
           ## アプリ技術情報
           - **フロントエンド**: HTML5, CSS3, JavaScript (ES6+)
@@ -190,119 +188,36 @@ jobs:
           - **メイン**: app.js, index.html
           - **スタイル**: styles.css
 
-          ## よくある問題と解決策
-          1. **ログイン問題**: Google認証設定、Cookie、ポップアップブロッカー
-          2. **データ保存問題**: Firebase接続、認証状態、ネットワーク
-          3. **患者数制限**: 無料プラン5人まで、プレミアムプラン無制限
-          4. **ブラウザ互換性**: 最新ブラウザ推奨、古いブラウザでは制限
-          5. **モバイル対応**: タブレット以上推奨、スマホは操作制限あり
-
           ## 指示
           以下の形式で包括的な技術サポート応答を生成してください：
 
-          ```json
-          {
-            "analysis": "問題の技術的分析（原因、影響範囲、関連システム）",
-            "category_specific_info": "カテゴリ別の詳細情報や背景",
-            "immediate_steps": ["すぐに試せる解決手順1", "解決手順2", "解決手順3"],
-            "technical_solution": "技術的な解決方法の詳細説明",
-            "code_suggestions": [
-              {
-                "file": "対象ファイル名",
-                "change_type": "修正|追加|削除",
-                "description": "変更内容の説明",
-                "code": "具体的なコード（該当する場合）"
-              }
-            ],
-            "testing_steps": ["テスト手順1", "テスト手順2", "テスト手順3"],
-            "prevention": "再発防止策",
-            "related_issues": "関連する可能性のある問題",
-            "estimated_time": "解決予想時間",
-            "difficulty": "easy|medium|hard",
-            "follow_up": "フォローアップが必要な項目"
-          }
-          ```
+          1. **問題分析**: 技術的な原因と影響範囲
+          2. **即座の対応手順**: 3つの具体的なステップ
+          3. **技術的解決策**: 詳細な解決方法
+          4. **テスト手順**: 検証方法
+          5. **再発防止策**: 今後の予防策
 
-          医療従事者向けアプリのため、データの安全性とプライバシー保護を最優先に考慮してください。
-          EOF
+          医療従事者向けアプリのため、データの安全性とプライバシー保護を最優先に考慮してください。"
 
-          echo "Claude Codeプロンプト生成完了"
+          # プロンプトを一時ファイルに保存
+          echo "${CLAUDE_PROMPT}" > claude_prompt.txt
+
+          echo "Claude分析プロンプト作成完了"
 
       - name: Run Claude Code Analysis
         uses: anthropics/claude-code-action@beta
         id: claude-analysis
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt_file: claude_prompt.md
-          include_repository: true
-          include_diff: false
+          direct_prompt: ${{ steps.create-prompt.outputs.claude_prompt }}
+          trigger_phrase: "auto-analysis"
+          custom_instructions: "Issue #${{ steps.parse-issue.outputs.issue_number }}の技術サポート分析を実行してください。"
 
-      - name: Process Claude Response
-        id: process-response
+      - name: Create Fallback Response
+        id: fallback-response
+        if: failure() || steps.claude-analysis.outputs.response == ''
         run: |
-          echo "=== Claude応答処理 ==="
-
-          # Claude Codeの出力を取得
-          CLAUDE_OUTPUT="${{ steps.claude-analysis.outputs.response }}"
-
-          # JSON部分を抽出
-          echo "${CLAUDE_OUTPUT}" > claude_raw_output.txt
-
-          # JSONの抽出を試行
-          if echo "${CLAUDE_OUTPUT}" | grep -q '```json'; then
-            # JSONブロックから抽出
-            echo "${CLAUDE_OUTPUT}" | sed -n '/```json/,/```/p' | sed '1d;$d' > claude_response.json
-          elif echo "${CLAUDE_OUTPUT}" | grep -q "{"; then
-            # JSON部分を直接抽出
-            echo "${CLAUDE_OUTPUT}" | grep -o '{.*}' | head -1 > claude_response.json
-          else
-            # JSONが見つからない場合はフォールバック応答を生成
-            cat > claude_response.json << 'EOF'
-          {
-            "analysis": "Claude Code分析システムで一時的な問題が発生しました。手動で詳細分析を行います。",
-            "category_specific_info": "問い合わせ内容を確認し、適切な技術サポートを提供します。",
-            "immediate_steps": [
-              "ブラウザの再読み込み（Ctrl+F5）をお試しください",
-              "別のブラウザでも同様の問題が発生するかご確認ください",
-              "エラーメッセージがあれば、ブラウザの開発者ツール（F12）で確認してください"
-            ],
-            "technical_solution": "詳細な技術分析は開発チームが手動で実施し、24時間以内に回答いたします。",
-            "code_suggestions": [],
-            "testing_steps": [
-              "問題の再現手順を記録してください",
-              "使用環境（ブラウザ、OS、デバイス）をお知らせください",
-              "エラーが発生する具体的な操作を詳細に教えてください"
-            ],
-            "prevention": "今後の類似問題防止のため、操作手順の記録と環境情報の共有をお願いします。",
-            "related_issues": "類似問題の検索は過去のIssueをご確認ください。",
-            "estimated_time": "24-48時間",
-            "difficulty": "medium",
-            "follow_up": "詳細分析後に追加の質問や確認事項をお送りする可能性があります。"
-          }
-          EOF
-          fi
-
-          # JSON検証
-          if ! python3 -m json.tool claude_response.json > /dev/null 2>&1; then
-            echo "⚠️ JSON形式が無効のため、フォールバック応答を使用"
-            # フォールバック応答を再生成
-            cat > claude_response.json << 'EOF'
-          {
-            "analysis": "自動分析システムで問題が発生しました。手動分析に切り替えます。",
-            "immediate_steps": ["ブラウザ再読み込み", "開発者ツールでエラー確認", "別ブラウザで検証"],
-            "technical_solution": "開発チームが手動で分析し、24時間以内に詳細回答します。",
-            "estimated_time": "24時間以内",
-            "difficulty": "medium"
-          }
-          EOF
-          fi
-
-          echo "Claude応答処理完了"
-
-      - name: Format GitHub Response
-        id: format-response
-        run: |
-          echo "=== GitHub応答フォーマット ==="
+          echo "=== フォールバック応答作成 ==="
 
           CATEGORY="${{ steps.categorize.outputs.category }}"
           PRIORITY="${{ steps.categorize.outputs.priority }}"
@@ -312,27 +227,27 @@ jobs:
           case $CATEGORY in
             "bug")
               EMOJI="🐛"
-              TITLE="バグレポート自動分析"
+              TITLE="バグレポート受付"
               ;;
             "feature")
               EMOJI="✨"
-              TITLE="機能要望自動分析"
+              TITLE="機能要望受付"
               ;;
             "question")
               EMOJI="❓"
-              TITLE="質問自動応答"
+              TITLE="質問受付"
               ;;
             "auth")
               EMOJI="🔐"
-              TITLE="認証問題自動分析"
+              TITLE="認証問題受付"
               ;;
             "performance")
               EMOJI="⚡"
-              TITLE="パフォーマンス問題分析"
+              TITLE="パフォーマンス問題受付"
               ;;
             *)
               EMOJI="🤖"
-              TITLE="自動技術サポート"
+              TITLE="お問い合わせ受付"
               ;;
           esac
 
@@ -352,168 +267,75 @@ jobs:
               ;;
           esac
 
-          # JSON応答を読み込み
-          ANALYSIS=$(python3 -c "import json; print(json.load(open('claude_response.json')).get('analysis', '分析情報なし'))" 2>/dev/null || echo "分析取得エラー")
-          CATEGORY_INFO=$(python3 -c "import json; print(json.load(open('claude_response.json')).get('category_specific_info', ''))" 2>/dev/null || echo "")
-          TECH_SOLUTION=$(python3 -c "import json; print(json.load(open('claude_response.json')).get('technical_solution', '技術的解決策を検討中'))" 2>/dev/null || echo "技術的解決策を検討中")
-          PREVENTION=$(python3 -c "import json; print(json.load(open('claude_response.json')).get('prevention', '予防策を検討中'))" 2>/dev/null || echo "予防策を検討中")
-          ESTIMATED_TIME=$(python3 -c "import json; print(json.load(open('claude_response.json')).get('estimated_time', '未定'))" 2>/dev/null || echo "未定")
-          DIFFICULTY=$(python3 -c "import json; print(json.load(open('claude_response.json')).get('difficulty', 'medium'))" 2>/dev/null || echo "medium")
-          FOLLOW_UP=$(python3 -c "import json; print(json.load(open('claude_response.json')).get('follow_up', '必要に応じてフォローアップします'))" 2>/dev/null || echo "必要に応じてフォローアップします")
-
-          # 即座の解決手順を取得
-          python3 << 'EOF' > immediate_steps.txt
-          import json
-          try:
-              with open('claude_response.json') as f:
-                  data = json.load(f)
-              steps = data.get('immediate_steps', ['初期対応手順を準備中'])
-              for i, step in enumerate(steps, 1):
-                  print(f"{i}. {step}")
-          except:
-              print("1. ブラウザの再読み込み（Ctrl+F5）をお試しください")
-              print("2. 開発者ツール（F12）でエラーメッセージを確認してください")
-              print("3. 別のブラウザでも同様の問題が発生するかご確認ください")
-          EOF
-
-          # テスト手順を取得
-          python3 << 'EOF' > testing_steps.txt
-          import json
-          try:
-              with open('claude_response.json') as f:
-                  data = json.load(f)
-              steps = data.get('testing_steps', ['テスト手順を準備中'])
-              for i, step in enumerate(steps, 1):
-                  print(f"{i}. {step}")
-          except:
-              print("1. 問題の再現手順を記録してください")
-              print("2. 使用環境（ブラウザ、OS）をお知らせください")
-              print("3. エラーメッセージがあればスクリーンショットを共有してください")
-          EOF
-
-          # コード提案を取得
-          python3 << 'EOF' > code_suggestions.txt
-          import json
-          try:
-              with open('claude_response.json') as f:
-                  data = json.load(f)
-              suggestions = data.get('code_suggestions', [])
-              if suggestions:
-                  for suggestion in suggestions:
-                      print(f"### {suggestion.get('file', 'ファイル名不明')}")
-                      print(f"**変更種別**: {suggestion.get('change_type', '不明')}")
-                      print(f"**説明**: {suggestion.get('description', '説明なし')}")
-                      if suggestion.get('code'):
-                          print("```javascript")
-                          print(suggestion['code'])
-                          print("```")
-                      print()
-              else:
-                  print("コード修正案は現在検討中です。")
-          except Exception as e:
-              print("コード提案の取得でエラーが発生しました。")
-          EOF
-
-          # GitHub応答を作成
-          cat > github_response.md << 'EOF'
+          # フォールバック応答を作成
+          cat > fallback_response.md << 'EOF'
           ## ${EMOJI} ${TITLE}
 
           @${ISSUE_AUTHOR} さん、お問い合わせありがとうございます！
 
-          **優先度**: ${PRIORITY_BADGE} | **予想解決時間**: ${ESTIMATED_TIME} | **難易度**: ${DIFFICULTY}
+          **優先度**: ${PRIORITY_BADGE} | **予想対応時間**: 24時間以内
 
           ---
 
           ### 🔍 自動分析結果
 
-          ${ANALYSIS}
-
-          EOF
-
-          if [ -n "$CATEGORY_INFO" ]; then
-            echo "" >> github_response.md
-            echo "### 📋 カテゴリ別情報" >> github_response.md
-            echo "$CATEGORY_INFO" >> github_response.md
-          fi
-
-          cat >> github_response.md << 'EOF'
+          お問い合わせ内容を確認いたしました。詳細な技術分析を開始しており、24時間以内に具体的な解決策をお返しいたします。
 
           ### 🚀 即座の対応手順
 
-          EOF
-          cat immediate_steps.txt >> github_response.md
+          問題の詳細を確認するため、以下をお試しください：
 
-          cat >> github_response.md << 'EOF'
+          1. **ブラウザの再読み込み**: Ctrl+F5（Windows）またはCmd+Shift+R（Mac）で強制更新
+          2. **開発者ツールでエラー確認**: F12キーを押してConsoleタブでエラーメッセージを確認
+          3. **別ブラウザでの検証**: Chrome、Firefox、Safariなど別のブラウザで同様の問題が発生するか確認
 
-          ### 🛠️ 技術的解決策
+          ### 🛠️ 技術サポートチームからの対応
 
-          ${TECH_SOLUTION}
+          - 開発チームが手動で詳細分析を実施します
+          - 必要に応じて追加情報をお聞きする場合があります
+          - 解決策が判明次第、コメントで回答いたします
 
-          EOF
+          ### 📞 緊急時の対応
 
-          # コード提案がある場合は追加
-          if [ -s code_suggestions.txt ] && ! grep -q "検討中" code_suggestions.txt; then
-            echo "### 💻 コード修正提案" >> github_response.md
-            echo "" >> github_response.md
-            cat code_suggestions.txt >> github_response.md
-          fi
-
-          cat >> github_response.md << 'EOF'
-
-          ### 🧪 検証・テスト手順
-
-          EOF
-          cat testing_steps.txt >> github_response.md
-
-          cat >> github_response.md << 'EOF'
-
-          ### 🛡️ 再発防止策
-
-          ${PREVENTION}
-
-          ### 📞 フォローアップ
-
-          ${FOLLOW_UP}
-
-          ---
-
-          ### 🤖 自動応答システム情報
-
-          - **分析実行時刻**: $(date '+%Y-%m-%d %H:%M:%S JST')
-          - **システム**: Claude Code + GitHub Actions
-          - **応答レベル**: 高度技術分析
-          - **Issue分類**: ${CATEGORY}
+          - データ損失の可能性がある場合は、即座に使用を停止してください
+          - 緊急性が高い場合は、Issueタイトルに `[緊急]` を追記してください
 
           ---
 
           ### 📚 関連リソース
 
-          - [アプリについて](https://github.com/${{ github.repository }}/blob/main/about.html)
           - [よくある質問](https://github.com/${{ github.repository }}/issues?q=label%3Aquestion)
           - [過去の解決済み問題](https://github.com/${{ github.repository }}/issues?q=is%3Aissue+is%3Aclosed)
 
-          ### ⚡ 緊急時の対応
-
-          - 緊急性が高い場合は、Issue タイトルに `[緊急]` を追記してください
-          - データ損失の可能性がある場合は、即座に使用を停止し、バックアップをご確認ください
-
           ---
 
-          <sub>この分析は AI により自動生成されています。修正案は参考として提供されており、実装前に十分な検証を行ってください。追加のサポートが必要な場合は、お気軽にコメントでお知らせください。</sub>
+          <sub>この応答は自動生成されています。技術サポートチームが詳細分析を行い、24時間以内に追加回答いたします。</sub>
           EOF
 
-          # 変数を展開してファイルに書き込み
-          sed -i "s/\${EMOJI}/$EMOJI/g" github_response.md
-          sed -i "s/\${TITLE}/$TITLE/g" github_response.md
-          sed -i "s/\${ISSUE_AUTHOR}/$ISSUE_AUTHOR/g" github_response.md
-          sed -i "s/\${PRIORITY_BADGE}/$PRIORITY_BADGE/g" github_response.md
-          sed -i "s/\${ESTIMATED_TIME}/$ESTIMATED_TIME/g" github_response.md
-          sed -i "s/\${DIFFICULTY}/$DIFFICULTY/g" github_response.md
-          sed -i "s/\${ANALYSIS}/$ANALYSIS/g" github_response.md
-          sed -i "s/\${TECH_SOLUTION}/$TECH_SOLUTION/g" github_response.md
-          sed -i "s/\${PREVENTION}/$PREVENTION/g" github_response.md
-          sed -i "s/\${FOLLOW_UP}/$FOLLOW_UP/g" github_response.md
-          sed -i "s/\${CATEGORY}/$CATEGORY/g" github_response.md
+          # 変数を展開
+          sed -i "s/\${EMOJI}/$EMOJI/g" fallback_response.md
+          sed -i "s/\${TITLE}/$TITLE/g" fallback_response.md
+          sed -i "s/\${ISSUE_AUTHOR}/$ISSUE_AUTHOR/g" fallback_response.md
+          sed -i "s/\${PRIORITY_BADGE}/$PRIORITY_BADGE/g" fallback_response.md
+
+          echo "response_file=fallback_response.md" >> $GITHUB_OUTPUT
+          echo "フォールバック応答作成完了"
+
+      - name: Format GitHub Response
+        id: format-response
+        run: |
+          echo "=== GitHub応答フォーマット ==="
+
+          # Claude Codeの応答があるかチェック
+          if [ -n "${{ steps.claude-analysis.outputs.response }}" ]; then
+            echo "Claude Code応答を使用"
+            echo "${{ steps.claude-analysis.outputs.response }}" > final_response.md
+            echo "response_file=final_response.md" >> $GITHUB_OUTPUT
+          else
+            echo "フォールバック応答を使用"
+            cp fallback_response.md final_response.md
+            echo "response_file=final_response.md" >> $GITHUB_OUTPUT
+          fi
 
           echo "GitHub応答フォーマット完了"
 
@@ -521,17 +343,15 @@ jobs:
         run: |
           echo "=== GitHub応答投稿 ==="
 
-          # GitHub APIを使用してコメントを投稿
+          # 応答内容をJSONエスケープして投稿
+          RESPONSE_BODY=$(cat final_response.md | jq -Rs .)
+
           curl -X POST \
             -H "Accept: application/vnd.github.v3+json" \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
             "${{ github.api_url }}/repos/${{ github.repository }}/issues/${{ steps.parse-issue.outputs.issue_number }}/comments" \
-            -d @- << 'EOF'
-          {
-            "body": $(cat github_response.md | jq -Rs .)
-          }
-          EOF
+            -d "{\"body\": $RESPONSE_BODY}"
 
           echo "GitHub応答投稿完了"
 
@@ -542,43 +362,45 @@ jobs:
           CATEGORY="${{ steps.categorize.outputs.category }}"
           PRIORITY="${{ steps.categorize.outputs.priority }}"
 
-          # 自動分析ラベルを追加
-          LABELS_TO_ADD="auto-analyzed"
+          # ラベル配列を作成
+          LABELS='["auto-analyzed"'
 
           # カテゴリラベルを追加
           case $CATEGORY in
             "bug")
-              LABELS_TO_ADD="${LABELS_TO_ADD},auto-bug-analysis"
+              LABELS="${LABELS},\"auto-bug-analysis\""
               ;;
             "feature")
-              LABELS_TO_ADD="${LABELS_TO_ADD},auto-feature-analysis"
+              LABELS="${LABELS},\"auto-feature-analysis\""
               ;;
             "question")
-              LABELS_TO_ADD="${LABELS_TO_ADD},auto-question-answered"
+              LABELS="${LABELS},\"auto-question-answered\""
               ;;
             "auth")
-              LABELS_TO_ADD="${LABELS_TO_ADD},auto-auth-analysis"
+              LABELS="${LABELS},\"auto-auth-analysis\""
               ;;
             "performance")
-              LABELS_TO_ADD="${LABELS_TO_ADD},auto-performance-analysis"
+              LABELS="${LABELS},\"auto-performance-analysis\""
               ;;
           esac
 
           # 優先度ラベルを追加
           case $PRIORITY in
             "critical")
-              LABELS_TO_ADD="${LABELS_TO_ADD},priority-critical"
+              LABELS="${LABELS},\"priority-critical\""
               ;;
             "high")
-              LABELS_TO_ADD="${LABELS_TO_ADD},priority-high"
+              LABELS="${LABELS},\"priority-high\""
               ;;
             "medium")
-              LABELS_TO_ADD="${LABELS_TO_ADD},priority-medium"
+              LABELS="${LABELS},\"priority-medium\""
               ;;
             "low")
-              LABELS_TO_ADD="${LABELS_TO_ADD},priority-low"
+              LABELS="${LABELS},\"priority-low\""
               ;;
           esac
+
+          LABELS="${LABELS}]"
 
           # ラベル追加API呼び出し
           curl -X POST \
@@ -586,7 +408,7 @@ jobs:
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
             "${{ github.api_url }}/repos/${{ github.repository }}/issues/${{ steps.parse-issue.outputs.issue_number }}/labels" \
-            -d "{\"labels\": [$(echo $LABELS_TO_ADD | sed 's/,/","/g' | sed 's/^/"/' | sed 's/$/"/')]}}" \
+            -d "{\"labels\": $LABELS}" \
             || echo "ラベル追加でエラーが発生しましたが、処理を継続します"
 
           echo "ラベル更新完了"
@@ -595,7 +417,6 @@ jobs:
         if: always()
         run: |
           echo "=== クリーンアップ ==="
-          rm -f issue_body.txt comment_body.txt claude_prompt.md claude_raw_output.txt
-          rm -f claude_response.json immediate_steps.txt testing_steps.txt
-          rm -f code_suggestions.txt github_response.md
+          rm -f issue_body.txt comment_body.txt claude_prompt.txt
+          rm -f fallback_response.md final_response.md
           echo "一時ファイル削除完了"
