@@ -1,0 +1,286 @@
+name: AI Auto Response (Gemini)
+
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+
+jobs:
+  ai-response:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Gemini AI Response
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        ISSUE_NUMBER: ${{ github.event.issue.number }}
+        ISSUE_TITLE: ${{ github.event.issue.title }}
+        ISSUE_BODY: ${{ github.event.issue.body }}
+        ISSUE_LABELS: ${{ join(github.event.issue.labels.*.name, ',') }}
+      run: |
+        # Gemini CLI インストール
+        npm install -g @google/gemini-cli
+        
+        # AI応答スクリプト実行
+        node << 'EOF'
+        const { spawn } = require('child_process');
+        const https = require('https');
+
+        async function runGeminiResponse() {
+          const issueTitle = process.env.ISSUE_TITLE;
+          const issueBody = process.env.ISSUE_BODY;
+          const issueNumber = process.env.ISSUE_NUMBER;
+          const issueLabels = process.env.ISSUE_LABELS || '';
+
+          console.log(`Processing issue #${issueNumber}: ${issueTitle}`);
+
+          // 問題分類
+          const category = classifyIssue(issueTitle, issueBody, issueLabels);
+          console.log(`Classified as: ${category}`);
+
+          // Gemini プロンプト作成
+          const prompt = createPrompt(category, issueTitle, issueBody);
+
+          try {
+            // Gemini CLI実行
+            const geminiResponse = await runGemini(prompt);
+            console.log('Gemini response received');
+
+            // GitHub APIでコメント投稿
+            await postToGitHub(geminiResponse, issueNumber, category);
+            console.log('Response posted successfully');
+
+          } catch (error) {
+            console.error('Error:', error);
+            // フォールバック応答
+            await postFallbackResponse(issueNumber, category);
+          }
+        }
+
+        function classifyIssue(title, body, labels) {
+          const text = (title + ' ' + body + ' ' + labels).toLowerCase();
+          
+          if (text.includes('バグ') || text.includes('エラー') || 
+              text.includes('動かない') || text.includes('bug') || 
+              text.includes('error') || labels.includes('bug')) {
+            return 'bug';
+          } else if (text.includes('機能') || text.includes('追加') || 
+                     text.includes('改善') || text.includes('feature') || 
+                     text.includes('enhancement') || labels.includes('enhancement')) {
+            return 'feature';
+          } else if (text.includes('質問') || text.includes('使い方') || 
+                     text.includes('question') || text.includes('how') || 
+                     labels.includes('question')) {
+            return 'question';
+          } else {
+            return 'general';
+          }
+        }
+
+        function createPrompt(category, title, body) {
+          const basePrompt = `あなたは口腔機能低下症診断・管理アプリのサポートAIです。
+
+Issue分類: ${category}
+タイトル: ${title}
+内容: ${body}
+
+以下のJSON形式で回答してください：
+{
+  "response": "GitHubコメント用のMarkdown形式回答",
+  "priority": "low|medium|high",
+  "action_required": "必要なアクション",
+  "estimated_time": "対応予想時間"
+}
+
+医療従事者向けアプリなので、専門性と信頼性を重視した回答をお願いします。`;
+
+          return basePrompt;
+        }
+
+        function runGemini(prompt) {
+          return new Promise((resolve, reject) => {
+            const gemini = spawn('gemini', ['-p', prompt], {
+              stdio: ['pipe', 'pipe', 'pipe'],
+              env: { ...process.env }
+            });
+
+            let output = '';
+            let error = '';
+
+            gemini.stdout.on('data', (data) => {
+              output += data.toString();
+            });
+
+            gemini.stderr.on('data', (data) => {
+              error += data.toString();
+            });
+
+            gemini.on('close', (code) => {
+              if (code === 0) {
+                resolve(output);
+              } else {
+                reject(new Error(`Gemini CLI failed: ${error}`));
+              }
+            });
+
+            // タイムアウト設定（5分）
+            setTimeout(() => {
+              gemini.kill();
+              reject(new Error('Gemini CLI timeout'));
+            }, 300000);
+          });
+        }
+
+        async function postToGitHub(geminiOutput, issueNumber, category) {
+          let response;
+          
+          try {
+            // JSON部分を抽出
+            const jsonMatch = geminiOutput.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const aiResponse = JSON.parse(jsonMatch[0]);
+              response = formatResponse(aiResponse, category);
+            } else {
+              throw new Error('No JSON found in response');
+            }
+          } catch (parseError) {
+            console.warn('JSON parse failed, using fallback');
+            response = formatFallbackResponse(geminiOutput, category);
+          }
+
+          // GitHub API投稿
+          await makeGitHubRequest(issueNumber, response);
+        }
+
+        function formatResponse(aiResponse, category) {
+          const categoryEmoji = {
+            bug: '🐛',
+            feature: '✨', 
+            question: '❓',
+            general: '📝'
+          };
+
+          return `## ${categoryEmoji[category]} AI自動応答
+
+${aiResponse.response}
+
+### 📊 分析結果
+- **優先度**: ${aiResponse.priority}
+- **必要アクション**: ${aiResponse.action_required}
+- **予想対応時間**: ${aiResponse.estimated_time}
+
+---
+
+### 🚀 次のステップ
+開発チームが詳細を確認し、必要に応じて追加情報をお伝えします。
+
+緊急の場合は、Issue本文に **「緊急」** を追記してください。
+
+---
+<sub>🤖 この応答はGemini AI（無料枠）により自動生成されています | 処理時刻: ${new Date().toLocaleString('ja-JP', {timeZone: 'Asia/Tokyo'})}</sub>`;
+        }
+
+        function formatFallbackResponse(rawOutput, category) {
+          const categoryResponses = {
+            bug: `## 🐛 バグ報告への自動応答
+
+お忙しい中、バグレポートをいただきありがとうございます。
+
+### 初期対応手順
+1. **ブラウザ再読み込み**（Ctrl+F5）をお試しください
+2. **別ブラウザ**での動作確認をお願いします  
+3. **開発者ツール**（F12）でエラーメッセージを確認してください
+
+開発チームが24時間以内に詳細調査いたします。`,
+
+            feature: `## ✨ 機能要望への自動応答
+
+素晴らしいアイデアをありがとうございます！
+
+### 検討プロセス
+- 既存機能との重複確認
+- 技術的実装可能性の評価
+- 開発計画への組み込み検討
+
+検討結果は1週間以内にお知らせします。`,
+
+            question: `## ❓ ご質問への自動応答
+
+ご質問ありがとうございます。
+
+まずは[README.md](./README.md)や[過去のQ&A](../../issues?q=label%3Aquestion)をご確認ください。
+
+解決しない場合は詳細サポートいたします。`,
+
+            general: `## 📝 お問い合わせへの自動応答
+
+お問い合わせありがとうございます。
+
+内容を確認し、適切な担当者が回答いたします。`
+          };
+
+          return categoryResponses[category] + `
+
+---
+<sub>🤖 AI自動応答システム | ${new Date().toLocaleString('ja-JP', {timeZone: 'Asia/Tokyo'})}</sub>`;
+        }
+
+        async function postFallbackResponse(issueNumber, category) {
+          const response = formatFallbackResponse('', category);
+          await makeGitHubRequest(issueNumber, response);
+        }
+
+        function makeGitHubRequest(issueNumber, body) {
+          return new Promise((resolve, reject) => {
+            const postData = JSON.stringify({ body });
+
+            const options = {
+              hostname: 'api.github.com',
+              port: 443,
+              path: `/repos/${process.env.GITHUB_REPOSITORY}/issues/${issueNumber}/comments`,
+              method: 'POST',
+              headers: {
+                'Authorization': `token ${process.env.GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(postData),
+                'User-Agent': 'Gemini-AI-Bot'
+              }
+            };
+
+            const req = https.request(options, (res) => {
+              if (res.statusCode >= 200 && res.statusCode < 300) {
+                console.log(`✅ Response posted to issue #${issueNumber}`);
+                resolve();
+              } else {
+                console.error(`❌ GitHub API error: ${res.statusCode}`);
+                reject(new Error(`HTTP ${res.statusCode}`));
+              }
+            });
+
+            req.on('error', (e) => {
+              console.error(`❌ Request error: ${e.message}`);
+              reject(e);
+            });
+
+            req.write(postData);
+            req.end();
+          });
+        }
+
+        // メイン実行
+        runGeminiResponse().catch(console.error);
+        EOF
