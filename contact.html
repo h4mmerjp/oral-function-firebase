@@ -164,6 +164,9 @@
     async function submitToGitHub() {
       // バリデーション
       if (!validateForm()) return;
+      
+      // セキュリティバリデーション
+      if (!validateSensitiveData()) return;
 
       const submitButton = document.querySelector('button[onclick="submitToGitHub()"]');
       const statusDiv = document.getElementById('submission-status');
@@ -311,9 +314,41 @@
       document.getElementById('submission-status').style.display = 'none';
     }
 
-    // フォーム入力時のリアルタイムバリデーション
+    // セキュリティ機能用のスクリプト読み込み（存在チェック付き）
+    function loadSecurityValidation() {
+      if (typeof window.securityUtils === 'undefined') {
+        // security.jsが読み込まれていない場合の基本バリデーション
+        console.log('security.js not loaded, using basic validation');
+        return {
+          detectSensitiveData: function(content) {
+            const basicPatterns = [
+              /\d{3}-?\d{4}-?\d{4}/g, // 電話番号
+              /[^\s]+@[^\s]+\.[^\s]+/g, // メールアドレス
+              /(田中|佐藤|鈴木|高橋|山田|患者)/g // 基本的な個人情報キーワード
+            ];
+            
+            let hasRisk = false;
+            for (const pattern of basicPatterns) {
+              if (pattern.test(content)) {
+                hasRisk = true;
+                break;
+              }
+            }
+            
+            return {
+              hasSensitiveData: hasRisk,
+              riskLevel: hasRisk ? 'medium' : 'safe',
+              detectedItems: []
+            };
+          }
+        };
+      }
+      return window.securityUtils;
+    }
+
+    // フォーム入力時のリアルタイムバリデーション（セキュリティ強化版）
     document.getElementById('contact-message').addEventListener('input', function() {
-      const message = this.value.toLowerCase();
+      const message = this.value;
       const warningDiv = document.getElementById('privacy-warning') || (() => {
         const div = document.createElement('div');
         div.id = 'privacy-warning';
@@ -322,21 +357,57 @@
         return div;
       })();
 
-      // 個人情報らしきキーワードを検出
-      const sensitiveKeywords = ['患者', '田中', '佐藤', '鈴木', '高橋', '電話', 'tel', 'phone', '@', 'gmail', 'yahoo'];
-      const foundKeywords = sensitiveKeywords.filter(keyword => message.includes(keyword));
+      // セキュリティユーティリティを使用して機密情報を検出
+      const securityUtils = loadSecurityValidation();
+      const sensitiveCheck = securityUtils.detectSensitiveData(message);
 
-      if (foundKeywords.length > 0) {
+      if (sensitiveCheck.hasSensitiveData) {
+        const riskColor = sensitiveCheck.riskLevel === 'high' ? '#d32f2f' : 
+                         sensitiveCheck.riskLevel === 'medium' ? '#f57c00' : '#1976d2';
+        
+        let detailsHtml = '';
+        if (sensitiveCheck.detectedItems && sensitiveCheck.detectedItems.length > 0) {
+          detailsHtml = '<ul style="margin: 5px 0; padding-left: 20px;">';
+          sensitiveCheck.detectedItems.forEach(item => {
+            detailsHtml += `<li>${item.type}: ${item.count}件</li>`;
+          });
+          detailsHtml += '</ul>';
+        }
+        
         warningDiv.style.display = 'block';
         warningDiv.innerHTML = `
-          <div style="color: #f44336; background: #ffebee; padding: 10px; border-radius: 4px; margin-top: 10px;">
-            ⚠️ 個人情報や患者情報が含まれている可能性があります。公開されても問題ない内容かご確認ください。
+          <div style="color: ${riskColor}; background: ${riskColor}10; border: 1px solid ${riskColor}; padding: 10px; border-radius: 4px; margin-top: 10px;">
+            ⚠️ <strong>個人情報や機密情報が検出されました</strong><br>
+            リスクレベル: ${sensitiveCheck.riskLevel === 'high' ? '高' : sensitiveCheck.riskLevel === 'medium' ? '中' : '低'}
+            ${detailsHtml}
+            <small style="display: block; margin-top: 5px;">
+              GitHub Issueは公開されます。個人を特定できる情報は削除してください。
+            </small>
           </div>
         `;
       } else {
         warningDiv.style.display = 'none';
       }
     });
+
+    // 送信前の最終バリデーション
+    function validateSensitiveData() {
+      const formData = collectFormData();
+      const allContent = Object.values(formData).join(' ');
+      
+      const securityUtils = loadSecurityValidation();
+      const sensitiveCheck = securityUtils.detectSensitiveData(allContent);
+      
+      if (sensitiveCheck.hasSensitiveData && sensitiveCheck.riskLevel === 'high') {
+        const confirmMessage = `高リスクの個人情報が検出されました。\n\n本当に送信しますか？\n\n検出項目:\n${
+          sensitiveCheck.detectedItems.map(item => `・${item.type}: ${item.count}件`).join('\n')
+        }`;
+        
+        return confirm(confirmMessage);
+      }
+      
+      return true;
+    }
   </script>
 
   <style>

@@ -4,6 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
+  <!-- セキュリティヘッダー -->
+  <meta http-equiv="Content-Security-Policy" 
+        content="default-src 'self'; 
+                 script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com https://pagead2.googlesyndication.com; 
+                 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
+                 font-src 'self' https://fonts.gstatic.com; 
+                 img-src 'self' data: https: blob:; 
+                 connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com wss://*.firebaseio.com; 
+                 frame-src 'self' https://accounts.google.com https://content.googleapis.com;">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+  
   <!-- AdSense審査用メタタグ -->
   <meta name="description" content="日本老年歯科医学会基準に基づく口腔機能低下症の診断・管理ツール。歯科医師・歯科衛生士向けの診断補助アプリケーション。">
   <meta name="keywords" content="口腔機能,歯科,診断,管理,医療従事者,口腔機能低下症,日本老年歯科医学会">
@@ -282,6 +296,7 @@
       assessment: false,
       management: false,
       firebase: false,
+      security: false,
       app: false
     };
     
@@ -344,6 +359,14 @@
     if (typeof managementManager !== 'undefined') {
       window.appInitStatus.management = true;
       console.log('management.js 読み込み完了');
+    }
+  </script>
+  
+  <script src="security.js"></script>
+  <script>
+    if (typeof securityUtils !== 'undefined') {
+      window.appInitStatus.security = true;
+      console.log('security.js 読み込み完了');
     }
   </script>
   
