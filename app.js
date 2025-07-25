@@ -224,7 +224,7 @@ class OralHealthApp {
     // 管理計画書データのCSV
     if (data.managementPlans && data.managementPlans.length > 0) {
       csv += '=== 管理計画書データ ===\n';
-      csv += '計画ID,患者ID,検査ID,作成日,口腔衛生,口腔乾燥,咬合力,舌口唇運動,舌圧,咀嚼機能,嚥下機能,再評価期間\n';
+      csv += '計画ID,患者ID,検査ID,作成日,口腔衛生,口腔乾燥,咬合力,舌口唇運動,舌圧,咀嚼機能,嚥下機能,再評価期間,管理方針・目標・治療予定\n';
       
       data.managementPlans.forEach(plan => {
         const patientId = patientIdMap[plan.patient_id] || plan.patient_id || '';
@@ -240,7 +240,36 @@ class OralHealthApp {
           this.escapeCSV(this.getPlanText(plan.tongue_pressure_plan)),
           this.escapeCSV(this.getPlanText(plan.mastication_plan)),
           this.escapeCSV(this.getPlanText(plan.swallowing_plan)),
-          this.escapeCSV(plan.reevaluation_period?.toString() || '6')
+          this.escapeCSV(plan.reevaluation_period?.toString() || '6'),
+          this.escapeCSV(plan.goals || '')
+        ].join(',') + '\n';
+      });
+      csv += '\n';
+    }
+    
+    // 管理指導記録データのCSV
+    if (data.progressRecords && data.progressRecords.length > 0) {
+      csv += '=== 管理指導記録データ ===\n';
+      csv += '記録ID,患者ID,記録日,栄養評価,口腔衛生評価,口腔乾燥評価,咬合評価,口唇機能評価,舌機能評価,咀嚼機能評価,嚥下機能評価,全身状態所見,口腔機能所見,その他所見,管理内容\n';
+      
+      data.progressRecords.forEach(record => {
+        const patientId = patientIdMap[record.patient_id] || record.patient_id || '';
+        csv += [
+          this.escapeCSV(record.id || ''),
+          this.escapeCSV(patientId),
+          this.escapeCSV(record.record_date || ''),
+          this.escapeCSV(this.getRatingText(record.nutrition_rating)),
+          this.escapeCSV(this.getRatingText(record.hygiene_rating)),
+          this.escapeCSV(this.getRatingText(record.dryness_rating)),
+          this.escapeCSV(this.getRatingText(record.bite_rating)),
+          this.escapeCSV(this.getRatingText(record.lip_rating)),
+          this.escapeCSV(this.getRatingText(record.tongue_rating)),
+          this.escapeCSV(this.getRatingText(record.mastication_rating)),
+          this.escapeCSV(this.getRatingText(record.swallowing_rating)),
+          this.escapeCSV(record.findings_general || ''),
+          this.escapeCSV(record.findings_oral || ''),
+          this.escapeCSV(record.findings_other || ''),
+          this.escapeCSV(record.management_content || '')
         ].join(',') + '\n';
       });
       csv += '\n';
@@ -266,6 +295,16 @@ class OralHealthApp {
       case 2: return '機能維持';
       case 3: return '機能向上';
       default: return '未設定';
+    }
+  }
+  
+  // 評価テキストの変換
+  getRatingText(value) {
+    switch(value) {
+      case 1: return '改善';
+      case 2: return '著変なし';
+      case 3: return '悪化';
+      default: return '未評価';
     }
   }
 
