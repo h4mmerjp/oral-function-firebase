@@ -392,15 +392,18 @@ class PatientManager {
 
       const status = this.getPatientStatus(latestAssessment);
 
+      // HTMLエスケープ処理
+      const escapedName = window.securityUtils ? window.securityUtils.escapeHtml(patient.name) : patient.name;
+      const escapedPatientId = window.securityUtils ? window.securityUtils.escapeHtml(patient.patient_id) : patient.patient_id;
+      const escapedId = window.securityUtils ? window.securityUtils.escapeHtml(patient.id) : patient.id;
+
       html += `
         <div class="patient-card ${
           status.class
-        }" onclick="window.patientManager.selectPatient('${
-        patient.id
-      }')" data-patient-id="${patient.id}">
-          <div class="patient-name">${patient.name}</div>
+        }" onclick="window.patientManager.selectPatient('${escapedId}')" data-patient-id="${escapedId}">
+          <div class="patient-name">${escapedName}</div>
           <div class="patient-info">
-            <div>ID: ${patient.patient_id}</div>
+            <div>ID: ${escapedPatientId}</div>
             <div>年齢: ${age}歳 (${
         patient.gender === "male"
           ? "男性"
@@ -420,12 +423,8 @@ class PatientManager {
       }</div>
           </div>
           <div style="margin-top: 10px;">
-            <button onclick="event.stopPropagation(); window.patientManager.editPatient('${
-              patient.id
-            }')" class="btn-secondary" style="margin: 2px; padding: 5px 10px;">編集</button>
-            <button onclick="event.stopPropagation(); window.patientManager.deletePatient('${
-              patient.id
-            }')" class="btn-danger" style="margin: 2px; padding: 5px 10px;">削除</button>
+            <button onclick="event.stopPropagation(); window.patientManager.editPatient('${escapedId}')" class="btn-secondary" style="margin: 2px; padding: 5px 10px;">編集</button>
+            <button onclick="event.stopPropagation(); window.patientManager.deletePatient('${escapedId}')" class="btn-danger" style="margin: 2px; padding: 5px 10px;">削除</button>
           </div>
         </div>
       `;
@@ -1193,14 +1192,33 @@ class PatientManager {
       const modalAddress = document.getElementById("modal-address");
 
       const patientData = {
-        name: modalPatientName ? modalPatientName.value : "",
-        patient_id: modalPatientId ? modalPatientId.value : "",
-        name_kana: modalPatientKana ? modalPatientKana.value : "",
+        name: modalPatientName ? modalPatientName.value.trim() : "",
+        patient_id: modalPatientId ? modalPatientId.value.trim() : "",
+        name_kana: modalPatientKana ? modalPatientKana.value.trim() : "",
         birthdate: modalBirthdate ? modalBirthdate.value : "",
         gender: modalGender ? modalGender.value : "",
-        phone: modalPhone ? modalPhone.value : "",
-        address: modalAddress ? modalAddress.value : "",
+        phone: modalPhone ? modalPhone.value.trim() : "",
+        address: modalAddress ? modalAddress.value.trim() : "",
       };
+
+      // セキュリティバリデーション
+      if (window.securityUtils) {
+        const validation = window.securityUtils.validatePatientData(patientData);
+        if (!validation.isValid) {
+          alert('入力エラー:\n' + validation.errors.join('\n'));
+          return;
+        }
+        
+        // 機密情報検出チェック
+        const sensitiveCheck = window.securityUtils.detectSensitiveData(
+          Object.values(patientData).join(' ')
+        );
+        if (sensitiveCheck.hasSensitiveData && sensitiveCheck.riskLevel === 'high') {
+          if (!confirm('入力内容に個人情報が含まれている可能性があります。続行しますか？')) {
+            return;
+          }
+        }
+      }
 
       let updatedPatient;
 

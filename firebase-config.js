@@ -86,7 +86,7 @@ class FirebaseManager {
     });
   }
 
-  // 認証状態監視（最小修正版）
+  // 認証状態監視（セキュリティ強化版）
   setupAuthListener() {
     this.auth.onAuthStateChanged(async (user) => {
       console.log(
@@ -96,14 +96,33 @@ class FirebaseManager {
       this.currentUser = user;
 
       if (user) {
+        // セキュリティチェック
+        if (window.securityUtils) {
+          await window.securityUtils.checkAuthTokenExpiry(user);
+          window.securityUtils.logUserAction('user_login', { 
+            email: user.email,
+            uid: user.uid 
+          });
+        }
+
         // 基本コンポーネントの準備を待ってからユーザーログイン処理を実行
         console.log("基本コンポーネントの準備完了を待機中...");
         await this.waitForDatabaseReady();
         await this.onUserLogin(user);
       } else {
+        if (window.securityUtils) {
+          window.securityUtils.logUserAction('user_logout');
+        }
         this.onUserLogout();
       }
     });
+
+    // 定期的な認証トークンチェック（15分間隔）
+    setInterval(async () => {
+      if (this.currentUser && window.securityUtils) {
+        await window.securityUtils.checkAuthTokenExpiry(this.currentUser);
+      }
+    }, 15 * 60 * 1000);
   }
 
   // ユーザーログイン時の処理（最小修正版）
