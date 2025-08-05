@@ -7,6 +7,10 @@
       "maxDuration": 10
     }
   },
+  "public": false,
+  "env": {
+    "VERCEL_PROTECT_BYPASS": "1"
+  },
   "headers": [
     {
       "source": "/api/(.*)",
