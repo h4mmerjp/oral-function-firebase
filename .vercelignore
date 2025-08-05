@@ -1,0 +1,21 @@
+# Vercel ignore file
+# ファイルやフォルダをデプロイから除外
+
+# Development files
+.claude/
+*.local.json
+
+# Git
+.git/
+.gitignore
+
+# Node modules (if any)
+node_modules/
+
+# Logs
+*.log
+logs/
+
+# Environment files (use Vercel dashboard instead)
+.env*
+!.env.example
