@@ -539,13 +539,13 @@ function createManagementPlan() {
 // リリースノート管理クラス
 class ReleaseNotesManager {
   constructor() {
-    this.repositoryUrl = 'https://api.github.com/repos/h4mmerjp/oral-function-firebase';
+    this.apiUrl = '/api/releases'; // 内部APIを使用
     this.cache = null;
     this.cacheTime = null;
     this.cacheExpiry = 30 * 60 * 1000; // 30分
   }
 
-  // GitHubからリリース情報を取得
+  // 内部APIからリリース情報を取得
   async fetchReleases() {
     try {
       // キャッシュチェック
@@ -554,14 +554,15 @@ class ReleaseNotesManager {
         return this.cache;
       }
 
-      console.log('GitHubからリリース情報を取得中...');
-      const response = await fetch(`${this.repositoryUrl}/releases`);
+      console.log('内部APIからリリース情報を取得中...');
+      const response = await fetch(this.apiUrl);
       
       if (!response.ok) {
-        throw new Error(`GitHub API エラー: ${response.status}`);
+        throw new Error(`リリースAPI エラー: ${response.status}`);
       }
       
-      const releases = await response.json();
+      const data = await response.json();
+      const releases = data.releases || [];
       
       // キャッシュ更新
       this.cache = releases;
@@ -572,37 +573,15 @@ class ReleaseNotesManager {
       
     } catch (error) {
       console.error('リリース情報取得エラー:', error);
-      // フォールバック: 最新コミット情報を取得
-      return this.fetchLatestCommits();
+      // フォールバック: デフォルトリリース情報を使用
+      return this.getDefaultReleaseNotes();
     }
   }
 
-  // フォールバック: 最新コミット情報を取得
+  // フォールバック用のデフォルトリリース情報（削除予定）
   async fetchLatestCommits() {
-    try {
-      console.log('最新コミット情報を取得中...');
-      const response = await fetch(`${this.repositoryUrl}/commits?per_page=10`);
-      
-      if (!response.ok) {
-        throw new Error(`GitHub API エラー: ${response.status}`);
-      }
-      
-      const commits = await response.json();
-      
-      // コミット情報をリリース形式に変換
-      return commits.map((commit, index) => ({
-        tag_name: `v${new Date(commit.commit.author.date).toISOString().split('T')[0]}`,
-        name: `更新 ${index === 0 ? '(最新)' : ''}`,
-        body: commit.commit.message,
-        published_at: commit.commit.author.date,
-        html_url: commit.html_url,
-        isCommit: true
-      }));
-      
-    } catch (error) {
-      console.error('コミット情報取得エラー:', error);
-      return this.getDefaultReleaseNotes();
-    }
+    console.log('fetchLatestCommits は非推奨です。getDefaultReleaseNotes() を使用してください。');
+    return this.getDefaultReleaseNotes();
   }
 
   // デフォルトのリリースノート
@@ -625,7 +604,7 @@ class ReleaseNotesManager {
 - レスポンシブデザイン対応
 - PWA対応（オフライン機能）`,
       published_at: new Date().toISOString(),
-      html_url: 'https://github.com/h4mmerjp/oral-function-firebase',
+      // html_url: GitHubへの直接リンクを削除
       isDefault: true
     }];
   }
@@ -658,7 +637,7 @@ class ReleaseNotesManager {
             ${this.formatReleaseBody(release.body || '更新内容の詳細は準備中です')}
           </div>
           
-          ${release.html_url ? `<div style="margin-top: 10px;"><a href="${release.html_url}" target="_blank" style="color: #3498db; text-decoration: none; font-size: 14px;">📖 詳細を見る</a></div>` : ''}
+          <!-- GitHub URLリンクを削除 -->
         </div>
       `;
     });
