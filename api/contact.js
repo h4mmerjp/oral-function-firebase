@@ -36,14 +36,14 @@ export default async function handler(req, res) {
       });
     }
 
-    // セキュリティバリデーション
-    if (window?.securityUtils) {
-      const allContent = Object.values(req.body).join(' ');
-      const sensitiveCheck = window.securityUtils.detectSensitiveData(allContent);
+    // セキュリティバリデーション（サーバーサイド実装）
+    const sensitiveCheck = detectSensitiveDataServer(Object.values(req.body).join(' '));
+    
+    if (sensitiveCheck.hasSensitiveData && sensitiveCheck.riskLevel === 'high') {
+      console.warn('High-risk content detected in contact form:', sensitiveCheck);
       
-      if (sensitiveCheck.hasSensitiveData && sensitiveCheck.riskLevel === 'high') {
-        console.warn('High-risk content detected in contact form:', sensitiveCheck);
-      }
+      // 高リスクコンテンツの場合は警告と共に処理継続
+      // 必要に応じてここで拒否することも可能
     }
 
     // スパム検出（基本的な実装）
@@ -225,6 +225,62 @@ function sanitizeInput(input) {
     .trim()
     .replace(/[<>]/g, '') // 基本的なHTML文字を除去
     .substring(0, 1000); // 最大長制限
+}
+
+// サーバーサイド機密情報検出
+function detectSensitiveDataServer(content) {
+  const sensitivePatterns = [
+    {
+      pattern: /\d{3}-?\d{4}-?\d{4}/g,
+      type: '電話番号'
+    },
+    {
+      pattern: /\b\d{3}-\d{4}\b/g,
+      type: '郵便番号'
+    },
+    {
+      pattern: /[^\s]+@[^\s]+\.[^\s]+/g,
+      type: 'メールアドレス'
+    },
+    {
+      pattern: /P\d{3,}/gi,
+      type: '患者ID'
+    },
+    {
+      pattern: /(田中|佐藤|鈴木|高橋|山田|渡辺|中村|小林|加藤|吉田|山本|山口|松本|池田|清水|斎藤|橋本|大田|鈴木|石川|中島|前田|林|藤田|岡田|長谷川|石井|近藤|後藤|坂本|遠藤|青木|藤井|西村|福田|太田|三浦|岡本|松田|中川|中野|原田|小川|中山|大野|水野|木村|野口|菊地|杉山|新井|宮崎|大塚|小野|島田|丸山|上田|高木|内田|森田|安田|和田|井上|森本|横山|平野|増田|小島|吉川|河野|武田|村上|金子|山崎|今井|藤原|平田|古川|伊藤|橋爪|本田|松井)/g,
+      type: '日本人の一般的な姓'
+    }
+  ];
+
+  const detectedItems = [];
+  
+  for (const { pattern, type } of sensitivePatterns) {
+    const matches = content.match(pattern);
+    if (matches) {
+      detectedItems.push({
+        type: type,
+        matches: matches,
+        count: matches.length
+      });
+    }
+  }
+
+  // リスクレベル計算
+  let riskLevel = 'safe';
+  if (detectedItems.length > 0) {
+    const highRiskTypes = ['電話番号', 'メールアドレス', '患者ID'];
+    const hasHighRisk = detectedItems.some(item => highRiskTypes.includes(item.type));
+    
+    if (hasHighRisk) riskLevel = 'high';
+    else if (detectedItems.length >= 3) riskLevel = 'medium';
+    else riskLevel = 'low';
+  }
+
+  return {
+    hasSensitiveData: detectedItems.length > 0,
+    detectedItems: detectedItems,
+    riskLevel: riskLevel
+  };
 }
 
 // 投稿ID生成

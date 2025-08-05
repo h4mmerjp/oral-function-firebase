@@ -179,7 +179,7 @@
       try {
         const formData = collectFormData();
         
-        // 内部APIに送信
+        // 内部APIに送信（Vercel環境対応）
         const response = await fetch('/api/contact', {
           method: 'POST',
           headers: {

@@ -6,7 +6,9 @@
       "Bash(find:*)",
       "Bash(git push:*)",
       "Bash(git fetch:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git commit:*)",
+      "Bash(vercel env:*)"
     ],
     "deny": []
   }
