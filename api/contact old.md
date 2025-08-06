@@ -287,5 +287,9 @@ riskLevel: riskLevel
 
 // 投稿 ID 生成
 function generateSubmissionId() {
+<<<<<<< HEAD
 return `SUB_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+=======
+  return `SUB_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+>>>>>>> 21e5d9318d386ece858edaec42bfb7ac388ad7d9
 }
