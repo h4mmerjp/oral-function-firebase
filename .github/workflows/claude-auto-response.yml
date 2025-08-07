@@ -17,7 +17,7 @@ jobs:
       id-token: write
 
     steps:
-      # 無限ループ防止のためのチェック
+      # 無限ループ防止のためのチェック（強化版）
       - name: Check if comment is from bot
         id: bot-check
         run: |
@@ -35,12 +35,11 @@ jobs:
           if [ "${{ github.event_name }}" = "issue_comment" ]; then
             COMMENT_AUTHOR="${{ github.event.comment.user.login }}"
             COMMENT_TYPE="${{ github.event.comment.user.type }}"
-            COMMENT_BODY="${{ github.event.comment.body }}"
             
             echo "コメント作成者: $COMMENT_AUTHOR"
             echo "ユーザータイプ: $COMMENT_TYPE"
             
-            # Botからのコメントかチェック
+            # Botからのコメントかチェック（より厳密に）
             if [ "$COMMENT_TYPE" = "Bot" ]; then
               echo "is_bot=true" >> $GITHUB_OUTPUT
               echo "should_process=false" >> $GITHUB_OUTPUT
@@ -56,19 +55,11 @@ jobs:
               exit 0
             fi
             
-            # 自動生成コメントかチェック（コメント内容で判定）
-            if echo "$COMMENT_BODY" | grep -q "この応答は自動生成されています"; then
+            # Claude Code Actionのコメントかチェック（ユーザー名パターン）
+            if echo "$COMMENT_AUTHOR" | grep -qi "claude"; then
               echo "is_bot=true" >> $GITHUB_OUTPUT
               echo "should_process=false" >> $GITHUB_OUTPUT
-              echo "自動生成コメント - 処理をスキップ"
-              exit 0
-            fi
-            
-            # Claude関連のキーワードがある場合もスキップ
-            if echo "$COMMENT_BODY" | grep -qi "claude\|auto.*response\|自動.*応答"; then
-              echo "is_bot=true" >> $GITHUB_OUTPUT
-              echo "should_process=false" >> $GITHUB_OUTPUT
-              echo "自動応答系コメント - 処理をスキップ"
+              echo "Claudeボットからのコメント - 処理をスキップ"
               exit 0
             fi
             
@@ -125,11 +116,15 @@ jobs:
           echo "event_type=${EVENT_TYPE}" >> $GITHUB_OUTPUT
 
           # Issue本文を一時ファイルに保存（特殊文字対応）
-          echo "${ISSUE_BODY}" > issue_body.txt
+          cat > issue_body.txt << 'ISSUE_BODY_EOF'
+${{ github.event.issue.body }}
+ISSUE_BODY_EOF
 
           # コメントがある場合は保存
           if [ -n "${COMMENT_BODY:-}" ]; then
-            echo "${COMMENT_BODY}" > comment_body.txt
+            cat > comment_body.txt << 'COMMENT_BODY_EOF'
+${{ github.event.comment.body }}
+COMMENT_BODY_EOF
             echo "has_comment=true" >> $GITHUB_OUTPUT
             echo "comment_author=${COMMENT_AUTHOR}" >> $GITHUB_OUTPUT
           else
@@ -147,10 +142,16 @@ jobs:
           TITLE="${{ steps.parse-issue.outputs.issue_title }}"
           LABELS="${{ steps.parse-issue.outputs.issue_labels }}"
           EVENT_TYPE="${{ steps.parse-issue.outputs.event_type }}"
-          BODY=$(cat issue_body.txt)
+          
+          # ファイルから内容を読み込み
+          if [ -f issue_body.txt ]; then
+            BODY=$(cat issue_body.txt)
+          else
+            BODY=""
+          fi
 
           # コメントがある場合は追加コンテキストとして使用
-          if [ "${{ steps.parse-issue.outputs.has_comment }}" = "true" ]; then
+          if [ "${{ steps.parse-issue.outputs.has_comment }}" = "true" ] && [ -f comment_body.txt ]; then
             COMMENT_BODY=$(cat comment_body.txt)
             BODY="${BODY}\n\n=== 追加コメント ===\n${COMMENT_BODY}"
           fi
@@ -222,33 +223,32 @@ jobs:
             CONTEXT_NOTE="新しくIssueが投稿されました。詳細な技術分析を行ってください。"
           fi
 
-          # プロンプトテンプレートを作成
-          cat > claude_prompt_template.txt << 'TEMPLATE_EOF'
-          # 口腔機能低下症診断・管理アプリ - ${PROMPT_PREFIX}
+          # プロンプトを作成
+          cat > claude_prompt.txt << 'PROMPT_EOF'
+# 口腔機能低下症診断・管理アプリ - 技術サポート分析
 
-          ## 担当AI
-          あなたは口腔機能低下症診断・管理アプリの上級技術サポートAIです。
+## 担当AI
+あなたは口腔機能低下症診断・管理アプリの上級技術サポートAIです。
 
-          ${CONTEXT_NOTE}
+## 問い合わせ情報
+PROMPT_EOF
 
-          ## 問い合わせ情報
-          - **Issue番号**: #${ISSUE_NUMBER}
-          - **イベントタイプ**: ${EVENT_TYPE}
-          - **カテゴリ**: ${CATEGORY}
-          - **優先度**: ${PRIORITY}
-          - **報告者**: ${ISSUE_AUTHOR}
-          - **タイトル**: ${ISSUE_TITLE}
-
-          ### 詳細内容
-          TEMPLATE_EOF
-
-          # 変数置換してプロンプトを作成
-          envsubst < claude_prompt_template.txt > claude_prompt.txt
+          # 変数を追加
+          echo "- **Issue番号**: #${ISSUE_NUMBER}" >> claude_prompt.txt
+          echo "- **イベントタイプ**: ${EVENT_TYPE}" >> claude_prompt.txt
+          echo "- **カテゴリ**: ${CATEGORY}" >> claude_prompt.txt
+          echo "- **優先度**: ${PRIORITY}" >> claude_prompt.txt
+          echo "- **報告者**: ${ISSUE_AUTHOR}" >> claude_prompt.txt
+          echo "- **タイトル**: ${ISSUE_TITLE}" >> claude_prompt.txt
+          echo "" >> claude_prompt.txt
+          echo "### 詳細内容" >> claude_prompt.txt
 
           # Issue本文を追加
-          cat issue_body.txt >> claude_prompt.txt
+          if [ -f issue_body.txt ]; then
+            cat issue_body.txt >> claude_prompt.txt
+          fi
 
-          if [ "${{ steps.parse-issue.outputs.has_comment }}" = "true" ]; then
+          if [ "${{ steps.parse-issue.outputs.has_comment }}" = "true" ] && [ -f comment_body.txt ]; then
             echo "" >> claude_prompt.txt
             echo "### 追加コメント" >> claude_prompt.txt
             echo "- **コメント者**: ${{ steps.parse-issue.outputs.comment_author }}" >> claude_prompt.txt
@@ -258,26 +258,26 @@ jobs:
           # 技術情報と指示を追加
           cat >> claude_prompt.txt << 'INSTRUCTIONS_EOF'
 
-          ## アプリ技術情報
-          - **フロントエンド**: HTML5, CSS3, JavaScript (ES6+)
-          - **データベース**: Firebase Firestore + ローカルストレージ
-          - **認証**: Google OAuth 2.0 (Firebase Authentication)
-          - **UI**: レスポンシブデザイン
-          - **対応ブラウザ**: Chrome, Firefox, Safari, Edge (最新版)
+## アプリ技術情報
+- **フロントエンド**: HTML5, CSS3, JavaScript (ES6+)
+- **データベース**: Firebase Firestore + ローカルストレージ
+- **認証**: Google OAuth 2.0 (Firebase Authentication)
+- **UI**: レスポンシブデザイン
+- **対応ブラウザ**: Chrome, Firefox, Safari, Edge (最新版)
 
-          ## 指示
-          以下の形式で包括的な技術サポート応答を生成してください：
+## 指示
+以下の形式で包括的な技術サポート応答を生成してください：
 
-          1. **問題分析**: 技術的な原因と影響範囲
-          2. **即座の対応手順**: 3つの具体的なステップ
-          3. **技術的解決策**: 詳細な解決方法
-          4. **テスト手順**: 検証方法
-          5. **再発防止策**: 今後の予防策
+1. **問題分析**: 技術的な原因と影響範囲
+2. **即座の対応手順**: 3つの具体的なステップ
+3. **技術的解決策**: 詳細な解決方法
+4. **テスト手順**: 検証方法
+5. **再発防止策**: 今後の予防策
 
-          医療従事者向けアプリのため、データの安全性とプライバシー保護を最優先に考慮してください。
+医療従事者向けアプリのため、データの安全性とプライバシー保護を最優先に考慮してください。
 
-          ⚠️ 重要：この応答は自動生成であることを明記し、「この応答は自動生成されています」という文言を必ず含めてください。
-          INSTRUCTIONS_EOF
+⚠️ 重要：この応答は自動生成であることを明記し、「この応答は自動生成されています」という文言を必ず含めてください。
+INSTRUCTIONS_EOF
 
           # プロンプトをGITHUB_OUTPUT用に準備
           {
@@ -353,37 +353,42 @@ jobs:
               ;;
           esac
 
-          # フォールバック応答テンプレートを作成
-          cat > fallback_template.txt << 'FALLBACK_EOF'
-          ## ${EMOJI} ${TITLE}
+          # フォールバック応答を作成
+          cat > fallback_response.md << 'FALLBACK_EOF'
+## ${EMOJI} ${TITLE}
 
-          ${ISSUE_AUTHOR}さん、${GREETING}
+${ISSUE_AUTHOR}さん、${GREETING}
 
-          ${ACTION_MESSAGE}
+${ACTION_MESSAGE}
 
-          **優先度**: ${PRIORITY_BADGE} | **予想対応時間**: 24時間以内
+**優先度**: ${PRIORITY_BADGE} | **予想対応時間**: 24時間以内
 
-          ---
+---
 
-          ### 🔍 自動分析結果
+### 🔍 自動分析結果
 
-          お問い合わせ内容を確認いたしました。技術サポートチームが詳細分析を実施し、適切な解決策をご提案いたします。
+お問い合わせ内容を確認いたしました。技術サポートチームが詳細分析を実施し、適切な解決策をご提案いたします。
 
-          ### 🚀 即座の対応手順
+### 🚀 即座の対応手順
 
-          問題の詳細を確認するため、以下をお試しください：
+問題の詳細を確認するため、以下をお試しください：
 
-          1. **ブラウザの再読み込み**: Ctrl+F5（Windows）またはCmd+Shift+R（Mac）で強制更新
-          2. **開発者ツールでエラー確認**: F12キーを押してConsoleタブでエラーメッセージを確認
-          3. **別ブラウザでの検証**: Chrome、Firefox、Safariなど別のブラウザで同様の問題が発生するか確認
+1. **ブラウザの再読み込み**: Ctrl+F5（Windows）またはCmd+Shift+R（Mac）で強制更新
+2. **開発者ツールでエラー確認**: F12キーを押してConsoleタブでエラーメッセージを確認
+3. **別ブラウザでの検証**: Chrome、Firefox、Safariなど別のブラウザで同様の問題が発生するか確認
 
-          ---
+---
 
-          <sub>⚠️ この応答は自動生成されています。技術サポートチームが詳細分析を行い、24時間以内に追加回答いたします。</sub>
-          FALLBACK_EOF
+<sub>⚠️ この応答は自動生成されています。技術サポートチームが詳細分析を行い、24時間以内に追加回答いたします。</sub>
+FALLBACK_EOF
 
-          # 変数置換してフォールバック応答を作成
-          envsubst < fallback_template.txt > fallback_response.md
+          # 変数を置換
+          sed -i "s/\${EMOJI}/${EMOJI}/g" fallback_response.md
+          sed -i "s/\${TITLE}/${TITLE}/g" fallback_response.md
+          sed -i "s/\${ISSUE_AUTHOR}/${ISSUE_AUTHOR}/g" fallback_response.md
+          sed -i "s/\${GREETING}/${GREETING}/g" fallback_response.md
+          sed -i "s/\${ACTION_MESSAGE}/${ACTION_MESSAGE}/g" fallback_response.md
+          sed -i "s/\${PRIORITY_BADGE}/${PRIORITY_BADGE}/g" fallback_response.md
 
           echo "response_file=fallback_response.md" >> $GITHUB_OUTPUT
           echo "フォールバック応答作成完了"
@@ -413,8 +418,8 @@ jobs:
 
           # Claude応答をファイルに保存（GitHub Actionsの出力を直接使用）
           cat > claude_response.txt << 'CLAUDE_EOF'
-          ${{ steps.claude-analysis.outputs.response }}
-          CLAUDE_EOF
+${{ steps.claude-analysis.outputs.response }}
+CLAUDE_EOF
 
           # 応答が空でないかチェック
           if [ -s claude_response.txt ]; then
@@ -549,7 +554,7 @@ jobs:
         if: always()
         run: |
           echo "=== クリーンアップ ==="
-          rm -f issue_body.txt comment_body.txt claude_prompt.txt claude_prompt_template.txt
-          rm -f fallback_response.md final_response.md temp_response.md fallback_template.txt
-          rm -f claude_response.md
+          rm -f issue_body.txt comment_body.txt claude_prompt.txt
+          rm -f fallback_response.md final_response.md temp_response.md
+          rm -f claude_response.txt
           echo "一時ファイル削除完了"
