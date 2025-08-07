@@ -19,9 +19,9 @@ class FirebaseManager {
         return false;
       }
 
-      // Firebase設定
+      // Firebase設定（環境変数から取得）
       const firebaseConfig = {
-        apiKey: "AIzaSyC8_B2eo47C2plYkGPq_ek6VaD113tNEBk",
+        apiKey: window.FIREBASE_API_KEY || "AIzaSyC8_B2eo47C2plYkGPq_ek6VaD113tNEBk",
         authDomain: "oral-health-diagnosis-ap-b3592.firebaseapp.com",
         projectId: "oral-health-diagnosis-ap-b3592",
         storageBucket: "oral-health-diagnosis-ap-b3592.firebasestorage.app",
@@ -29,6 +29,11 @@ class FirebaseManager {
         appId: "1:338073541462:web:f48f281cf84710ce7794f7",
         measurementId: "G-XLQ1FVCHN5",
       };
+
+      // 本番環境での追加セキュリティチェック
+      if (location.hostname !== 'localhost' && location.protocol !== 'https:') {
+        throw new Error('HTTPS接続が必要です');
+      }
 
       // Firebase初期化
       if (!firebase.apps.length) {
@@ -89,9 +94,10 @@ class FirebaseManager {
   // 認証状態監視（セキュリティ強化版）
   setupAuthListener() {
     this.auth.onAuthStateChanged(async (user) => {
+      // セキュリティ: ログでのメールアドレス出力を制限
       console.log(
         "認証状態変更:",
-        user ? `ログイン: ${user.email}` : "ログアウト"
+        user ? `ログイン済み` : "未ログイン"
       );
       this.currentUser = user;
 

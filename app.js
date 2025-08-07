@@ -1,6 +1,7 @@
 // メインアプリケーションクラス
 class OralHealthApp {
   constructor() {
+    this.domCache = new Map(); // DOMクエリキャッシュ
     this.init();
   }
 
@@ -16,6 +17,15 @@ class OralHealthApp {
     this.loadInitialData();
     
     console.log('口腔機能低下症診断・管理アプリが開始されました');
+  }
+
+  // DOM要素取得（キャッシュ付き）
+  getElement(id) {
+    if (!this.domCache.has(id)) {
+      const element = document.getElementById(id);
+      if (element) this.domCache.set(id, element);
+    }
+    return this.domCache.get(id);
   }
 
   // イベントリスナーの設定
@@ -49,8 +59,45 @@ class OralHealthApp {
     try {
       await patientManager.loadPatients();
     } catch (error) {
-      console.error('初期データ読み込みエラー:', error);
+      this.logError('初期データ読み込みエラー', error);
+      this.showErrorMessage('アプリケーションの初期化中にエラーが発生しました。');
     }
+  }
+
+  // エラーメッセージ表示（XSS対策付き）
+  showErrorMessage(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background-color: #e74c3c;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 4px;
+      z-index: 9999;
+      max-width: 300px;
+    `;
+    // XSS対策: textContentを使用してHTMLをエスケープ
+    errorDiv.textContent = this.sanitizeText(message);
+    
+    document.body.appendChild(errorDiv);
+    setTimeout(() => errorDiv.remove(), 5000);
+  }
+
+  // テキストサニタイズ（XSS対策）
+  sanitizeText(text) {
+    if (window.securityUtils) {
+      return window.securityUtils.escapeHtml(text);
+    }
+    // フォールバック: 基本的なエスケープ
+    return String(text)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   }
 
   // タブ切り替え機能
@@ -247,6 +294,24 @@ class OralHealthApp {
     }
     
     return csv;
+  }
+
+  // デバッグモード判定
+  isDebugMode() {
+    return localStorage.getItem('debug') === 'true' || location.hostname === 'localhost';
+  }
+
+  // ログ出力メソッド
+  logDebug(message, data = null) {
+    if (this.isDebugMode()) {
+      if (data) console.log(message, data);
+      else console.log(message);
+    }
+  }
+
+  logError(message, error = null) {
+    if (error) console.error(message, error);
+    else console.error(message);
   }
   
   // CSV用の文字列エスケープ
