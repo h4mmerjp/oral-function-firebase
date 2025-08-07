@@ -1,4 +1,4 @@
-name: 🐛 不具合報告
+name:  不具合報告
 description: アプリの不具合を報告する
 title: "[Bug] "
 labels: ["bug"]
@@ -58,7 +58,7 @@ body:
 ---
 
 # .github/ISSUE_TEMPLATE/feature_request.yml
-name: ✨ 機能要望
+name:  機能要望
 description: 新機能や改善の提案
 title: "[Feature] "
 labels: ["enhancement"]
@@ -112,7 +112,7 @@ body:
 ---
 
 # .github/ISSUE_TEMPLATE/question.yml
-name: ❓ 質問・使い方
+name:  質問・使い方
 description: アプリの使い方について質問する
 title: "[Question] "
 labels: ["question"]
@@ -164,6 +164,6 @@ body:
 # .github/ISSUE_TEMPLATE/config.yml
 blank_issues_enabled: false
 contact_links:
-  - name: 📋 お問い合わせフォーム
+  - name:  お問い合わせフォーム
     url: https://oral-function-firebase.vercel.app/contact.html
     about: WebフォームからGitHub Issueを作成
