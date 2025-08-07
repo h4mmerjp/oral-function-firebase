@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>お問い合わせ - 口腔機能低下症診断・管理アプリ</title>
   <link rel="stylesheet" href="styles.css">
+  <script src="security.js"></script>
 </head>
 <body>
   <div class="container">
@@ -19,10 +20,10 @@
       
       <p>口腔機能低下症診断・管理アプリに関するご質問・ご要望・不具合報告等がございましたら、以下のフォームからお気軽にお問い合わせください。</p>
 
-      <div class="info-box" style="background: #e3f2fd; border: 1px solid #2196f3; padding: 15px; border-radius: 4px; margin: 20px 0;">
-        <h4>📋 透明性の高いサポート</h4>
-        <p>お問い合わせ内容はGitHubのIssueとして公開され、開発の透明性を保ちます。同様の問題を抱える他のユーザーにも役立ちます。</p>
-        <p><strong>個人情報や患者情報は入力しないでください。</strong></p>
+      <div class="info-box" style="background: #e8f5e8; border: 1px solid #4caf50; padding: 15px; border-radius: 4px; margin: 20px 0;">
+        <h4>🔒 プライベートサポート</h4>
+        <p>お問い合わせは技術サポートチームが内部で管理し、プライバシーを保護します。GitHubアカウントは不要です。</p>
+        <p><strong>24時間以内に自動応答システムがお答えします。</strong></p>
       </div>
 
       <h3>📝 お問い合わせフォーム</h3>
@@ -31,28 +32,29 @@
           <div class="form-group">
             <label for="contact-name">お名前（ニックネーム可） *</label>
             <input type="text" id="contact-name" required placeholder="例：田中先生、歯科医師A、など">
-            <small style="color: #666;">※ GitHubで公開されます。ニックネームでも構いません。</small>
+            <small style="color: #666;">※ 技術サポートチーム内でのみ使用されます。</small>
           </div>
           
           <div class="form-group">
             <label for="contact-email">メールアドレス（任意）</label>
             <input type="email" id="contact-email" placeholder="返信が必要な場合のみご入力ください">
-            <small style="color: #666;">※ 入力した場合、GitHub Issue内で公開されます。</small>
+            <small style="color: #666;">※ 追加情報が必要な場合の連絡先です。安全に保護されます。</small>
           </div>
           
           <div class="form-group">
             <label for="contact-category">お問い合わせ種別 *</label>
             <select id="contact-category" required>
               <option value="">選択してください</option>
-              <option value="bug">🐛 不具合報告</option>
-              <option value="feature">✨ 機能要望</option>
-              <option value="question">❓ 使い方について</option>
-              <option value="account">🔐 アカウント・ログイン</option>
-              <option value="performance">⚡ パフォーマンス・速度</option>
-              <option value="ui">🎨 UI・デザイン</option>
-              <option value="compatibility">📱 ブラウザ・デバイス対応</option>
-              <option value="documentation">📚 ドキュメント・ヘルプ</option>
-              <option value="other">🔧 その他</option>
+              <option value="bug">不具合報告</option>
+              <option value="feature">機能要望</option>
+              <option value="question">使い方について</option>
+              <option value="account">アカウント・ログイン</option>
+              <option value="performance">パフォーマンス・速度</option>
+              <option value="ui">UI・デザイン</option>
+              <option value="compatibility">ブラウザ・デバイス対応</option>
+              <option value="documentation">ドキュメント・ヘルプ</option>
+              <option value="security">セキュリティ</option>
+              <option value="other">その他</option>
             </select>
           </div>
           
@@ -88,13 +90,13 @@
 
           <div class="form-group">
             <label class="checkbox-item">
-              <input type="checkbox" id="public-agreement" required>
-              <span>内容がGitHub Issueとして公開されることに同意します</span>
+              <input type="checkbox" id="terms-agreement" required>
+              <span>お問い合わせ内容の処理と技術サポートでの使用に同意します</span>
             </label>
           </div>
           
           <div class="form-group">
-            <button type="button" onclick="submitToGitHub()" class="btn-success">GitHubに送信</button>
+            <button type="button" onclick="submitContact()" class="btn-success">お問い合わせを送信</button>
             <button type="button" onclick="resetForm()" class="btn-secondary">リセット</button>
           </div>
 
@@ -103,12 +105,10 @@
         </form>
       </div>
 
-      <h3>🔍 既存の問題・要望を確認</h3>
-      <p>同様の問題が既に報告されている可能性があります。まず以下をご確認ください：</p>
-      <div style="text-align: center; margin: 20px 0;">
-        <a href="https://github.com/h4mmerjp/oral-function-firebase/issues" target="_blank" class="btn-secondary">
-          📋 GitHub Issues を確認する
-        </a>
+      <h3>🔍 既存の問題・要望について</h3>
+      <p>技術サポートチームが過去のお問い合わせを参照し、重複した問題の効率的な解決に努めています。</p>
+      <div style="background: #f0f7ff; padding: 15px; border-radius: 4px; margin: 15px 0;">
+        <p><strong>💡 お知らせ:</strong> よくあるご質問の充実と、24時間自動応答システムにより迅速な対応を実現しています。</p>
       </div>
 
       <h3>❓ よくあるご質問</h3>
@@ -160,63 +160,80 @@
   </div>
 
   <script>
-    // GitHub Issue作成API呼び出し
-    async function submitToGitHub() {
+    // プライベートお問い合わせAPI呼び出し
+    async function submitContact() {
       // バリデーション
       if (!validateForm()) return;
       
       // セキュリティバリデーション
       if (!validateSensitiveData()) return;
 
-      const submitButton = document.querySelector('button[onclick="submitToGitHub()"]');
+      const submitButton = document.querySelector('button[onclick="submitContact()"]');
       const statusDiv = document.getElementById('submission-status');
       
       // 送信状態表示
       submitButton.disabled = true;
       submitButton.textContent = '送信中...';
       statusDiv.style.display = 'block';
-      statusDiv.innerHTML = '<div style="color: #2196f3;">📤 GitHub Issueを作成中...</div>';
+      statusDiv.innerHTML = '<div style="color: #2196f3;">📤 お問い合わせを送信中...</div>';
 
       try {
         const formData = collectFormData();
-        const issueBody = formatIssueBody(formData);
         
-        // GitHub Issues URLを生成（新しいIssue作成画面）
-        const repoUrl = 'https://github.com/h4mmerjp/oral-function-firebase';
-        const issueUrl = `${repoUrl}/issues/new?` + new URLSearchParams({
-          title: formData.title,
-          body: issueBody,
-          labels: getCategoryLabel(formData.category)
+        // 内部APIに送信（Vercel環境対応）
+        const response = await fetch('/api/contact', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData)
         });
 
-        // 新しいタブでGitHub Issue作成画面を開く
-        window.open(issueUrl, '_blank');
-        
-        // 成功メッセージ
-        statusDiv.innerHTML = `
-          <div style="color: #4caf50; background: #e8f5e8; padding: 15px; border-radius: 4px;">
-            <h4>✅ 送信準備完了</h4>
-            <p>GitHub Issueの作成画面が開きました。内容を確認して「Submit new issue」ボタンを押してください。</p>
-            <p><a href="${repoUrl}/issues" target="_blank">📋 Issue一覧を見る</a></p>
-          </div>
-        `;
-        
-        // フォームをリセット
-        setTimeout(() => {
-          resetForm();
-        }, 3000);
+        const result = await response.json();
+
+        if (response.ok) {
+          // 成功メッセージ
+          statusDiv.innerHTML = `
+            <div style="color: #4caf50; background: #e8f5e8; padding: 15px; border-radius: 4px;">
+              <h4>✅ 送信完了</h4>
+              <p>${result.message}</p>
+              <div style="margin: 10px 0; padding: 10px; background: #f0f7ff; border-radius: 4px;">
+                <strong>📋 受付詳細:</strong><br>
+                <small>
+                  • 投稿ID: <code>${result.details.submissionId}</code><br>
+                  • カテゴリー: ${result.details.category}<br>
+                  • 予想応答時間: ${result.details.estimatedResponseTime}
+                </small>
+              </div>
+              <p><strong>次のステップ:</strong></p>
+              <ul style="margin: 5px 0; padding-left: 20px;">
+                ${result.details.nextSteps.map(step => `<li>${step}</li>`).join('')}
+              </ul>
+            </div>
+          `;
+          
+          // フォームをリセット
+          setTimeout(() => {
+            resetForm();
+          }, 5000);
+
+        } else {
+          throw new Error(result.message || 'サーバーエラーが発生しました');
+        }
 
       } catch (error) {
-        console.error('Issue作成エラー:', error);
+        console.error('送信エラー:', error);
         statusDiv.innerHTML = `
           <div style="color: #f44336; background: #ffebee; padding: 15px; border-radius: 4px;">
             <h4>❌ 送信に失敗しました</h4>
-            <p>お手数ですが、<a href="https://github.com/h4mmerjp/oral-function-firebase/issues/new" target="_blank">GitHub Issues</a>から直接ご報告ください。</p>
+            <p>${error.message}</p>
+            <p>お手数ですが、しばらく時間をおいてから再度お試しください。</p>
+            <p>問題が続く場合は、ブラウザのコンソールログをご確認いただき、システム管理者にお知らせください。</p>
           </div>
         `;
       } finally {
         submitButton.disabled = false;
-        submitButton.textContent = 'GitHubに送信';
+        submitButton.textContent = 'お問い合わせを送信';
       }
     }
 
@@ -226,15 +243,15 @@
       const title = document.getElementById('contact-title').value.trim();
       const message = document.getElementById('contact-message').value.trim();
       const privacyAgreed = document.getElementById('privacy-agreement').checked;
-      const publicAgreed = document.getElementById('public-agreement').checked;
+      const termsAgreed = document.getElementById('terms-agreement').checked;
 
       if (!name || !category || !title || !message) {
         alert('必須項目をすべて入力してください。');
         return false;
       }
 
-      if (!privacyAgreed || !publicAgreed) {
-        alert('プライバシーと公開に関する確認事項にチェックを入れてください。');
+      if (!privacyAgreed || !termsAgreed) {
+        alert('プライバシーと利用規約の確認事項にチェックを入れてください。');
         return false;
       }
 
