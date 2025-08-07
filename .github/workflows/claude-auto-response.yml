@@ -116,15 +116,15 @@ jobs:
           echo "event_type=${EVENT_TYPE}" >> $GITHUB_OUTPUT
 
           # Issue本文を一時ファイルに保存（特殊文字対応）
-          cat > issue_body.txt << 'ISSUE_BODY_EOF'
+          cat > issue_body.txt << 'EOF'
 ${{ github.event.issue.body }}
-ISSUE_BODY_EOF
+EOF
 
           # コメントがある場合は保存
           if [ -n "${COMMENT_BODY:-}" ]; then
-            cat > comment_body.txt << 'COMMENT_BODY_EOF'
+            cat > comment_body.txt << 'EOF'
 ${{ github.event.comment.body }}
-COMMENT_BODY_EOF
+EOF
             echo "has_comment=true" >> $GITHUB_OUTPUT
             echo "comment_author=${COMMENT_AUTHOR}" >> $GITHUB_OUTPUT
           else
@@ -224,14 +224,14 @@ COMMENT_BODY_EOF
           fi
 
           # プロンプトを作成
-          cat > claude_prompt.txt << 'PROMPT_EOF'
+          cat > claude_prompt.txt << 'EOF'
 # 口腔機能低下症診断・管理アプリ - 技術サポート分析
 
 ## 担当AI
 あなたは口腔機能低下症診断・管理アプリの上級技術サポートAIです。
 
 ## 問い合わせ情報
-PROMPT_EOF
+EOF
 
           # 変数を追加
           echo "- **Issue番号**: #${ISSUE_NUMBER}" >> claude_prompt.txt
@@ -256,7 +256,7 @@ PROMPT_EOF
           fi
 
           # 技術情報と指示を追加
-          cat >> claude_prompt.txt << 'INSTRUCTIONS_EOF'
+          cat >> claude_prompt.txt << 'EOF'
 
 ## アプリ技術情報
 - **フロントエンド**: HTML5, CSS3, JavaScript (ES6+)
@@ -277,13 +277,13 @@ PROMPT_EOF
 医療従事者向けアプリのため、データの安全性とプライバシー保護を最優先に考慮してください。
 
 ⚠️ 重要：この応答は自動生成であることを明記し、「この応答は自動生成されています」という文言を必ず含めてください。
-INSTRUCTIONS_EOF
+EOF
 
           # プロンプトをGITHUB_OUTPUT用に準備
           {
-            echo 'claude_prompt<<PROMPT_EOF'
+            echo 'claude_prompt<<EOF'
             cat claude_prompt.txt
-            echo 'PROMPT_EOF'
+            echo 'EOF'
           } >> $GITHUB_OUTPUT
 
           echo "Claude分析プロンプト作成完了 (イベント: ${EVENT_TYPE})"
@@ -354,7 +354,7 @@ INSTRUCTIONS_EOF
           esac
 
           # フォールバック応答を作成
-          cat > fallback_response.md << 'FALLBACK_EOF'
+          cat > fallback_response.md << 'EOF'
 ## ${EMOJI} ${TITLE}
 
 ${ISSUE_AUTHOR}さん、${GREETING}
@@ -380,7 +380,7 @@ ${ACTION_MESSAGE}
 ---
 
 <sub>⚠️ この応答は自動生成されています。技術サポートチームが詳細分析を行い、24時間以内に追加回答いたします。</sub>
-FALLBACK_EOF
+EOF
 
           # 変数を置換
           sed -i "s/\${EMOJI}/${EMOJI}/g" fallback_response.md
@@ -417,9 +417,9 @@ FALLBACK_EOF
           echo "=== Claude応答保存 ==="
 
           # Claude応答をファイルに保存（GitHub Actionsの出力を直接使用）
-          cat > claude_response.txt << 'CLAUDE_EOF'
+          cat > claude_response.txt << 'EOF'
 ${{ steps.claude-analysis.outputs.response }}
-CLAUDE_EOF
+EOF
 
           # 応答が空でないかチェック
           if [ -s claude_response.txt ]; then
