@@ -15,6 +15,8 @@ jobs:
       issues: write
       pull-requests: write
       id-token: write
+      actions: write
+      metadata: read
 
     steps:
       # 無限ループ防止のためのチェック（強化版）
@@ -82,6 +84,29 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # GitHub Token の検証ステップを追加
+      - name: Verify GitHub Token
+        if: steps.bot-check.outputs.should_process == 'true'
+        id: verify-token
+        run: |
+          echo "=== GitHub Token 検証 ==="
+          
+          # GITHUB_TOKENの権限をテスト
+          REPO_CHECK=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "${{ github.api_url }}/repos/${{ github.repository }}")
+          
+          echo "リポジトリアクセステスト: HTTP $REPO_CHECK"
+          
+          if [ "$REPO_CHECK" = "200" ]; then
+            echo "github_token_valid=true" >> $GITHUB_OUTPUT
+            echo "✅ GitHub Token 検証成功"
+          else
+            echo "github_token_valid=false" >> $GITHUB_OUTPUT
+            echo "❌ GitHub Token 検証失敗"
+          fi
 
       - name: Parse Issue Information
         if: steps.bot-check.outputs.should_process == 'true'
@@ -163,7 +188,6 @@ EOF
           # イベントタイプによる優先度調整
           if [ "$EVENT_TYPE" = "comment_created" ]; then
             echo "コメント追加による再分析"
-            # コメントの場合は緊急度を少し下げる
             PRIORITY="low"
           fi
 
@@ -265,6 +289,15 @@ EOF
 - **UI**: レスポンシブデザイン
 - **対応ブラウザ**: Chrome, Firefox, Safari, Edge (最新版)
 
+## 主要機能とファイル構成
+- **患者管理**: patients.js
+- **検査機能**: assessment.js
+- **管理計画**: management.js
+- **データベース**: database.js (Firebase版)
+- **認証**: firebase-config.js
+- **メイン**: app.js, index.html
+- **スタイル**: styles.css
+
 ## 指示
 以下の形式で包括的な技術サポート応答を生成してください：
 
@@ -289,15 +322,23 @@ EOF
           echo "Claude分析プロンプト作成完了 (イベント: ${EVENT_TYPE})"
 
       - name: Run Claude Code Analysis
-        if: steps.bot-check.outputs.should_process == 'true'
+        if: steps.bot-check.outputs.should_process == 'true' && steps.verify-token.outputs.github_token_valid == 'true'
         continue-on-error: true
         uses: anthropics/claude-code-action@beta
         id: claude-analysis
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           direct_prompt: ${{ steps.create-prompt.outputs.claude_prompt }}
           trigger_phrase: ".*"
           custom_instructions: "Issue #${{ steps.parse-issue.outputs.issue_number }}の技術サポート分析を実行してください。必ず「この応答は自動生成されています」という文言を含めてください。"
+          mode: tag
+          branch_prefix: claude/
+          use_bedrock: false
+          use_vertex: false
+          timeout_minutes: 10
+          use_sticky_comment: false
+          use_commit_signing: false
 
       - name: Create Fallback Response
         if: steps.bot-check.outputs.should_process == 'true'
@@ -309,6 +350,14 @@ EOF
           PRIORITY="${{ steps.categorize.outputs.priority }}"
           ISSUE_AUTHOR="${{ steps.parse-issue.outputs.issue_author }}"
           EVENT_TYPE="${{ steps.parse-issue.outputs.event_type }}"
+          TOKEN_VALID="${{ steps.verify-token.outputs.github_token_valid }}"
+
+          # トークン問題がある場合の特別対応
+          if [ "$TOKEN_VALID" = "false" ]; then
+            TECHNICAL_NOTE="現在、自動分析システムにアクセス権限の問題が発生しています。手動で詳細分析を実施いたします。"
+          else
+            TECHNICAL_NOTE="技術サポートチームが詳細分析を実施し、適切な解決策をご提案いたします。"
+          fi
 
           # イベントタイプに応じたメッセージ調整
           if [ "$EVENT_TYPE" = "comment_created" ]; then
@@ -354,7 +403,7 @@ EOF
           esac
 
           # フォールバック応答を作成
-          cat > fallback_response.md << 'EOF'
+          cat > fallback_response.md << EOF
 ## ${EMOJI} ${TITLE}
 
 ${ISSUE_AUTHOR}さん、${GREETING}
@@ -367,7 +416,7 @@ ${ACTION_MESSAGE}
 
 ### 🔍 自動分析結果
 
-お問い合わせ内容を確認いたしました。技術サポートチームが詳細分析を実施し、適切な解決策をご提案いたします。
+お問い合わせ内容を確認いたしました。${TECHNICAL_NOTE}
 
 ### 🚀 即座の対応手順
 
@@ -381,14 +430,6 @@ ${ACTION_MESSAGE}
 
 <sub>⚠️ この応答は自動生成されています。技術サポートチームが詳細分析を行い、24時間以内に追加回答いたします。</sub>
 EOF
-
-          # 変数を置換
-          sed -i "s/\${EMOJI}/${EMOJI}/g" fallback_response.md
-          sed -i "s/\${TITLE}/${TITLE}/g" fallback_response.md
-          sed -i "s/\${ISSUE_AUTHOR}/${ISSUE_AUTHOR}/g" fallback_response.md
-          sed -i "s/\${GREETING}/${GREETING}/g" fallback_response.md
-          sed -i "s/\${ACTION_MESSAGE}/${ACTION_MESSAGE}/g" fallback_response.md
-          sed -i "s/\${PRIORITY_BADGE}/${PRIORITY_BADGE}/g" fallback_response.md
 
           echo "response_file=fallback_response.md" >> $GITHUB_OUTPUT
           echo "フォールバック応答作成完了"
@@ -416,7 +457,7 @@ EOF
         run: |
           echo "=== Claude応答保存 ==="
 
-          # Claude応答をファイルに保存（GitHub Actionsの出力を直接使用）
+          # Claude応答をファイルに保存
           cat > claude_response.txt << 'EOF'
 ${{ steps.claude-analysis.outputs.response }}
 EOF
@@ -497,14 +538,24 @@ EOF
 
           echo "応答ソース: $RESPONSE_SOURCE"
 
-          curl -X POST \
+          # GitHubへのコメント投稿
+          HTTP_STATUS=$(curl -w "%{http_code}" -s -X POST \
             -H "Accept: application/vnd.github.v3+json" \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
             "${{ github.api_url }}/repos/${{ github.repository }}/issues/${{ steps.parse-issue.outputs.issue_number }}/comments" \
-            -d "{\"body\": $RESPONSE_BODY}"
+            -d "{\"body\": $RESPONSE_BODY}" \
+            -o response_output.txt)
 
-          echo "GitHub応答投稿完了"
+          echo "HTTP Status: $HTTP_STATUS"
+
+          if [ "$HTTP_STATUS" = "201" ]; then
+            echo "✅ GitHub応答投稿成功"
+          else
+            echo "❌ GitHub応答投稿失敗"
+            cat response_output.txt
+            exit 1
+          fi
 
       - name: Update Issue Labels
         if: steps.bot-check.outputs.should_process == 'true' && steps.parse-issue.outputs.event_type == 'issue_created'
@@ -541,14 +592,20 @@ EOF
           esac
 
           # ラベルを追加
-          curl -X POST \
+          HTTP_STATUS=$(curl -w "%{http_code}" -s -X POST \
             -H "Accept: application/vnd.github.v3+json" \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
             "${{ github.api_url }}/repos/${{ github.repository }}/issues/${{ steps.parse-issue.outputs.issue_number }}/labels" \
-            -d "{\"labels\": $LABELS_TO_ADD}"
+            -d "{\"labels\": $LABELS_TO_ADD}" \
+            -o label_output.txt)
 
-          echo "ラベル更新完了: $LABELS_TO_ADD"
+          if [ "$HTTP_STATUS" = "200" ]; then
+            echo "✅ ラベル更新完了: $LABELS_TO_ADD"
+          else
+            echo "❌ ラベル更新失敗"
+            cat label_output.txt
+          fi
 
       - name: Cleanup
         if: always()
@@ -556,5 +613,5 @@ EOF
           echo "=== クリーンアップ ==="
           rm -f issue_body.txt comment_body.txt claude_prompt.txt
           rm -f fallback_response.md final_response.md temp_response.md
-          rm -f claude_response.txt
+          rm -f claude_response.txt response_output.txt label_output.txt
           echo "一時ファイル削除完了"
