@@ -391,35 +391,43 @@ jobs:
 
           # フォールバック応答を作成
           cat > fallback_response.md << FALLBACK_EOF
-## ${EMOJI} ${TITLE}
+          ## \${EMOJI} \${TITLE}
 
-${ISSUE_AUTHOR}さん、${GREETING}
+          \${ISSUE_AUTHOR}さん、\${GREETING}
 
-${ACTION_MESSAGE}
+          \${ACTION_MESSAGE}
 
-**優先度**: ${PRIORITY_BADGE} | **予想対応時間**: 24時間以内
+          **優先度**: \${PRIORITY_BADGE} | **予想対応時間**: 24時間以内
 
----
+          ---
 
-### 🔍 自動分析結果
+          ### 🔍 自動分析結果
 
-お問い合わせ内容を確認いたしました。${TECHNICAL_NOTE}
+          お問い合わせ内容を確認いたしました。\${TECHNICAL_NOTE}
 
-### 🚀 即座の対応手順
+          ### 🚀 即座の対応手順
 
-問題の詳細を確認するため、以下をお試しください：
+          問題の詳細を確認するため、以下をお試しください：
 
-1. **ブラウザの再読み込み**: Ctrl+F5（Windows）またはCmd+Shift+R（Mac）で強制更新
-2. **開発者ツールでエラー確認**: F12キーを押してConsoleタブでエラーメッセージを確認
-3. **別ブラウザでの検証**: Chrome、Firefox、Safariなど別のブラウザで同様の問題が発生するか確認
+          1. **ブラウザの再読み込み**: Ctrl+F5（Windows）またはCmd+Shift+R（Mac）で強制更新
+          2. **開発者ツールでエラー確認**: F12キーを押してConsoleタブでエラーメッセージを確認
+          3. **別ブラウザでの検証**: Chrome、Firefox、Safariなど別のブラウザで同様の問題が発生するか確認
 
----
+          ---
 
-<sub>⚠️ この応答は自動生成されています。技術サポートチームが詳細分析を行い、24時間以内に追加回答いたします。</sub>
-FALLBACK_EOF
+          <sub>⚠️ この応答は自動生成されています。技術サポートチームが詳細分析を行い、24時間以内に追加回答いたします。</sub>
+          FALLBACK_EOF
 
-          # 変数展開のためにenvsubstを使用
-          envsubst < fallback_response.md > fallback_response_final.md
+          # 変数展開のためにsedを使用（envsubstの代替）
+          sed -i "s/\\\${EMOJI}/${EMOJI}/g" fallback_response.md
+          sed -i "s/\\\${TITLE}/${TITLE}/g" fallback_response.md
+          sed -i "s/\\\${ISSUE_AUTHOR}/${ISSUE_AUTHOR}/g" fallback_response.md
+          sed -i "s/\\\${GREETING}/${GREETING}/g" fallback_response.md
+          sed -i "s/\\\${ACTION_MESSAGE}/${ACTION_MESSAGE}/g" fallback_response.md
+          sed -i "s/\\\${PRIORITY_BADGE}/${PRIORITY_BADGE}/g" fallback_response.md
+          sed -i "s/\\\${TECHNICAL_NOTE}/${TECHNICAL_NOTE}/g" fallback_response.md
+          
+          cp fallback_response.md fallback_response_final.md
 
           echo "response_file=fallback_response_final.md" >> $GITHUB_OUTPUT
           echo "フォールバック応答作成完了"
