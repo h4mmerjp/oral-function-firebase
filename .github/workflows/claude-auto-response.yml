@@ -509,14 +509,15 @@ FALLBACK_EOF
           fi
           echo "GitHub応答フォーマット完了"
 
-      - name: Post Response to GitHub
-        if: steps.bot-check.outputs.should_process == 'true'
-        run: |
-          echo "=== GitHub応答投稿 ==="
-          # 応答内容をJSONエスケープして投稿
-          RESPONSE_BODY=$(cat final_response.md | jq -Rs .)
-          RESPONSE_SOURCE="${{ steps.format-response.outputs.source || 'unknown' }}"
-          echo "応答ソース: $RESPONSE_SOURCE"
+      - - name: Post Response to GitHub
+  if: steps.bot-check.outputs.should_process == 'true'
+  run: |
+    echo "=== GitHub応答投稿 ==="
+    # 応答内容をJSONエスケープして投稿
+    RESPONSE_BODY=$(cat final_response.md | jq -Rs .)
+    RESPONSE_SOURCE="${{ steps.format-response.outputs.source != '' && steps.format-response.outputs.source || 'unknown' }}"
+    echo "応答ソース: $RESPONSE_SOURCE"
+
 
           # GitHubへのコメント投稿
           HTTP_STATUS=$(curl -w "%{http_code}" -s -X POST \
