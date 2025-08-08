@@ -220,94 +220,6 @@ jobs:
           echo "priority=${PRIORITY}" >> $GITHUB_OUTPUT
           echo "分類: ${CATEGORY}, 優先度: ${PRIORITY} (イベント: ${EVENT_TYPE})"
 
-      - name: Create Claude Analysis Prompt
-        if: steps.bot-check.outputs.should_process == 'true'
-        id: create-prompt
-        run: |
-          echo "=== Claude分析プロンプト作成 ==="
-          CATEGORY="${{ steps.categorize.outputs.category }}"
-          PRIORITY="${{ steps.categorize.outputs.priority }}"
-          ISSUE_NUMBER="${{ steps.parse-issue.outputs.issue_number }}"
-          ISSUE_TITLE="${{ steps.parse-issue.outputs.issue_title }}"
-          ISSUE_AUTHOR="${{ steps.parse-issue.outputs.issue_author }}"
-          EVENT_TYPE="${{ steps.parse-issue.outputs.event_type }}"
-
-          # イベントタイプに応じたプロンプト調整
-          if [ "$EVENT_TYPE" = "comment_created" ]; then
-            PROMPT_PREFIX="追加コメントに対する技術サポート分析"
-            CONTEXT_NOTE="ユーザーから追加のコメントが投稿されました。元のIssueと合わせて包括的に分析してください。"
-          else
-            PROMPT_PREFIX="新規Issue技術サポート分析"
-            CONTEXT_NOTE="新しくIssueが投稿されました。詳細な技術分析を行ってください。"
-          fi
-
-          # プロンプトを作成
-          cat > claude_prompt.txt << 'PROMPT_EOF'
-          # 口腔機能低下症診断・管理アプリ - 技術サポート分析
-
-          ## 担当AI
-          あなたは口腔機能低下症診断・管理アプリの上級技術サポートAIです。
-
-          ## 問い合わせ情報
-          PROMPT_EOF
-
-          # 変数を追加
-          echo "- **Issue番号**: #${ISSUE_NUMBER}" >> claude_prompt.txt
-          echo "- **イベントタイプ**: ${EVENT_TYPE}" >> claude_prompt.txt
-          echo "- **カテゴリ**: ${CATEGORY}" >> claude_prompt.txt
-          echo "- **優先度**: ${PRIORITY}" >> claude_prompt.txt
-          echo "- **報告者**: ${ISSUE_AUTHOR}" >> claude_prompt.txt
-          echo "- **タイトル**: ${ISSUE_TITLE}" >> claude_prompt.txt
-          echo "" >> claude_prompt.txt
-          echo "### 詳細内容" >> claude_prompt.txt
-
-          # Issue本文を追加
-          if [ -f issue_body.txt ]; then
-            cat issue_body.txt >> claude_prompt.txt
-          fi
-
-          if [ "${{ steps.parse-issue.outputs.has_comment }}" = "true" ] && [ -f comment_body.txt ]; then
-            echo "" >> claude_prompt.txt
-            echo "### 追加コメント" >> claude_prompt.txt
-            echo "- **コメント者**: ${{ steps.parse-issue.outputs.comment_author }}" >> claude_prompt.txt
-            cat comment_body.txt >> claude_prompt.txt
-          fi
-
-          # 技術情報と指示を追加
-          cat >> claude_prompt.txt << 'TECH_EOF'
-
-          ## アプリ技術情報
-          - **フロントエンド**: HTML5, CSS3, JavaScript (ES6+)
-          - **データベース**: Firebase Firestore + ローカルストレージ
-          - **認証**: Google OAuth 2.0 (Firebase Authentication)
-          - **UI**: レスポンシブデザイン
-          - **対応ブラウザ**: Chrome, Firefox, Safari, Edge (最新版)
-
-          ## 主要機能とファイル構成
-          - **患者管理**: patients.js
-          - **検査機能**: assessment.js
-          - **管理計画**: management.js
-          - **データベース**: database.js (Firebase版)
-          - **認証**: firebase-config.js
-          - **メイン**: app.js, index.html
-          - **スタイル**: styles.css
-
-          ## 指示
-          以下の形式で包括的な技術サポート応答を生成してください：
-
-          1. **問題分析**: 技術的な原因と影響範囲
-          2. **即座の対応手順**: 3つの具体的なステップ
-          3. **技術的解決策**: 詳細な解決方法
-          4. **テスト手順**: 検証方法
-          5. **再発防止策**: 今後の予防策
-
-          医療従事者向けアプリのため、データの安全性とプライバシー保護を最優先に考慮してください。
-
-          ⚠️ 重要：この応答は自動生成であることを明記し、「この応答は自動生成されています」という文言を必ず含めてください。
-          TECH_EOF
-
-          echo "Claude分析プロンプト作成完了 (イベント: ${EVENT_TYPE})"
-
       - name: Run Claude Code Analysis
         if: steps.bot-check.outputs.should_process == 'true' && steps.verify-token.outputs.github_token_valid == 'true'
         continue-on-error: true
@@ -316,7 +228,54 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          direct_prompt_file: claude_prompt.txt
+          direct_prompt: |
+            # 口腔機能低下症診断・管理アプリ - 技術サポート分析
+
+            ## 担当AI
+            あなたは口腔機能低下症診断・管理アプリの上級技術サポートAIです。
+
+            ## 問い合わせ情報
+            - **Issue番号**: #${{ steps.parse-issue.outputs.issue_number }}
+            - **イベントタイプ**: ${{ steps.parse-issue.outputs.event_type }}
+            - **カテゴリ**: ${{ steps.categorize.outputs.category }}
+            - **優先度**: ${{ steps.categorize.outputs.priority }}
+            - **報告者**: ${{ steps.parse-issue.outputs.issue_author }}
+            - **タイトル**: ${{ steps.parse-issue.outputs.issue_title }}
+
+            ### 詳細内容
+            ${{ github.event.issue.body }}
+
+            ### 追加コメント (該当する場合)
+            ${{ github.event.comment.body }}
+
+            ## アプリ技術情報
+            - **フロントエンド**: HTML5, CSS3, JavaScript (ES6+)
+            - **データベース**: Firebase Firestore + ローカルストレージ
+            - **認証**: Google OAuth 2.0 (Firebase Authentication)
+            - **UI**: レスポンシブデザイン
+            - **対応ブラウザ**: Chrome, Firefox, Safari, Edge (最新版)
+
+            ## 主要機能とファイル構成
+            - **患者管理**: patients.js
+            - **検査機能**: assessment.js
+            - **管理計画**: management.js
+            - **データベース**: database.js (Firebase版)
+            - **認証**: firebase-config.js
+            - **メイン**: app.js, index.html
+            - **スタイル**: styles.css
+
+            ## 指示
+            以下の形式で包括的な技術サポート応答を生成してください：
+
+            1. **問題分析**: 技術的な原因と影響範囲
+            2. **即座の対応手順**: 3つの具体的なステップ
+            3. **技術的解決策**: 詳細な解決方法
+            4. **テスト手順**: 検証方法
+            5. **再発防止策**: 今後の予防策
+
+            医療従事者向けアプリのため、データの安全性とプライバシー保護を最優先に考慮してください。
+
+            ⚠️ 重要：この応答は自動生成であることを明記し、「この応答は自動生成されています」という文言を必ず含めてください。
           trigger_phrase: ".*"
           custom_instructions: "Issue #${{ steps.parse-issue.outputs.issue_number }}の技術サポート分析を実行してください。必ず「この応答は自動生成されています」という文言を含めてください。"
           mode: tag
