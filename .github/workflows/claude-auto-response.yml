@@ -139,14 +139,14 @@ jobs:
 
           # Issue本文を一時ファイルに保存（特殊文字対応）
           cat > issue_body.txt << 'ISSUE_BODY_EOF'
-${{ github.event.issue.body }}
-ISSUE_BODY_EOF
+          ${{ github.event.issue.body }}
+          ISSUE_BODY_EOF
 
           # コメントがある場合は保存
           if [ -n "${COMMENT_BODY:-}" ]; then
             cat > comment_body.txt << 'COMMENT_BODY_EOF'
-${{ github.event.comment.body }}
-COMMENT_BODY_EOF
+          ${{ github.event.comment.body }}
+          COMMENT_BODY_EOF
             echo "has_comment=true" >> $GITHUB_OUTPUT
             echo "comment_author=${COMMENT_AUTHOR}" >> $GITHUB_OUTPUT
           else
