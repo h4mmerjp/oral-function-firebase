@@ -24,7 +24,6 @@ jobs:
         id: bot-check
         run: |
           echo "=== Bot チェック ==="
-
           # Issue作成の場合はスキップ
           if [ "${{ github.event_name }}" = "issues" ]; then
             echo "is_bot=false" >> $GITHUB_OUTPUT
@@ -32,7 +31,6 @@ jobs:
             echo "Issue作成イベント - 処理を継続"
             exit 0
           fi
-
           # コメント作成の場合
           if [ "${{ github.event_name }}" = "issue_comment" ]; then
             COMMENT_AUTHOR="${{ github.event.comment.user.login }}"
@@ -113,7 +111,6 @@ jobs:
         id: parse-issue
         run: |
           echo "=== Issue情報解析 ==="
-
           # Issue情報を環境変数から取得
           if [ "${{ github.event_name }}" = "issues" ]; then
             ISSUE_NUMBER="${{ github.event.issue.number }}"
@@ -141,15 +138,11 @@ jobs:
           echo "event_type=${EVENT_TYPE}" >> $GITHUB_OUTPUT
 
           # Issue本文を一時ファイルに保存（特殊文字対応）
-          cat > issue_body.txt << 'EOF'
-${{ github.event.issue.body }}
-EOF
+          echo '${{ github.event.issue.body }}' > issue_body.txt
 
           # コメントがある場合は保存
           if [ -n "${COMMENT_BODY:-}" ]; then
-            cat > comment_body.txt << 'EOF'
-${{ github.event.comment.body }}
-EOF
+            echo '${{ github.event.comment.body }}' > comment_body.txt
             echo "has_comment=true" >> $GITHUB_OUTPUT
             echo "comment_author=${COMMENT_AUTHOR}" >> $GITHUB_OUTPUT
           else
@@ -163,7 +156,6 @@ EOF
         id: categorize
         run: |
           echo "=== Issue分類 ==="
-
           TITLE="${{ steps.parse-issue.outputs.issue_title }}"
           LABELS="${{ steps.parse-issue.outputs.issue_labels }}"
           EVENT_TYPE="${{ steps.parse-issue.outputs.event_type }}"
@@ -230,7 +222,6 @@ EOF
         id: create-prompt
         run: |
           echo "=== Claude分析プロンプト作成 ==="
-
           CATEGORY="${{ steps.categorize.outputs.category }}"
           PRIORITY="${{ steps.categorize.outputs.priority }}"
           ISSUE_NUMBER="${{ steps.parse-issue.outputs.issue_number }}"
@@ -247,15 +238,15 @@ EOF
             CONTEXT_NOTE="新しくIssueが投稿されました。詳細な技術分析を行ってください。"
           fi
 
-          # プロンプトを作成
-          cat > claude_prompt.txt << 'EOF'
+          # プロンプトを作成（heredocを修正）
+          cat > claude_prompt.txt << 'PROMPT_EOF'
 # 口腔機能低下症診断・管理アプリ - 技術サポート分析
 
 ## 担当AI
 あなたは口腔機能低下症診断・管理アプリの上級技術サポートAIです。
 
 ## 問い合わせ情報
-EOF
+PROMPT_EOF
 
           # 変数を追加
           echo "- **Issue番号**: #${ISSUE_NUMBER}" >> claude_prompt.txt
@@ -280,7 +271,7 @@ EOF
           fi
 
           # 技術情報と指示を追加
-          cat >> claude_prompt.txt << 'EOF'
+          cat >> claude_prompt.txt << 'TECH_EOF'
 
 ## アプリ技術情報
 - **フロントエンド**: HTML5, CSS3, JavaScript (ES6+)
@@ -310,13 +301,13 @@ EOF
 医療従事者向けアプリのため、データの安全性とプライバシー保護を最優先に考慮してください。
 
 ⚠️ 重要：この応答は自動生成であることを明記し、「この応答は自動生成されています」という文言を必ず含めてください。
-EOF
+TECH_EOF
 
           # プロンプトをGITHUB_OUTPUT用に準備
           {
-            echo 'claude_prompt<<EOF'
+            echo 'claude_prompt<<PROMPT_OUTPUT_EOF'
             cat claude_prompt.txt
-            echo 'EOF'
+            echo 'PROMPT_OUTPUT_EOF'
           } >> $GITHUB_OUTPUT
 
           echo "Claude分析プロンプト作成完了 (イベント: ${EVENT_TYPE})"
@@ -345,7 +336,6 @@ EOF
         id: fallback-response
         run: |
           echo "=== フォールバック応答作成 ==="
-
           CATEGORY="${{ steps.categorize.outputs.category }}"
           PRIORITY="${{ steps.categorize.outputs.priority }}"
           ISSUE_AUTHOR="${{ steps.parse-issue.outputs.issue_author }}"
@@ -403,7 +393,7 @@ EOF
           esac
 
           # フォールバック応答を作成
-          cat > fallback_response.md << EOF
+          cat > fallback_response.md << FALLBACK_EOF
 ## ${EMOJI} ${TITLE}
 
 ${ISSUE_AUTHOR}さん、${GREETING}
@@ -429,7 +419,7 @@ ${ACTION_MESSAGE}
 ---
 
 <sub>⚠️ この応答は自動生成されています。技術サポートチームが詳細分析を行い、24時間以内に追加回答いたします。</sub>
-EOF
+FALLBACK_EOF
 
           echo "response_file=fallback_response.md" >> $GITHUB_OUTPUT
           echo "フォールバック応答作成完了"
@@ -439,10 +429,8 @@ EOF
         id: check-claude
         run: |
           echo "=== Claude Code結果チェック ==="
-
           CLAUDE_SUCCESS="${{ steps.claude-analysis.outcome }}"
           echo "Claude Code ステップの結果: $CLAUDE_SUCCESS"
-
           if [ "$CLAUDE_SUCCESS" = "success" ]; then
             echo "claude_available=true" >> $GITHUB_OUTPUT
             echo "Claude Code ステップが成功しました"
@@ -456,11 +444,8 @@ EOF
         id: save-claude
         run: |
           echo "=== Claude応答保存 ==="
-
           # Claude応答をファイルに保存
-          cat > claude_response.txt << 'EOF'
-${{ steps.claude-analysis.outputs.response }}
-EOF
+          echo '${{ steps.claude-analysis.outputs.response }}' > claude_response.txt
 
           # 応答が空でないかチェック
           if [ -s claude_response.txt ]; then
@@ -477,7 +462,6 @@ EOF
         id: format-claude
         run: |
           echo "=== Claude応答フォーマット ==="
-
           # 保存されたファイルから応答を読み込み
           CLAUDE_RESPONSE=$(cat claude_response.txt)
           echo "Claude Code 応答の長さ: ${#CLAUDE_RESPONSE}"
@@ -511,7 +495,6 @@ EOF
         id: format-response
         run: |
           echo "=== GitHub応答フォーマット ==="
-
           # Claude応答が利用可能かチェック
           if [ "${{ steps.format-claude.outputs.formatted }}" = "true" ]; then
             echo "Claude Code応答を使用"
@@ -524,18 +507,15 @@ EOF
             echo "response_file=final_response.md" >> $GITHUB_OUTPUT
             echo "source=fallback" >> $GITHUB_OUTPUT
           fi
-
           echo "GitHub応答フォーマット完了"
 
       - name: Post Response to GitHub
         if: steps.bot-check.outputs.should_process == 'true'
         run: |
           echo "=== GitHub応答投稿 ==="
-
           # 応答内容をJSONエスケープして投稿
           RESPONSE_BODY=$(cat final_response.md | jq -Rs .)
           RESPONSE_SOURCE="${{ steps.format-response.outputs.source || 'unknown' }}"
-
           echo "応答ソース: $RESPONSE_SOURCE"
 
           # GitHubへのコメント投稿
@@ -548,7 +528,6 @@ EOF
             -o response_output.txt)
 
           echo "HTTP Status: $HTTP_STATUS"
-
           if [ "$HTTP_STATUS" = "201" ]; then
             echo "✅ GitHub応答投稿成功"
           else
@@ -561,10 +540,8 @@ EOF
         if: steps.bot-check.outputs.should_process == 'true' && steps.parse-issue.outputs.event_type == 'issue_created'
         run: |
           echo "=== Issue ラベル更新 ==="
-
           # 新規Issue作成時のみラベルを更新
           # コメント追加時はラベル更新をスキップ
-
           CATEGORY="${{ steps.categorize.outputs.category }}"
           PRIORITY="${{ steps.categorize.outputs.priority }}"
 
