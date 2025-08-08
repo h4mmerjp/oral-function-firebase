@@ -16,7 +16,6 @@ jobs:
       pull-requests: write
       id-token: write
       actions: write
-      metadata: read
 
     steps:
       # 無限ループ防止のためのチェック（強化版）
