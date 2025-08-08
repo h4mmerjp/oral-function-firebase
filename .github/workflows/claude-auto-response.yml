@@ -390,7 +390,7 @@ TECH_EOF
           esac
 
           # フォールバック応答を作成
-          cat > fallback_response.md << 'FALLBACK_EOF'
+          cat > fallback_response.md << FALLBACK_EOF
 ## ${EMOJI} ${TITLE}
 
 ${ISSUE_AUTHOR}さん、${GREETING}
