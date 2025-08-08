@@ -138,11 +138,15 @@ jobs:
           echo "event_type=${EVENT_TYPE}" >> $GITHUB_OUTPUT
 
           # Issue本文を一時ファイルに保存（特殊文字対応）
-          echo '${{ github.event.issue.body }}' > issue_body.txt
+          cat > issue_body.txt << 'ISSUE_BODY_EOF'
+${{ github.event.issue.body }}
+ISSUE_BODY_EOF
 
           # コメントがある場合は保存
           if [ -n "${COMMENT_BODY:-}" ]; then
-            echo '${{ github.event.comment.body }}' > comment_body.txt
+            cat > comment_body.txt << 'COMMENT_BODY_EOF'
+${{ github.event.comment.body }}
+COMMENT_BODY_EOF
             echo "has_comment=true" >> $GITHUB_OUTPUT
             echo "comment_author=${COMMENT_AUTHOR}" >> $GITHUB_OUTPUT
           else
@@ -238,7 +242,7 @@ jobs:
             CONTEXT_NOTE="新しくIssueが投稿されました。詳細な技術分析を行ってください。"
           fi
 
-          # プロンプトを作成（heredocを修正）
+          # プロンプトを作成
           cat > claude_prompt.txt << 'PROMPT_EOF'
 # 口腔機能低下症診断・管理アプリ - 技術サポート分析
 
@@ -303,13 +307,6 @@ PROMPT_EOF
 ⚠️ 重要：この応答は自動生成であることを明記し、「この応答は自動生成されています」という文言を必ず含めてください。
 TECH_EOF
 
-          # プロンプトをGITHUB_OUTPUT用に準備
-          {
-            echo 'claude_prompt<<PROMPT_OUTPUT_EOF'
-            cat claude_prompt.txt
-            echo 'PROMPT_OUTPUT_EOF'
-          } >> $GITHUB_OUTPUT
-
           echo "Claude分析プロンプト作成完了 (イベント: ${EVENT_TYPE})"
 
       - name: Run Claude Code Analysis
@@ -320,7 +317,7 @@ TECH_EOF
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          direct_prompt: ${{ steps.create-prompt.outputs.claude_prompt }}
+          direct_prompt_file: claude_prompt.txt
           trigger_phrase: ".*"
           custom_instructions: "Issue #${{ steps.parse-issue.outputs.issue_number }}の技術サポート分析を実行してください。必ず「この応答は自動生成されています」という文言を含めてください。"
           mode: tag
@@ -393,7 +390,7 @@ TECH_EOF
           esac
 
           # フォールバック応答を作成
-          cat > fallback_response.md << FALLBACK_EOF
+          cat > fallback_response.md << 'FALLBACK_EOF'
 ## ${EMOJI} ${TITLE}
 
 ${ISSUE_AUTHOR}さん、${GREETING}
@@ -421,7 +418,10 @@ ${ACTION_MESSAGE}
 <sub>⚠️ この応答は自動生成されています。技術サポートチームが詳細分析を行い、24時間以内に追加回答いたします。</sub>
 FALLBACK_EOF
 
-          echo "response_file=fallback_response.md" >> $GITHUB_OUTPUT
+          # 変数展開のためにenvsubstを使用
+          envsubst < fallback_response.md > fallback_response_final.md
+
+          echo "response_file=fallback_response_final.md" >> $GITHUB_OUTPUT
           echo "フォールバック応答作成完了"
 
       - name: Check Claude Analysis Result
@@ -503,21 +503,20 @@ FALLBACK_EOF
           else
             echo "フォールバック応答を使用"
             echo "理由: Claude Code ステップが失敗したか、応答が空です"
-            cp fallback_response.md final_response.md
+            cp fallback_response_final.md final_response.md
             echo "response_file=final_response.md" >> $GITHUB_OUTPUT
             echo "source=fallback" >> $GITHUB_OUTPUT
           fi
           echo "GitHub応答フォーマット完了"
 
-      - - name: Post Response to GitHub
-  if: steps.bot-check.outputs.should_process == 'true'
-  run: |
-    echo "=== GitHub応答投稿 ==="
-    # 応答内容をJSONエスケープして投稿
-    RESPONSE_BODY=$(cat final_response.md | jq -Rs .)
-    RESPONSE_SOURCE="${{ steps.format-response.outputs.source != '' && steps.format-response.outputs.source || 'unknown' }}"
-    echo "応答ソース: $RESPONSE_SOURCE"
-
+      - name: Post Response to GitHub
+        if: steps.bot-check.outputs.should_process == 'true'
+        run: |
+          echo "=== GitHub応答投稿 ==="
+          # 応答内容をJSONエスケープして投稿
+          RESPONSE_BODY=$(cat final_response.md | jq -Rs .)
+          RESPONSE_SOURCE="${{ steps.format-response.outputs.source != '' && steps.format-response.outputs.source || 'unknown' }}"
+          echo "応答ソース: $RESPONSE_SOURCE"
 
           # GitHubへのコメント投稿
           HTTP_STATUS=$(curl -w "%{http_code}" -s -X POST \
@@ -590,6 +589,6 @@ FALLBACK_EOF
         run: |
           echo "=== クリーンアップ ==="
           rm -f issue_body.txt comment_body.txt claude_prompt.txt
-          rm -f fallback_response.md final_response.md temp_response.md
+          rm -f fallback_response.md fallback_response_final.md final_response.md temp_response.md
           rm -f claude_response.txt response_output.txt label_output.txt
           echo "一時ファイル削除完了"
