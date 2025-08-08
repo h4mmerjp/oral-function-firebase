@@ -244,13 +244,13 @@ jobs:
 
           # プロンプトを作成
           cat > claude_prompt.txt << 'PROMPT_EOF'
-# 口腔機能低下症診断・管理アプリ - 技術サポート分析
+          # 口腔機能低下症診断・管理アプリ - 技術サポート分析
 
-## 担当AI
-あなたは口腔機能低下症診断・管理アプリの上級技術サポートAIです。
+          ## 担当AI
+          あなたは口腔機能低下症診断・管理アプリの上級技術サポートAIです。
 
-## 問い合わせ情報
-PROMPT_EOF
+          ## 問い合わせ情報
+          PROMPT_EOF
 
           # 変数を追加
           echo "- **Issue番号**: #${ISSUE_NUMBER}" >> claude_prompt.txt
@@ -277,35 +277,35 @@ PROMPT_EOF
           # 技術情報と指示を追加
           cat >> claude_prompt.txt << 'TECH_EOF'
 
-## アプリ技術情報
-- **フロントエンド**: HTML5, CSS3, JavaScript (ES6+)
-- **データベース**: Firebase Firestore + ローカルストレージ
-- **認証**: Google OAuth 2.0 (Firebase Authentication)
-- **UI**: レスポンシブデザイン
-- **対応ブラウザ**: Chrome, Firefox, Safari, Edge (最新版)
+          ## アプリ技術情報
+          - **フロントエンド**: HTML5, CSS3, JavaScript (ES6+)
+          - **データベース**: Firebase Firestore + ローカルストレージ
+          - **認証**: Google OAuth 2.0 (Firebase Authentication)
+          - **UI**: レスポンシブデザイン
+          - **対応ブラウザ**: Chrome, Firefox, Safari, Edge (最新版)
 
-## 主要機能とファイル構成
-- **患者管理**: patients.js
-- **検査機能**: assessment.js
-- **管理計画**: management.js
-- **データベース**: database.js (Firebase版)
-- **認証**: firebase-config.js
-- **メイン**: app.js, index.html
-- **スタイル**: styles.css
+          ## 主要機能とファイル構成
+          - **患者管理**: patients.js
+          - **検査機能**: assessment.js
+          - **管理計画**: management.js
+          - **データベース**: database.js (Firebase版)
+          - **認証**: firebase-config.js
+          - **メイン**: app.js, index.html
+          - **スタイル**: styles.css
 
-## 指示
-以下の形式で包括的な技術サポート応答を生成してください：
+          ## 指示
+          以下の形式で包括的な技術サポート応答を生成してください：
 
-1. **問題分析**: 技術的な原因と影響範囲
-2. **即座の対応手順**: 3つの具体的なステップ
-3. **技術的解決策**: 詳細な解決方法
-4. **テスト手順**: 検証方法
-5. **再発防止策**: 今後の予防策
+          1. **問題分析**: 技術的な原因と影響範囲
+          2. **即座の対応手順**: 3つの具体的なステップ
+          3. **技術的解決策**: 詳細な解決方法
+          4. **テスト手順**: 検証方法
+          5. **再発防止策**: 今後の予防策
 
-医療従事者向けアプリのため、データの安全性とプライバシー保護を最優先に考慮してください。
+          医療従事者向けアプリのため、データの安全性とプライバシー保護を最優先に考慮してください。
 
-⚠️ 重要：この応答は自動生成であることを明記し、「この応答は自動生成されています」という文言を必ず含めてください。
-TECH_EOF
+          ⚠️ 重要：この応答は自動生成であることを明記し、「この応答は自動生成されています」という文言を必ず含めてください。
+          TECH_EOF
 
           echo "Claude分析プロンプト作成完了 (イベント: ${EVENT_TYPE})"
 
