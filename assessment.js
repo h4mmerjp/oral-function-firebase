@@ -14,12 +14,10 @@ class AssessmentManager {
     this.eat10Scores = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     // 聖隷式嚥下質問紙用の配列を追加（15項目、初期値はすべてC）
     this.seiryoScores = ['C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C'];
-    console.log('AssessmentManager が初期化されました');
   }
 
   // 検査開始（修正版）
   startAssessment() {
-    console.log('AssessmentManager.startAssessment() 開始');
     
     // 患者選択の確認
     if (!window.patientManager || !patientManager.currentPatient) {
@@ -28,7 +26,6 @@ class AssessmentManager {
       return;
     }
     
-    console.log('選択中の患者:', patientManager.currentPatient);
     
     try {
       // 新しい検査セッションを開始
@@ -52,16 +49,13 @@ class AssessmentManager {
       // 聖隷式スコアもリセット
       this.seiryoScores = ['C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C'];
       
-      console.log('検査データ初期化完了');
       
       // 検査コンテンツを読み込み
       this.loadAssessmentContent();
-      console.log('検査コンテンツ読み込み完了');
       
       // 検査タブに移動
       if (window.app) {
         app.openTab('assessment');
-        console.log('検査タブに移動完了');
       } else {
         console.error('app オブジェクトが見つかりません');
         // 直接タブを切り替え

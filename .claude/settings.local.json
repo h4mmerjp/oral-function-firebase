@@ -8,8 +8,14 @@
       "Bash(git fetch:*)",
       "Bash(git checkout:*)",
       "Bash(git commit:*)",
-      "Bash(vercel env:*)"
+      "Bash(vercel env:*)",
+      "Bash(chmod:*)",
+      "Bash(./.claude/claude-statusline-simple.sh:*)"
     ],
     "deny": []
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "./claude-statusline-simple.sh"
   }
 }

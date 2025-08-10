@@ -7,7 +7,6 @@ class FirebaseManager {
     this.currentUser = null;
     this.isInitialized = false;
 
-    console.log("FirebaseManager 初期化開始");
   }
 
   // Firebase初期化
@@ -38,7 +37,6 @@ class FirebaseManager {
       // Firebase初期化
       if (!firebase.apps.length) {
         this.app = firebase.initializeApp(firebaseConfig);
-        console.log("Firebase アプリ初期化完了");
       } else {
         this.app = firebase.app();
       }
@@ -61,12 +59,10 @@ class FirebaseManager {
       this.setupAuthListener();
 
       this.isInitialized = true;
-      console.log("Firebase 初期化完了");
 
       return true;
     } catch (error) {
       console.error("Firebase 初期化エラー:", error);
-      console.log("オフラインモードで続行します");
       return false;
     }
   }
@@ -77,13 +73,8 @@ class FirebaseManager {
       const checkReady = () => {
         if (window.db && window.patientManager) {
           // データベースと患者マネージャーの基本準備確認
-          console.log("基本コンポーネント準備完了");
           resolve(true);
         } else {
-          console.log("基本コンポーネント準備待機中...", {
-            db: !!window.db,
-            patientManager: !!window.patientManager,
-          });
           setTimeout(checkReady, 100);
         }
       };
@@ -703,6 +694,3 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-console.log(
-  "firebase-config.js (最小修正版 - 既存機能との完全互換性維持) 読み込み完了"
-);

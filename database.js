@@ -6,12 +6,10 @@ class OralHealthDatabase {
     this.currentUser = null;
     this.isInitialized = false; // 初期化完了フラグを追加
 
-    console.log("OralHealthDatabase (Firebase版) 初期化開始");
   }
 
   // 既存のapp.jsとの互換性のためのinit()メソッド（修正版）
   init() {
-    console.log("database.init() が呼び出されました（互換性のため）");
 
     // 既に初期化が開始されていない場合のみ実行
     if (!this.isInitialized) {
@@ -24,13 +22,11 @@ class OralHealthDatabase {
   // 初期化処理（修正版）
   async initialize() {
     try {
-      console.log("データベース初期化開始");
 
       // Firebase接続状況を監視
       this.setupFirebaseListener();
 
       this.isInitialized = true;
-      console.log("データベース初期化完了");
 
       return true;
     } catch (error) {
@@ -54,9 +50,7 @@ class OralHealthDatabase {
             user ? `オンライン: ${user.email}` : "オフライン"
           );
         });
-        console.log("Firebase認証監視設定完了");
       } else {
-        console.log("Firebase Manager待機中...");
         // Firebase Managerがまだ利用できない場合は少し待ってから再試行
         setTimeout(setupListener, 100);
       }

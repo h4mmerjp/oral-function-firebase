@@ -3,14 +3,12 @@ class PatientManager {
   constructor() {
     this.currentPatient = null;
     this.selectedManagementOptions = {};
-    console.log("PatientManager (最小修正版) が初期化されました");
   }
 
   // データベース接続確認（安全版）
   isDatabaseReady() {
     // window.dbの存在確認
     if (!window.db) {
-      console.log("window.db が存在しません");
       return false;
     }
 
@@ -19,7 +17,6 @@ class PatientManager {
       try {
         return window.db.isConnected();
       } catch (error) {
-        console.log("isConnected() 実行エラー:", error);
         return false;
       }
     }
@@ -30,7 +27,6 @@ class PatientManager {
     }
 
     // 従来版の場合、基本的な存在確認のみ
-    console.log("従来版データベースとして動作");
     return true;
   }
 
@@ -39,10 +35,8 @@ class PatientManager {
     return new Promise((resolve) => {
       const checkReady = () => {
         if (this.isDatabaseReady()) {
-          console.log("データベース準備完了");
           resolve(true);
         } else {
-          console.log("データベース準備待機中...");
           setTimeout(checkReady, 200);
         }
       };

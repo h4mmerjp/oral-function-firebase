@@ -2,12 +2,10 @@
 class ManagementManager {
   constructor() {
     this.selectedManagementOptions = {};
-    console.log('ManagementManager が初期化されました');
   }
 
   // 管理計画書作成
   createManagementPlan() {
-    console.log('管理計画書作成が呼び出されました');
     
     if (!window.patientManager || !patientManager.currentPatient || 
         !window.assessmentManager || !assessmentManager.currentAssessment) {
@@ -15,7 +13,6 @@ class ManagementManager {
       return;
     }
 
-    console.log('必要なデータが揃っています');
     this.loadManagementPlanContent();
     
     // タブ切り替え
@@ -25,13 +22,11 @@ class ManagementManager {
       this.directTabSwitch('management-plan');
     }
     
-    console.log('管理計画書作成完了');
   }
 
   // 直接タブ切り替え（app オブジェクトが利用できない場合の代替手段）
   directTabSwitch(tabName) {
     try {
-      console.log('直接タブ切り替えを実行:', tabName);
       
       // すべてのタブコンテンツを非表示
       const tabContents = document.querySelectorAll('.tab-content');

@@ -1,7 +1,6 @@
 // セキュリティ強化モジュール
 class SecurityUtils {
   constructor() {
-    console.log("SecurityUtils initialized");
   }
 
   // HTML エスケープ関数 - XSS対策
