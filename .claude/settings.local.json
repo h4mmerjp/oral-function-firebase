@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(ls:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(find:*)",
+      "Bash(git push:*)",
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git commit:*)",
+      "Bash(vercel env:*)"
     ],
     "deny": []
   }
