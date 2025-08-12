@@ -38,8 +38,12 @@
       口腔機能低下症 診断・管理アプリ - 歯科医療従事者向け診断支援ツール
     </title>
     <link rel="stylesheet" href="styles.css" />
-
-</head>
+    <script
+      async
+      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3650557299577527"
+      crossorigin="anonymous"
+    ></script>
+  </head>
   <body>
     <div class="container">
       <header>
@@ -217,15 +221,28 @@
         </div>
 
         <div class="summary-card">
-           <h3>参考資料・リンク</h3>
-        <ul>
-          <li><a href="https://www.jads.jp/assets/pdf/basic/r06/document-240329.pdf" target="_blank" rel="noopener noreferrer">日本歯科医学会：口腔機能低下症に関する基本的な考え方</a></li>
-          <li><a href="https://www.gerodontology.jp/" target="_blank" rel="noopener noreferrer">日本老年歯科医学会：公式ホームページ</a></li>
-        </ul>
+          <h3>参考資料・リンク</h3>
+          <ul>
+            <li>
+              <a
+                href="https://www.jads.jp/assets/pdf/basic/r06/document-240329.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                >日本歯科医学会：口腔機能低下症に関する基本的な考え方</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://www.gerodontology.jp/"
+                target="_blank"
+                rel="noopener noreferrer"
+                >日本老年歯科医学会：公式ホームページ</a
+              >
+            </li>
+          </ul>
         </div>
       </div>
     </div>
-
 
     <!-- Release Notes Section -->
     <footer class="app-footer no-print">
@@ -265,7 +282,6 @@
           ※
           本アプリは診断補助ツールです。最終的な診断は医療従事者が行ってください。
         </p>
-
       </div>
     </footer>
 
@@ -434,6 +450,13 @@
 
     <script src="app.js"></script>
 
+    <!-- Stripe統合スクリプト -->
+    <script src="https://js.stripe.com/v3/"></script>
+    <script src="stripe-integration.js"></script>
+
+    <!-- AdSense統合スクリプト -->
+    <script src="adsense-integration.js"></script>
+
     <script>
       if (typeof app !== "undefined" || typeof OralHealthApp !== "undefined") {
         window.appInitStatus.app = true;
@@ -448,6 +471,15 @@
         if (e.ctrlKey && e.shiftKey && e.key === "F") {
           if (window.fbDebug) {
             fbDebug();
+          }
+        }
+        // Stripe/AdSenseデバッグ
+        if (e.ctrlKey && e.shiftKey && e.key === "S") {
+          if (window.stripeManager) {
+            console.log("Stripe Debug:", window.stripeManager);
+          }
+          if (window.adSenseManager) {
+            window.adDebug();
           }
         }
       });

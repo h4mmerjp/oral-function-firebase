@@ -462,19 +462,22 @@ class FirebaseManager {
 
         const limit = subscription.patientLimit || 5;
         const current = usage.patientCount || 0;
+        const plan = subscription.plan || "free";
 
         console.log("制限チェック結果:", {
           current,
           limit,
-          allowed: current < limit,
+          allowed: limit === -1 || current < limit,
+          plan
         });
 
         return {
-          allowed: current < limit,
+          allowed: limit === -1 || current < limit,
           current: current,
           limit: limit,
-          plan: subscription.plan || "free",
+          plan: plan,
           isOffline: false,
+          showUpgrade: plan === "free" && current >= limit
         };
       }
 

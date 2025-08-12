@@ -10,7 +10,8 @@
       "Bash(git commit:*)",
       "Bash(vercel env:*)",
       "Bash(chmod:*)",
-      "Bash(./.claude/claude-statusline-simple.sh:*)"
+      "Bash(./.claude/claude-statusline-simple.sh:*)",
+      "Bash(python:*)"
     ],
     "deny": []
   },

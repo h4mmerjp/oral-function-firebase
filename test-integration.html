@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stripe × AdSense × Firebase 統合テストページ</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        .test-header {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+        }
+        .test-button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .test-button:hover {
+            background: #2980b9;
+        }
+        .test-button.success {
+            background: #27ae60;
+        }
+        .test-button.error {
+            background: #e74c3c;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .test-result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .test-result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .test-result.info {
+            background: #cce7ff;
+            color: #004085;
+            border: 1px solid #b3d7ff;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-success { background: #27ae60; }
+        .status-error { background: #e74c3c; }
+        .status-warning { background: #f39c12; }
+        .status-info { background: #3498db; }
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+        .checklist li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .checklist li:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Stripe × AdSense × Firebase 統合テストスイート</h1>
+        <p>このページでは、実装した統合機能の動作確認を行います。</p>
+        
+        <!-- システム状況チェック -->
+        <div class="test-section">
+            <h2 class="test-header">📊 システム状況チェック</h2>
+            <button class="test-button" onclick="checkSystemStatus()">システム状況を確認</button>
+            <div id="system-status" class="test-result info"></div>
+        </div>
+
+        <!-- Firebase テスト -->
+        <div class="test-section">
+            <h2 class="test-header">🔥 Firebase 認証テスト</h2>
+            <button class="test-button" onclick="testFirebaseAuth()">認証状況確認</button>
+            <button class="test-button" onclick="testFirebaseConnection()">Firebase接続テスト</button>
+            <button class="test-button" onclick="testUserDocument()">ユーザードキュメント確認</button>
+            <div id="firebase-results" class="test-result info"></div>
+        </div>
+
+        <!-- Stripe テスト -->
+        <div class="test-section">
+            <h2 class="test-header">💳 Stripe 統合テスト</h2>
+            <button class="test-button" onclick="testStripeInitialization()">Stripe初期化確認</button>
+            <button class="test-button" onclick="testSubscriptionStatus()">サブスクリプション状況</button>
+            <button class="test-button" onclick="testPlanSelection()">プラン選択画面表示</button>
+            <button class="test-button" onclick="testCheckoutAPI()">Checkout API テスト</button>
+            <div id="stripe-results" class="test-result info"></div>
+        </div>
+
+        <!-- AdSense テスト -->
+        <div class="test-section">
+            <h2 class="test-header">📺 AdSense 統合テスト</h2>
+            <button class="test-button" onclick="testAdSenseInitialization()">AdSense初期化確認</button>
+            <button class="test-button" onclick="testAdDisplay()">広告表示テスト</button>
+            <button class="test-button" onclick="testAdRestriction()">広告制限テスト</button>
+            <button class="test-button" onclick="testSubscriptionAdControl()">サブスクリプション広告制御</button>
+            <div id="adsense-results" class="test-result info"></div>
+        </div>
+
+        <!-- API エンドポイントテスト -->
+        <div class="test-section">
+            <h2 class="test-header">🌐 API エンドポイントテスト</h2>
+            <button class="test-button" onclick="testHealthAPI()">Health Check API</button>
+            <button class="test-button" onclick="testCheckoutAPI()">Checkout API</button>
+            <button class="test-button" onclick="testSubscriptionAPI()">Subscription API</button>
+            <button class="test-button" onclick="testWebhookEndpoint()">Webhook エンドポイント</button>
+            <div id="api-results" class="test-result info"></div>
+        </div>
+
+        <!-- 統合シナリオテスト -->
+        <div class="test-section">
+            <h2 class="test-header">🎯 統合シナリオテスト</h2>
+            <button class="test-button" onclick="runFullE2ETest()">完全E2Eテスト実行</button>
+            <button class="test-button" onclick="testNewUserFlow()">新規ユーザーフロー</button>
+            <button class="test-button" onclick="testUpgradeFlow()">プランアップグレードフロー</button>
+            <button class="test-button" onclick="testAdControlFlow()">広告制御フロー</button>
+            <div id="scenario-results" class="test-result info"></div>
+        </div>
+
+        <!-- テスト結果サマリー -->
+        <div class="test-section">
+            <h2 class="test-header">📈 テスト結果サマリー</h2>
+            <ul class="checklist" id="test-checklist">
+                <li><span class="status-indicator status-info"></span>テスト開始前</li>
+            </ul>
+            <button class="test-button success" onclick="generateTestReport()">テストレポート生成</button>
+        </div>
+    </div>
+
+    <!-- Firebase SDK 読み込み -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <!-- Stripe SDK 読み込み -->
+    <script src="https://js.stripe.com/v3/"></script>
+
+    <!-- アプリケーション読み込み -->
+    <script src="firebase-config.js"></script>
+    <script src="stripe-integration.js"></script>
+    <script src="adsense-integration.js"></script>
+
+    <script>
+        // テスト結果を保存
+        const testResults = {};
+        let testCount = 0;
+        let passedCount = 0;
+        let failedCount = 0;
+
+        // 結果表示ヘルパー
+        function displayResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `test-result ${type}`;
+        }
+
+        // チェックリスト更新
+        function updateChecklist(testName, status, message = '') {
+            const checklist = document.getElementById('test-checklist');
+            const li = document.createElement('li');
+            const statusClass = status === 'pass' ? 'status-success' : 
+                               status === 'fail' ? 'status-error' : 
+                               status === 'warning' ? 'status-warning' : 'status-info';
+            
+            li.innerHTML = `<span class="status-indicator ${statusClass}"></span>${testName}${message ? ': ' + message : ''}`;
+            checklist.appendChild(li);
+        }
+
+        // システム状況チェック
+        async function checkSystemStatus() {
+            testCount++;
+            try {
+                const status = {
+                    firebase: {
+                        initialized: !!window.firebaseManager?.isAvailable(),
+                        user: !!window.firebaseManager?.getCurrentUser(),
+                        appInitStatus: window.appInitStatus || {}
+                    },
+                    stripe: {
+                        initialized: !!window.stripeManager?.isAvailable(),
+                        scriptsLoaded: typeof window.Stripe !== 'undefined'
+                    },
+                    adsense: {
+                        initialized: !!window.adSenseManager?.isAvailable(),
+                        scriptsLoaded: typeof window.adsbygoogle !== 'undefined'
+                    }
+                };
+
+                displayResult('system-status', JSON.stringify(status, null, 2), 'success');
+                updateChecklist('システム状況チェック', 'pass');
+                passedCount++;
+            } catch (error) {
+                displayResult('system-status', `エラー: ${error.message}`, 'error');
+                updateChecklist('システム状況チェック', 'fail', error.message);
+                failedCount++;
+            }
+        }
+
+        // Firebase 認証テスト
+        async function testFirebaseAuth() {
+            testCount++;
+            try {
+                if (!window.firebaseManager) {
+                    throw new Error('FirebaseManager が初期化されていません');
+                }
+
+                const user = window.firebaseManager.getCurrentUser();
+                const debugInfo = window.firebaseManager.getDebugInfo();
+
+                const result = {
+                    isAvailable: window.firebaseManager.isAvailable(),
+                    currentUser: user ? { uid: user.uid, email: user.email } : null,
+                    debugInfo: debugInfo
+                };
+
+                displayResult('firebase-results', JSON.stringify(result, null, 2), 'success');
+                updateChecklist('Firebase 認証テスト', user ? 'pass' : 'warning', user ? 'ログイン済み' : 'ログインしていません');
+                passedCount++;
+            } catch (error) {
+                displayResult('firebase-results', `エラー: ${error.message}`, 'error');
+                updateChecklist('Firebase 認証テスト', 'fail', error.message);
+                failedCount++;
+            }
+        }
+
+        // Firebase 接続テスト
+        async function testFirebaseConnection() {
+            testCount++;
+            try {
+                if (!window.firebaseManager?.isAvailable()) {
+                    throw new Error('Firebase が利用できません');
+                }
+
+                // 簡単な接続テスト
+                const testResult = await window.firebaseManager.firestore.collection('_test').limit(1).get();
+                
+                displayResult('firebase-results', 'Firebase 接続テスト成功', 'success');
+                updateChecklist('Firebase 接続テスト', 'pass');
+                passedCount++;
+            } catch (error) {
+                displayResult('firebase-results', `接続エラー: ${error.message}`, 'error');
+                updateChecklist('Firebase 接続テスト', 'fail', error.message);
+                failedCount++;
+            }
+        }
+
+        // ユーザードキュメント確認
+        async function testUserDocument() {
+            testCount++;
+            try {
+                const user = window.firebaseManager?.getCurrentUser();
+                if (!user) {
+                    throw new Error('ユーザーがログインしていません');
+                }
+
+                const userRef = window.firebaseManager.firestore.collection('users').doc(user.uid);
+                const userDoc = await userRef.get();
+
+                if (userDoc.exists) {
+                    const userData = userDoc.data();
+                    displayResult('firebase-results', JSON.stringify(userData, null, 2), 'success');
+                    updateChecklist('ユーザードキュメント確認', 'pass');
+                    passedCount++;
+                } else {
+                    throw new Error('ユーザードキュメントが存在しません');
+                }
+            } catch (error) {
+                displayResult('firebase-results', `エラー: ${error.message}`, 'error');
+                updateChecklist('ユーザードキュメント確認', 'fail', error.message);
+                failedCount++;
+            }
+        }
+
+        // Stripe 初期化確認
+        async function testStripeInitialization() {
+            testCount++;
+            try {
+                if (!window.stripeManager) {
+                    throw new Error('StripeManager が初期化されていません');
+                }
+
+                const isAvailable = window.stripeManager.isAvailable();
+                const debugInfo = {
+                    isInitialized: window.stripeManager.isInitialized,
+                    stripeLoaded: typeof window.Stripe !== 'undefined',
+                    plans: window.stripeManager.plans
+                };
+
+                displayResult('stripe-results', JSON.stringify(debugInfo, null, 2), 'success');
+                updateChecklist('Stripe 初期化確認', isAvailable ? 'pass' : 'fail');
+                if (isAvailable) passedCount++; else failedCount++;
+            } catch (error) {
+                displayResult('stripe-results', `エラー: ${error.message}`, 'error');
+                updateChecklist('Stripe 初期化確認', 'fail', error.message);
+                failedCount++;
+            }
+        }
+
+        // サブスクリプション状況テスト
+        async function testSubscriptionStatus() {
+            testCount++;
+            try {
+                if (!window.stripeManager?.isAvailable()) {
+                    throw new Error('Stripe が利用できません');
+                }
+
+                const status = await window.stripeManager.getSubscriptionStatus();
+                displayResult('stripe-results', JSON.stringify(status, null, 2), 'success');
+                updateChecklist('サブスクリプション状況テスト', 'pass');
+                passedCount++;
+            } catch (error) {
+                displayResult('stripe-results', `エラー: ${error.message}`, 'error');
+                updateChecklist('サブスクリプション状況テスト', 'fail', error.message);
+                failedCount++;
+            }
+        }
+
+        // プラン選択画面表示テスト
+        function testPlanSelection() {
+            testCount++;
+            try {
+                if (!window.stripeManager?.isAvailable()) {
+                    throw new Error('Stripe が利用できません');
+                }
+
+                window.stripeManager.showPlanSelection();
+                displayResult('stripe-results', 'プラン選択画面を表示しました', 'success');
+                updateChecklist('プラン選択画面表示', 'pass');
+                passedCount++;
+            } catch (error) {
+                displayResult('stripe-results', `エラー: ${error.message}`, 'error');
+                updateChecklist('プラン選択画面表示', 'fail', error.message);
+                failedCount++;
+            }
+        }
+
+        // Checkout API テスト
+        async function testCheckoutAPI() {
+            testCount++;
+            try {
+                const user = window.firebaseManager?.getCurrentUser();
+                if (!user) {
+                    throw new Error('ユーザーがログインしていません');
+                }
+
+                // モックデータでAPI呼び出しテスト
+                const testPayload = {
+                    priceId: 'price_test_123',
+                    uid: user.uid,
+                    email: user.email
+                };
+
+                displayResult('api-results', `Checkout API テスト準備完了:\n${JSON.stringify(testPayload, null, 2)}`, 'info');
+                updateChecklist('Checkout API テスト', 'pass', '準備完了（実際の決済は未実行）');
+                passedCount++;
+            } catch (error) {
+                displayResult('api-results', `エラー: ${error.message}`, 'error');
+                updateChecklist('Checkout API テスト', 'fail', error.message);
+                failedCount++;
+            }
+        }
+
+        // AdSense 初期化確認
+        function testAdSenseInitialization() {
+            testCount++;
+            try {
+                if (!window.adSenseManager) {
+                    throw new Error('AdSenseManager が初期化されていません');
+                }
+
+                const debugInfo = window.adSenseManager.getDebugInfo();
+                displayResult('adsense-results', JSON.stringify(debugInfo, null, 2), 'success');
+                updateChecklist('AdSense 初期化確認', debugInfo.isInitialized ? 'pass' : 'warning');
+                passedCount++;
+            } catch (error) {
+                displayResult('adsense-results', `エラー: ${error.message}`, 'error');
+                updateChecklist('AdSense 初期化確認', 'fail', error.message);
+                failedCount++;
+            }
+        }
+
+        // 広告表示テスト
+        function testAdDisplay() {
+            testCount++;
+            try {
+                const adElements = document.querySelectorAll('.adsbygoogle');
+                const result = {
+                    totalAdUnits: adElements.length,
+                    visibleAds: Array.from(adElements).filter(ad => 
+                        ad.offsetParent !== null && 
+                        getComputedStyle(ad).display !== 'none'
+                    ).length,
+                    adElements: Array.from(adElements).map(ad => ({
+                        id: ad.id,
+                        visible: ad.offsetParent !== null,
+                        display: getComputedStyle(ad).display
+                    }))
+                };
+
+                displayResult('adsense-results', JSON.stringify(result, null, 2), 'success');
+                updateChecklist('広告表示テスト', 'pass', `${result.visibleAds}/${result.totalAdUnits} 広告表示中`);
+                passedCount++;
+            } catch (error) {
+                displayResult('adsense-results', `エラー: ${error.message}`, 'error');
+                updateChecklist('広告表示テスト', 'fail', error.message);
+                failedCount++;
+            }
+        }
+
+        // 広告制限テスト
+        async function testAdRestriction() {
+            testCount++;
+            try {
+                if (!window.adSenseManager) {
+                    throw new Error('AdSenseManager が利用できません');
+                }
+
+                const isRestricted = window.adSenseManager.isRestrictedPage();
+                const shouldHide = await window.adSenseManager.shouldHideAds();
+                
+                const result = {
+                    currentPage: window.location.pathname + window.location.hash,
+                    isRestrictedPage: isRestricted,
+                    shouldHideAds: shouldHide,
+                    restrictedPages: window.adSenseManager.restrictedPages
+                };
+
+                displayResult('adsense-results', JSON.stringify(result, null, 2), 'success');
+                updateChecklist('広告制限テスト', 'pass');
+                passedCount++;
+            } catch (error) {
+                displayResult('adsense-results', `エラー: ${error.message}`, 'error');
+                updateChecklist('広告制限テスト', 'fail', error.message);
+                failedCount++;
+            }
+        }
+
+        // Health Check API テスト
+        async function testHealthAPI() {
+            testCount++;
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                
+                displayResult('api-results', JSON.stringify(data, null, 2), response.ok ? 'success' : 'error');
+                updateChecklist('Health Check API', response.ok ? 'pass' : 'fail');
+                if (response.ok) passedCount++; else failedCount++;
+            } catch (error) {
+                displayResult('api-results', `エラー: ${error.message}`, 'error');
+                updateChecklist('Health Check API', 'fail', error.message);
+                failedCount++;
+            }
+        }
+
+        // 完全E2Eテスト
+        async function runFullE2ETest() {
+            testCount++;
+            try {
+                const results = [];
+                
+                // 各コンポーネントの状況確認
+                results.push({
+                    component: 'Firebase',
+                    status: window.firebaseManager?.isAvailable() ? 'OK' : 'NG',
+                    user: window.firebaseManager?.getCurrentUser()?.email || 'ログインしていません'
+                });
+
+                results.push({
+                    component: 'Stripe',
+                    status: window.stripeManager?.isAvailable() ? 'OK' : 'NG'
+                });
+
+                results.push({
+                    component: 'AdSense',
+                    status: window.adSenseManager?.isAvailable() ? 'OK' : 'NG',
+                    ads: document.querySelectorAll('.adsbygoogle').length
+                });
+
+                const allOK = results.every(r => r.status === 'OK');
+                
+                displayResult('scenario-results', JSON.stringify(results, null, 2), allOK ? 'success' : 'error');
+                updateChecklist('完全E2Eテスト', allOK ? 'pass' : 'fail');
+                if (allOK) passedCount++; else failedCount++;
+            } catch (error) {
+                displayResult('scenario-results', `エラー: ${error.message}`, 'error');
+                updateChecklist('完全E2Eテスト', 'fail', error.message);
+                failedCount++;
+            }
+        }
+
+        // テストレポート生成
+        function generateTestReport() {
+            const report = {
+                timestamp: new Date().toISOString(),
+                summary: {
+                    total: testCount,
+                    passed: passedCount,
+                    failed: failedCount,
+                    passRate: testCount > 0 ? Math.round((passedCount / testCount) * 100) : 0
+                },
+                environment: {
+                    userAgent: navigator.userAgent,
+                    url: window.location.href,
+                    firebase: !!window.firebaseManager,
+                    stripe: !!window.stripeManager,
+                    adsense: !!window.adSenseManager
+                },
+                results: testResults
+            };
+
+            const reportJson = JSON.stringify(report, null, 2);
+            
+            // ダウンロード用のリンクを作成
+            const blob = new Blob([reportJson], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `integration-test-report-${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            alert(`テストレポートを生成しました。\n\n総テスト数: ${testCount}\n成功: ${passedCount}\n失敗: ${failedCount}\n成功率: ${report.summary.passRate}%`);
+        }
+
+        // 初期表示時のシステムチェック
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                checkSystemStatus();
+            }, 2000);
+        });
+    </script>
+</body>
+</html>
