@@ -82,18 +82,18 @@ ${browser ? `**ブラウザ:** ${browser}` : "環境情報なし"}
 // カテゴリー表示名取得
 function getCategoryText(category) {
   const texts = {
-    bug: "🐛 不具合報告",
-    feature: "✨ 機能要望",
-    question: "❓ 使い方について",
-    account: "🔐 アカウント・ログイン",
-    performance: "⚡ パフォーマンス・速度",
-    ui: "🎨 UI・デザイン",
-    compatibility: "📱 ブラウザ・デバイス対応",
-    documentation: "📚 ドキュメント・ヘルプ",
-    security: "🛡️ セキュリティ",
-    other: "🔧 その他",
+    bug: " 不具合報告",
+    feature: " 機能要望",
+    question: " 使い方について",
+    account: " アカウント・ログイン",
+    performance: " パフォーマンス・速度",
+    ui: " UI・デザイン",
+    compatibility: " ブラウザ・デバイス対応",
+    documentation: " ドキュメント・ヘルプ",
+    security: " セキュリティ",
+    other: " その他",
   };
-  return texts[category] || "🔧 その他";
+  return texts[category] || " その他";
 }
 
 // GitHub ラベル取得
