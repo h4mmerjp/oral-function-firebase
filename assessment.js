@@ -396,6 +396,7 @@ class AssessmentManager {
       </div>
 
       <div style="margin-top: 30px; text-align: center;">
+        <button onclick="assessmentManager.evaluateAllItems()" class="btn-primary" style="margin-right: 10px;">一括評価</button>
         <button onclick="assessmentManager.completeAssessment()" class="btn-success">検査完了・診断へ</button>
       </div>
     `;
@@ -948,6 +949,149 @@ class AssessmentManager {
     }
     
     this.updateProgress();
+  }
+
+  // 一括評価機能
+  evaluateAllItems() {
+    let evaluatedCount = 0;
+    let skippedCount = 0;
+    let messages = [];
+
+    // 1. TCI評価（自動計算のため、値があれば評価済み）
+    const tciValue = document.getElementById('tci-value');
+    if (tciValue && tciValue.textContent !== '0') {
+      // TCIは既に計算済み、スキップ
+      messages.push('TCI: 既に評価済み');
+    } else {
+      messages.push('TCI: 各セルをクリックして評価してください');
+      skippedCount++;
+    }
+
+    // 2. 口腔乾燥評価
+    const drynessMethod = document.getElementById('dryness-method').value;
+    if (drynessMethod === 'moisture') {
+      const moistureValue = document.getElementById('moisture-value').value;
+      if (moistureValue) {
+        this.evaluateMoisture();
+        evaluatedCount++;
+        messages.push('口腔乾燥（湿潤度）: 評価完了');
+      } else {
+        messages.push('口腔乾燥: 湿潤度を入力してください');
+        skippedCount++;
+      }
+    } else if (drynessMethod === 'saliva') {
+      const salivaValue = document.getElementById('saliva-value').value;
+      if (salivaValue) {
+        this.evaluateSaliva();
+        evaluatedCount++;
+        messages.push('口腔乾燥（唾液量）: 評価完了');
+      } else {
+        messages.push('口腔乾燥: 唾液量を入力してください');
+        skippedCount++;
+      }
+    } else {
+      messages.push('口腔乾燥: 評価方法を選択してください');
+      skippedCount++;
+    }
+
+    // 3. 咬合力低下評価
+    const biteForceMethod = document.getElementById('bite-force-method').value;
+    if (biteForceMethod === 'force') {
+      const forceValue = document.getElementById('force-value').value;
+      if (forceValue) {
+        this.evaluateBiteForce();
+        evaluatedCount++;
+        messages.push('咬合力低下（咬合力）: 評価完了');
+      } else {
+        messages.push('咬合力低下: 咬合力を入力してください');
+        skippedCount++;
+      }
+    } else if (biteForceMethod === 'teeth') {
+      const teethCount = document.getElementById('teeth-count').value;
+      if (teethCount) {
+        this.evaluateTeethCount();
+        evaluatedCount++;
+        messages.push('咬合力低下（残存歯数）: 評価完了');
+      } else {
+        messages.push('咬合力低下: 残存歯数を入力してください');
+        skippedCount++;
+      }
+    } else {
+      messages.push('咬合力低下: 評価方法を選択してください');
+      skippedCount++;
+    }
+
+    // 4. 舌口唇運動機能低下評価
+    const paValue = document.getElementById('pa-value').value;
+    const taValue = document.getElementById('ta-value').value;
+    const kaValue = document.getElementById('ka-value').value;
+    if (paValue && taValue && kaValue) {
+      this.evaluateOralDiadochokinesis();
+      evaluatedCount++;
+      messages.push('舌口唇運動機能: 評価完了');
+    } else {
+      messages.push('舌口唇運動機能: パ・タ・カの値をすべて入力してください');
+      skippedCount++;
+    }
+
+    // 5. 低舌圧評価
+    const tonguePressure = document.getElementById('tongue-pressure').value;
+    if (tonguePressure) {
+      this.evaluateTonguePressure();
+      evaluatedCount++;
+      messages.push('低舌圧: 評価完了');
+    } else {
+      messages.push('低舌圧: 舌圧を入力してください');
+      skippedCount++;
+    }
+
+    // 6. 咀嚼機能低下評価
+    const masticationMethod = document.getElementById('mastication-method').value;
+    if (masticationMethod === 'glucose') {
+      const glucoseValue = document.getElementById('glucose-value').value;
+      if (glucoseValue) {
+        this.evaluateGlucose();
+        evaluatedCount++;
+        messages.push('咀嚼機能（グルコース）: 評価完了');
+      } else {
+        messages.push('咀嚼機能: グルコース濃度を入力してください');
+        skippedCount++;
+      }
+    } else if (masticationMethod === 'score') {
+      const masticationScore = document.getElementById('mastication-score').value;
+      if (masticationScore) {
+        this.evaluateMasticationScore();
+        evaluatedCount++;
+        messages.push('咀嚼機能（スコア）: 評価完了');
+      } else {
+        messages.push('咀嚼機能: スコアを選択してください');
+        skippedCount++;
+      }
+    } else {
+      messages.push('咀嚼機能: 評価方法を選択してください');
+      skippedCount++;
+    }
+
+    // 7. 嚥下機能低下評価（自動評価のため、選択されていれば評価済み）
+    const swallowingMethod = document.getElementById('swallowing-method').value;
+    if (swallowingMethod === 'eat10') {
+      // EAT-10の場合、選択されていれば自動評価される
+      messages.push('嚥下機能（EAT-10）: 質問項目を選択してください');
+    } else if (swallowingMethod === 'seiryo') {
+      // 聖隷式の場合、選択されていれば自動評価される
+      messages.push('嚥下機能（聖隷式）: 質問項目を選択してください');
+    } else {
+      messages.push('嚥下機能: 評価方法を選択してください');
+      skippedCount++;
+    }
+
+    // 結果をアラートで表示
+    let alertMessage = `一括評価結果:\n\n`;
+    alertMessage += `評価完了: ${evaluatedCount}項目\n`;
+    alertMessage += `スキップ: ${skippedCount}項目\n\n`;
+    alertMessage += '詳細:\n' + messages.join('\n');
+
+    alert(alertMessage);
   }
 
   // 検査完了
