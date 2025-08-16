@@ -9,37 +9,29 @@ on:
 jobs:
   claude-auto-response:
     runs-on: ubuntu-latest
-    # 必要な権限を明示的に設定し、セキュリティを向上
     permissions:
-      issues: write
-      contents: read # checkoutに必要
+      issues: write      # Issueへのコメント投稿に必要
+      contents: write    # Claudeがコードを修正してPushする場合に必要
 
     steps:
-      # ステップ1: イベントトリガーのチェック（無限ループ防止の要）
+      # ステップ1: 無限ループ防止のためのイベントトリガーチェック
       - name: Check Event Trigger
         id: event-check
         run: |
           echo "=== イベントトリガーチェック ==="
-          # Issue作成イベントの場合は常に処理を続行
           if [ "${{ github.event_name }}" = "issues" ]; then
             echo "should_process=true" >> $GITHUB_OUTPUT
             echo "トリガー: Issue作成。処理を継続します。"
             exit 0
           fi
 
-          # コメント作成イベントの場合、ボットからのコメントかを厳密にチェック
           if [ "${{ github.event_name }}" = "issue_comment" ]; then
             COMMENT_AUTHOR_TYPE="${{ github.event.comment.user.type }}"
-            COMMENT_AUTHOR_LOGIN="${{ github.event.comment.user.login }}"
-            echo "コメント作成者: ${COMMENT_AUTHOR_LOGIN} (タイプ: ${COMMENT_AUTHOR_TYPE})"
-
-            # ユーザータイプが 'Bot' または 'App' の場合は処理をスキップ
             if [ "$COMMENT_AUTHOR_TYPE" = "Bot" ] || [ "$COMMENT_AUTHOR_TYPE" = "App" ]; then
               echo "should_process=false" >> $GITHUB_OUTPUT
               echo "🚫 ボットまたはAppからのコメントのため、処理をスキップします。"
               exit 0
             fi
-            
             echo "should_process=true" >> $GITHUB_OUTPUT
             echo "✅ 人間からのコメント。処理を継続します。"
           fi
@@ -49,62 +41,31 @@ jobs:
         if: steps.event-check.outputs.should_process == 'true'
         uses: actions/checkout@v4
 
-      # ステップ3: Issue情報の解析とファイル保存
-      - name: Parse Issue Information
-        if: steps.event-check.outputs.should_process == 'true'
-        id: parse-issue
-        env:
-          ISSUE_BODY: ${{ github.event.issue.body }}
-          COMMENT_BODY: ${{ github.event.comment.body }}
-        run: |
-          echo "=== Issue情報解析 ==="
-          if [ "${{ github.event_name }}" = "issues" ]; then
-            EVENT_TYPE="issue_opened"
-          else
-            EVENT_TYPE="comment_created"
-          fi
-          
-          echo "issue_number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
-          echo "issue_title=${{ github.event.issue.title }}" >> $GITHUB_OUTPUT
-          echo "issue_author=${{ github.event.issue.user.login }}" >> $GITHUB_OUTPUT
-          echo "event_type=${EVENT_TYPE}" >> $GITHUB_OUTPUT
-
-          # Issue本文をファイルに保存（安全な方法）
-          echo "$ISSUE_BODY" > issue_body.txt
-          echo "Issue本文を issue_body.txt に保存しました。"
-
-          # コメントがある場合は保存
-          if [ "$EVENT_TYPE" = "comment_created" ]; then
-            echo "$COMMENT_BODY" > comment_body.txt
-            echo "コメント本文を comment_body.txt に保存しました。"
-            echo "has_comment=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_comment=false" >> $GITHUB_OUTPUT
-          fi
-
-      # ステップ4: Claudeによる分析の実行
-      - name: Run Claude Code Analysis
+      # ステップ3: Claudeによる分析と応答
+      - name: Run Claude Analysis and Respond
         if: steps.event-check.outputs.should_process == 'true'
         uses: anthropics/claude-code-action@beta
         id: claude-analysis
+        continue-on-error: true # このステップが失敗してもワークフローを続行
         with:
-          claude_code_oauth_token: ${{ secrets.ANTHROPIC_API_KEY }}
+          # 認証キーのパラメータ名を修正
+          claude_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          # プロンプト内の本文参照方法を修正
           direct_prompt: |
             あなたは口腔機能低下症診断・管理アプリの上級技術サポートAIです。
             以下の問い合わせについて、技術的な観点から分析し、包括的なサポート応答を生成してください。
 
             ## 問い合わせ情報
-            - **Issue番号**: #${{ steps.parse-issue.outputs.issue_number }}
-            - **イベント**: ${{ steps.parse-issue.outputs.event_type }}
-            - **報告者**: ${{ steps.parse-issue.outputs.issue_author }}
-            - **タイトル**: ${{ steps.parse-issue.outputs.issue_title }}
+            - **Issue番号**: #${{ github.event.issue.number }}
+            - **報告者**: ${{ github.event.issue.user.login }}
+            - **タイトル**: ${{ github.event.issue.title }}
 
             ### 詳細内容
-            ${{ env.ISSUE_BODY }}
+            ${{ github.event.issue.body }}
 
             ### 追加コメント (該当する場合)
-            ${{ env.COMMENT_BODY }}
+            ${{ github.event_name == 'issue_comment' && github.event.comment.body || 'なし' }}
 
             ## 指示
             以下の形式で応答を生成してください。
@@ -114,69 +75,37 @@ jobs:
             4. **テスト手順**: 解決を確認する方法
 
             ⚠️重要: 応答の最後に必ず「この応答は自動生成されています。」という一文を含めてください。
-          trigger_phrase: ".*" # すべてのIssueとコメントに反応
+          trigger_phrase: ".*"
           mode: tag
           branch_prefix: claude/
           timeout_minutes: 10
-          use_sticky_comment: false
 
-      # ステップ5: Claudeの応答結果をチェック
+      # ステップ4: Claudeの実行結果を確認
       - name: Check Claude Analysis Result
         if: steps.event-check.outputs.should_process == 'true'
         id: check-claude-result
         run: |
-          echo "=== Claude分析結果チェック ==="
-          CLAUDE_OUTCOME="${{ steps.claude-analysis.outcome }}"
-          CLAUDE_RESPONSE="${{ steps.claude-analysis.outputs.response }}"
-          
-          if [ "$CLAUDE_OUTCOME" = "success" ] && [ -n "$CLAUDE_RESPONSE" ] && [ "$CLAUDE_RESPONSE" != "null" ]; then
-            echo "claude_success=true" >> $GITHUB_OUTPUT
-            echo "✅ Claudeによる分析が成功し、有効な応答が得られました。"
+          if [ "${{ steps.claude-analysis.outcome }}" = "success" ]; then
+            echo "claude_succeeded=true" >> $GITHUB_OUTPUT
+            echo "✅ Claudeによる分析が成功しました。"
           else
-            echo "claude_success=false" >> $GITHUB_OUTPUT
-            echo "⚠️ Claudeによる分析が失敗したか、応答が空です。"
+            echo "claude_succeeded=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Claudeによる分析が失敗しました。フォールバック応答を準備します。"
           fi
 
-      # ステップ6: 応答をIssueに投稿
-      - name: Post Response to Issue
-        if: steps.event-check.outputs.should_process == 'true' && steps.check-claude-result.outputs.claude_success == 'true'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const response = `${{ steps.claude-analysis.outputs.response }}`;
-            
-            // 自動生成の文言が含まれているか確認し、なければ追加
-            let finalResponse = response;
-            if (!response.includes("この応答は自動生成されています。")) {
-              finalResponse += "\n\n---\n<sub>⚠️ この応答は自動生成されています。</sub>";
-            }
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: finalResponse
-            });
-            console.log("✅ Claudeの応答をIssueに投稿しました。");
-
-      # ステップ7: フォールバック応答の投稿 (Claudeが失敗した場合)
+      # ステップ5: フォールバック応答の投稿 (Claudeが失敗した場合のみ実行)
       - name: Post Fallback Response
-        if: steps.event-check.outputs.should_process == 'true' && steps.check-claude-result.outputs.claude_success == 'false'
+        if: steps.check-claude-result.outputs.claude_succeeded == 'false'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fallbackBody = `
             ## ⚠️ 自動分析エラー
-
-            ${{ steps.parse-issue.outputs.issue_author }}さん、お問い合わせありがとうございます。
-
-            現在、AIによる自動分析システムで問題が発生したため、応答を生成できませんでした。
+            @${{ github.event.issue.user.login }}さん、お問い合わせありがとうございます。
+            現在、AIによる自動分析システムで技術的な問題が発生したため、応答を生成できませんでした。
             担当者が内容を確認し、手動で対応いたしますので、今しばらくお待ちください。
-
             ご不便をおかけして申し訳ございません。
-
             ---
             <sub>⚠️ この応答は自動生成されています。</sub>
             `;
@@ -186,13 +115,4 @@ jobs:
               issue_number: context.issue.number,
               body: fallbackBody
             });
-            console.log("⚠️ Claudeの分析に失敗したため、フォールバック応答を投稿しました。");
-
-      # ステップ8: 一時ファイルのクリーンアップ
-      - name: Cleanup
-        if: always() && steps.event-check.outputs.should_process == 'true'
-        run: |
-          echo "=== クリーンアップ処理 ==="
-          rm -f issue_body.txt comment_body.txt
-          echo "一時ファイルを削除しました。"
-
+            console.log("フォールバック応答をIssueに投稿しました。");
