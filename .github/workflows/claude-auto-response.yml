@@ -48,8 +48,8 @@ jobs:
         id: claude-analysis
         continue-on-error: true # このステップが失敗してもワークフローを続行
         with:
-          # 正しいAPIキーのパラメータ名に修正
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # APIキーの代わりにOAuthトークンを使用
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           direct_prompt: |
             あなたは口腔機能低下症診断・管理アプリの上級技術サポートAIです。
