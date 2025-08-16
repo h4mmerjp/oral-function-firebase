@@ -48,10 +48,9 @@ jobs:
         id: claude-analysis
         continue-on-error: true # このステップが失敗してもワークフローを続行
         with:
-          # 認証キーのパラメータ名を修正
-          claude_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # 正しいAPIキーのパラメータ名に修正
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          # プロンプト内の本文参照方法を修正
           direct_prompt: |
             あなたは口腔機能低下症診断・管理アプリの上級技術サポートAIです。
             以下の問い合わせについて、技術的な観点から分析し、包括的なサポート応答を生成してください。
