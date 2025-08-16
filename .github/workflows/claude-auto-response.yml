@@ -9,610 +9,190 @@ on:
 jobs:
   claude-auto-response:
     runs-on: ubuntu-latest
+    # 必要な権限を明示的に設定し、セキュリティを向上
     permissions:
-      contents: write
       issues: write
-      pull-requests: write
-      id-token: write
-      actions: write
+      contents: read # checkoutに必要
 
     steps:
-      # 無限ループ防止のためのチェック（強化版）
-      - name: Check if comment is from bot
-        id: bot-check
+      # ステップ1: イベントトリガーのチェック（無限ループ防止の要）
+      - name: Check Event Trigger
+        id: event-check
         run: |
-          echo "=== Bot チェック ==="
-          # Issue作成の場合はスキップ
+          echo "=== イベントトリガーチェック ==="
+          # Issue作成イベントの場合は常に処理を続行
           if [ "${{ github.event_name }}" = "issues" ]; then
-            echo "is_bot=false" >> $GITHUB_OUTPUT
             echo "should_process=true" >> $GITHUB_OUTPUT
-            echo "Issue作成イベント - 処理を継続"
+            echo "トリガー: Issue作成。処理を継続します。"
             exit 0
           fi
-          # コメント作成の場合
+
+          # コメント作成イベントの場合、ボットからのコメントかを厳密にチェック
           if [ "${{ github.event_name }}" = "issue_comment" ]; then
-            COMMENT_AUTHOR="${{ github.event.comment.user.login }}"
-            COMMENT_TYPE="${{ github.event.comment.user.type }}"
-            
-            echo "コメント作成者: $COMMENT_AUTHOR"
-            echo "ユーザータイプ: $COMMENT_TYPE"
-            
-            # Botからのコメントかチェック（より厳密に）
-            if [ "$COMMENT_TYPE" = "Bot" ]; then
-              echo "is_bot=true" >> $GITHUB_OUTPUT
+            COMMENT_AUTHOR_TYPE="${{ github.event.comment.user.type }}"
+            COMMENT_AUTHOR_LOGIN="${{ github.event.comment.user.login }}"
+            echo "コメント作成者: ${COMMENT_AUTHOR_LOGIN} (タイプ: ${COMMENT_AUTHOR_TYPE})"
+
+            # ユーザータイプが 'Bot' または 'App' の場合は処理をスキップ
+            if [ "$COMMENT_AUTHOR_TYPE" = "Bot" ] || [ "$COMMENT_AUTHOR_TYPE" = "App" ]; then
               echo "should_process=false" >> $GITHUB_OUTPUT
-              echo "Botからのコメント - 処理をスキップ"
+              echo "🚫 ボットまたはAppからのコメントのため、処理をスキップします。"
               exit 0
             fi
             
-            # GitHub Actions Botかチェック
-            if [ "$COMMENT_AUTHOR" = "github-actions[bot]" ] || [ "$COMMENT_AUTHOR" = "github-actions" ]; then
-              echo "is_bot=true" >> $GITHUB_OUTPUT
-              echo "should_process=false" >> $GITHUB_OUTPUT
-              echo "GitHub Actions Botからのコメント - 処理をスキップ"
-              exit 0
-            fi
-            
-            # Claude Code Actionのコメントかチェック（ユーザー名パターン）
-            if echo "$COMMENT_AUTHOR" | grep -qi "claude"; then
-              echo "is_bot=true" >> $GITHUB_OUTPUT
-              echo "should_process=false" >> $GITHUB_OUTPUT
-              echo "Claudeボットからのコメント - 処理をスキップ"
-              exit 0
-            fi
-            
-            echo "is_bot=false" >> $GITHUB_OUTPUT
             echo "should_process=true" >> $GITHUB_OUTPUT
-            echo "人間からのコメント - 処理を継続"
+            echo "✅ 人間からのコメント。処理を継続します。"
           fi
 
-      # Bot チェックで処理不要と判定された場合は終了
-      - name: Skip if bot comment
-        if: steps.bot-check.outputs.should_process == 'false'
-        run: |
-          echo "🤖 Botからのコメントまたは自動生成コメントのため処理をスキップしました"
-          echo "コメント作成者: ${{ github.event.comment.user.login }}"
-          echo "スキップ理由: Bot またはシステム生成コンテンツ"
-          exit 0
-
+      # ステップ2: リポジトリのチェックアウト
       - name: Checkout repository
-        if: steps.bot-check.outputs.should_process == 'true'
+        if: steps.event-check.outputs.should_process == 'true'
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      # GitHub Token の検証ステップを追加
-      - name: Verify GitHub Token
-        if: steps.bot-check.outputs.should_process == 'true'
-        id: verify-token
-        run: |
-          echo "=== GitHub Token 検証 ==="
-          
-          # GITHUB_TOKENの権限をテスト
-          REPO_CHECK=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "${{ github.api_url }}/repos/${{ github.repository }}")
-          
-          echo "リポジトリアクセステスト: HTTP $REPO_CHECK"
-          
-          if [ "$REPO_CHECK" = "200" ]; then
-            echo "github_token_valid=true" >> $GITHUB_OUTPUT
-            echo "✅ GitHub Token 検証成功"
-          else
-            echo "github_token_valid=false" >> $GITHUB_OUTPUT
-            echo "❌ GitHub Token 検証失敗"
-          fi
-
+      # ステップ3: Issue情報の解析とファイル保存
       - name: Parse Issue Information
-        if: steps.bot-check.outputs.should_process == 'true'
+        if: steps.event-check.outputs.should_process == 'true'
         id: parse-issue
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
           echo "=== Issue情報解析 ==="
-          # Issue情報を環境変数から取得
           if [ "${{ github.event_name }}" = "issues" ]; then
-            ISSUE_NUMBER="${{ github.event.issue.number }}"
-            ISSUE_TITLE="${{ github.event.issue.title }}"
-            ISSUE_AUTHOR="${{ github.event.issue.user.login }}"
-            ISSUE_LABELS="${{ join(github.event.issue.labels.*.name, ',') }}"
-            EVENT_TYPE="issue_created"
-          elif [ "${{ github.event_name }}" = "issue_comment" ]; then
-            ISSUE_NUMBER="${{ github.event.issue.number }}"
-            ISSUE_TITLE="${{ github.event.issue.title }}"
-            ISSUE_AUTHOR="${{ github.event.issue.user.login }}"
-            ISSUE_LABELS="${{ join(github.event.issue.labels.*.name, ',') }}"
-            COMMENT_AUTHOR="${{ github.event.comment.user.login }}"
+            EVENT_TYPE="issue_opened"
+          else
             EVENT_TYPE="comment_created"
           fi
-
-          # 出力変数に設定
-          echo "issue_number=${ISSUE_NUMBER}" >> $GITHUB_OUTPUT
-          echo "issue_title=${ISSUE_TITLE}" >> $GITHUB_OUTPUT
-          echo "issue_author=${ISSUE_AUTHOR}" >> $GITHUB_OUTPUT
-          echo "issue_labels=${ISSUE_LABELS}" >> $GITHUB_OUTPUT
+          
+          echo "issue_number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+          echo "issue_title=${{ github.event.issue.title }}" >> $GITHUB_OUTPUT
+          echo "issue_author=${{ github.event.issue.user.login }}" >> $GITHUB_OUTPUT
           echo "event_type=${EVENT_TYPE}" >> $GITHUB_OUTPUT
 
-          # Issue本文を安全にファイルに保存（heredoc使用）
-          cat > issue_body.txt << 'ISSUE_BODY_EOF'
-${{ github.event.issue.body }}
-ISSUE_BODY_EOF
+          # Issue本文をファイルに保存（安全な方法）
+          echo "$ISSUE_BODY" > issue_body.txt
+          echo "Issue本文を issue_body.txt に保存しました。"
 
           # コメントがある場合は保存
-          if [ "${{ github.event_name }}" = "issue_comment" ]; then
-            cat > comment_body.txt << 'COMMENT_BODY_EOF'
-${{ github.event.comment.body }}
-COMMENT_BODY_EOF
+          if [ "$EVENT_TYPE" = "comment_created" ]; then
+            echo "$COMMENT_BODY" > comment_body.txt
+            echo "コメント本文を comment_body.txt に保存しました。"
             echo "has_comment=true" >> $GITHUB_OUTPUT
-            echo "comment_author=${{ github.event.comment.user.login }}" >> $GITHUB_OUTPUT
           else
             echo "has_comment=false" >> $GITHUB_OUTPUT
           fi
 
-          echo "Issue #${ISSUE_NUMBER} の情報を解析完了 (イベント: ${EVENT_TYPE})"
-
-      # 入力データの検証を追加
-      - name: Validate Input Data
-        if: steps.bot-check.outputs.should_process == 'true'
-        id: validate-input
-        run: |
-          echo "=== 入力データ検証 ==="
-          
-          # Issue本文の存在確認
-          if [ ! -f issue_body.txt ]; then
-            echo "❌ Issue本文ファイルが存在しません"
-            echo "input_valid=false" >> $GITHUB_OUTPUT
-            exit 1
-          fi
-          
-          # Issue本文の長さチェック
-          BODY_LENGTH=$(wc -c < issue_body.txt)
-          echo "Issue本文の長さ: ${BODY_LENGTH} bytes"
-          
-          if [ "$BODY_LENGTH" -gt 65536 ]; then
-            echo "⚠️ Issue本文が長すぎます (${BODY_LENGTH} bytes)"
-            echo "input_valid=false" >> $GITHUB_OUTPUT
-            exit 1
-          fi
-          
-          if [ "$BODY_LENGTH" -eq 0 ]; then
-            echo "⚠️ Issue本文が空です"
-            echo "input_valid=false" >> $GITHUB_OUTPUT
-            exit 1
-          fi
-          
-          echo "input_valid=true" >> $GITHUB_OUTPUT
-          echo "✅ 入力データ検証完了"
-
-      - name: Categorize Issue
-        if: steps.bot-check.outputs.should_process == 'true' && steps.validate-input.outputs.input_valid == 'true'
-        id: categorize
-        run: |
-          echo "=== Issue分類 ==="
-          TITLE="${{ steps.parse-issue.outputs.issue_title }}"
-          LABELS="${{ steps.parse-issue.outputs.issue_labels }}"
-          EVENT_TYPE="${{ steps.parse-issue.outputs.event_type }}"
-          
-          # ファイルから内容を読み込み
-          if [ -f issue_body.txt ]; then
-            BODY=$(cat issue_body.txt)
-          else
-            BODY=""
-          fi
-
-          # コメントがある場合は追加コンテキストとして使用
-          if [ "${{ steps.parse-issue.outputs.has_comment }}" = "true" ] && [ -f comment_body.txt ]; then
-            COMMENT_BODY=$(cat comment_body.txt)
-            BODY="${BODY}\n\n=== 追加コメント ===\n${COMMENT_BODY}"
-          fi
-
-          # 分類ロジック
-          CATEGORY="general"
-          PRIORITY="medium"
-
-          # イベントタイプによる優先度調整
-          if [ "$EVENT_TYPE" = "comment_created" ]; then
-            echo "コメント追加による再分析"
-            PRIORITY="low"
-          fi
-
-          # タイトルとラベルによる分類ロジック
-          if echo "$TITLE" | grep -qi "バグ\|エラー\|不具合\|bug\|error"; then
-            CATEGORY="bug"
-            PRIORITY="high"
-          elif echo "$TITLE" | grep -qi "機能\|要望\|enhancement\|feature"; then
-            CATEGORY="enhancement"
-            PRIORITY="medium"
-          elif echo "$TITLE" | grep -qi "ヘルプ\|サポート\|使い方\|help\|support"; then
-            CATEGORY="support"
-            PRIORITY="medium"
-          elif echo "$TITLE" | grep -qi "セキュリティ\|security"; then
-            CATEGORY="security"
-            PRIORITY="critical"
-          elif echo "$TITLE" | grep -qi "パフォーマンス\|performance\|遅い\|slow"; then
-            CATEGORY="performance"
-            PRIORITY="high"
-          fi
-
-          # ラベルによる分類（優先）
-          if echo "$LABELS" | grep -qi "bug"; then
-            CATEGORY="bug"
-          elif echo "$LABELS" | grep -qi "enhancement"; then
-            CATEGORY="enhancement"
-          elif echo "$LABELS" | grep -qi "support"; then
-            CATEGORY="support"
-          elif echo "$LABELS" | grep -qi "security"; then
-            CATEGORY="security"
-            PRIORITY="critical"
-          fi
-
-          echo "category=${CATEGORY}" >> $GITHUB_OUTPUT
-          echo "priority=${PRIORITY}" >> $GITHUB_OUTPUT
-          echo "分類: ${CATEGORY}, 優先度: ${PRIORITY} (イベント: ${EVENT_TYPE})"
-
+      # ステップ4: Claudeによる分析の実行
       - name: Run Claude Code Analysis
-        if: steps.bot-check.outputs.should_process == 'true' && steps.verify-token.outputs.github_token_valid == 'true' && steps.validate-input.outputs.input_valid == 'true'
-        continue-on-error: true
+        if: steps.event-check.outputs.should_process == 'true'
         uses: anthropics/claude-code-action@beta
         id: claude-analysis
         with:
           claude_code_oauth_token: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           direct_prompt: |
-            # 口腔機能低下症診断・管理アプリ - 技術サポート分析
-
-            ## 担当AI
             あなたは口腔機能低下症診断・管理アプリの上級技術サポートAIです。
+            以下の問い合わせについて、技術的な観点から分析し、包括的なサポート応答を生成してください。
 
             ## 問い合わせ情報
             - **Issue番号**: #${{ steps.parse-issue.outputs.issue_number }}
-            - **イベントタイプ**: ${{ steps.parse-issue.outputs.event_type }}
-            - **カテゴリ**: ${{ steps.categorize.outputs.category }}
-            - **優先度**: ${{ steps.categorize.outputs.priority }}
+            - **イベント**: ${{ steps.parse-issue.outputs.event_type }}
             - **報告者**: ${{ steps.parse-issue.outputs.issue_author }}
             - **タイトル**: ${{ steps.parse-issue.outputs.issue_title }}
 
             ### 詳細内容
-            ${{ github.event.issue.body }}
+            ${{ env.ISSUE_BODY }}
 
             ### 追加コメント (該当する場合)
-            ${{ github.event.comment.body }}
-
-            ## アプリ技術情報
-            - **フロントエンド**: HTML5, CSS3, JavaScript (ES6+)
-            - **データベース**: Firebase Firestore + ローカルストレージ
-            - **認証**: Google OAuth 2.0 (Firebase Authentication)
-            - **UI**: レスポンシブデザイン
-            - **対応ブラウザ**: Chrome, Firefox, Safari, Edge (最新版)
-
-            ## 主要機能とファイル構成
-            - **患者管理**: patients.js
-            - **検査機能**: assessment.js
-            - **管理計画**: management.js
-            - **データベース**: database.js (Firebase版)
-            - **認証**: firebase-config.js
-            - **メイン**: app.js, index.html
-            - **スタイル**: styles.css
+            ${{ env.COMMENT_BODY }}
 
             ## 指示
-            以下の形式で包括的な技術サポート応答を生成してください：
-
+            以下の形式で応答を生成してください。
             1. **問題分析**: 技術的な原因と影響範囲
-            2. **即座の対応手順**: 3つの具体的なステップ
-            3. **技術的解決策**: 詳細な解決方法
-            4. **テスト手順**: 検証方法
-            5. **再発防止策**: 今後の予防策
+            2. **即座の対応手順**: ユーザーができること
+            3. **恒久的な解決策**: コード修正案やシステム変更案
+            4. **テスト手順**: 解決を確認する方法
 
-            医療従事者向けアプリのため、データの安全性とプライバシー保護を最優先に考慮してください。
-
-            ⚠️ 重要：この応答は自動生成であることを明記し、「この応答は自動生成されています」という文言を必ず含めてください。
-          trigger_phrase: ".*"
-          custom_instructions: "Issue #${{ steps.parse-issue.outputs.issue_number }}の技術サポート分析を実行してください。必ず「この応答は自動生成されています」という文言を含めてください。"
+            ⚠️重要: 応答の最後に必ず「この応答は自動生成されています。」という一文を含めてください。
+          trigger_phrase: ".*" # すべてのIssueとコメントに反応
           mode: tag
           branch_prefix: claude/
-          use_bedrock: false
-          use_vertex: false
           timeout_minutes: 10
           use_sticky_comment: false
-          use_commit_signing: false
 
-      - name: Create Fallback Response
-        if: steps.bot-check.outputs.should_process == 'true' && steps.validate-input.outputs.input_valid == 'true'
-        id: fallback-response
-        run: |
-          echo "=== フォールバック応答作成 ==="
-          CATEGORY="${{ steps.categorize.outputs.category }}"
-          PRIORITY="${{ steps.categorize.outputs.priority }}"
-          ISSUE_AUTHOR="${{ steps.parse-issue.outputs.issue_author }}"
-          EVENT_TYPE="${{ steps.parse-issue.outputs.event_type }}"
-          TOKEN_VALID="${{ steps.verify-token.outputs.github_token_valid }}"
-
-          # トークン問題がある場合の特別対応
-          if [ "$TOKEN_VALID" = "false" ]; then
-            TECHNICAL_NOTE="現在、自動分析システムにアクセス権限の問題が発生しています。手動で詳細分析を実施いたします。"
-          else
-            TECHNICAL_NOTE="技術サポートチームが詳細分析を実施し、適切な解決策をご提案いたします。"
-          fi
-
-          # イベントタイプに応じたメッセージ調整
-          if [ "$EVENT_TYPE" = "comment_created" ]; then
-            GREETING="追加のコメントありがとうございます！"
-            ACTION_MESSAGE="追加いただいた情報を踏まえて、詳細な分析を行います。"
-          else
-            GREETING="お問い合わせありがとうございます！"
-            ACTION_MESSAGE="詳細な技術分析を開始しており、24時間以内に具体的な解決策をお返しいたします。"
-          fi
-
-          # カテゴリ別の絵文字とタイトル設定
-          case "$CATEGORY" in
-            "bug")
-              EMOJI="🐛"
-              TITLE="バグ報告の確認"
-              PRIORITY_BADGE="🔥 高"
-              ;;
-            "enhancement")
-              EMOJI="✨"
-              TITLE="機能要望の確認"
-              PRIORITY_BADGE="📋 中"
-              ;;
-            "support")
-              EMOJI="💬"
-              TITLE="サポート依頼の確認"
-              PRIORITY_BADGE="💡 中"
-              ;;
-            "security")
-              EMOJI="🔒"
-              TITLE="セキュリティ問題の確認"
-              PRIORITY_BADGE="⚡ 緊急"
-              ;;
-            "performance")
-              EMOJI="⚡"
-              TITLE="パフォーマンス問題の確認"
-              PRIORITY_BADGE="🔥 高"
-              ;;
-            *)
-              EMOJI="📋"
-              TITLE="お問い合わせの確認"
-              PRIORITY_BADGE="📋 中"
-              ;;
-          esac
-
-          # フォールバック応答を作成
-          cat > fallback_response.md << FALLBACK_EOF
-## ${EMOJI} ${TITLE}
-
-${ISSUE_AUTHOR}さん、${GREETING}
-
-${ACTION_MESSAGE}
-
-**優先度**: ${PRIORITY_BADGE} | **予想対応時間**: 24時間以内
-
----
-
-### 🔍 自動分析結果
-
-お問い合わせ内容を確認いたしました。${TECHNICAL_NOTE}
-
-### 🚀 即座の対応手順
-
-問題の詳細を確認するため、以下をお試しください：
-
-1. **ブラウザの再読み込み**: Ctrl+F5（Windows）またはCmd+Shift+R（Mac）で強制更新
-2. **開発者ツールでエラー確認**: F12キーを押してConsoleタブでエラーメッセージを確認
-3. **別ブラウザでの検証**: Chrome、Firefox、Safariなど別のブラウザで同様の問題が発生するか確認
-
----
-
-<sub>⚠️ この応答は自動生成されています。技術サポートチームが詳細分析を行い、24時間以内に追加回答いたします。</sub>
-FALLBACK_EOF
-          
-          cp fallback_response.md fallback_response_final.md
-
-          echo "response_file=fallback_response_final.md" >> $GITHUB_OUTPUT
-          echo "フォールバック応答作成完了"
-
+      # ステップ5: Claudeの応答結果をチェック
       - name: Check Claude Analysis Result
-        if: steps.bot-check.outputs.should_process == 'true' && steps.validate-input.outputs.input_valid == 'true'
-        id: check-claude
+        if: steps.event-check.outputs.should_process == 'true'
+        id: check-claude-result
         run: |
-          echo "=== Claude Code結果チェック ==="
-          CLAUDE_SUCCESS="${{ steps.claude-analysis.outcome }}"
-          echo "Claude Code ステップの結果: $CLAUDE_SUCCESS"
-          if [ "$CLAUDE_SUCCESS" = "success" ]; then
-            echo "claude_available=true" >> $GITHUB_OUTPUT
-            echo "Claude Code ステップが成功しました"
-          else
-            echo "claude_available=false" >> $GITHUB_OUTPUT
-            echo "Claude Code ステップが失敗しました"
-          fi
-
-      - name: Save Claude Response
-        if: steps.bot-check.outputs.should_process == 'true' && steps.check-claude.outputs.claude_available == 'true' && steps.validate-input.outputs.input_valid == 'true'
-        id: save-claude
-        run: |
-          echo "=== Claude応答保存 ==="
-          # Claude応答をファイルに保存
-          echo '${{ steps.claude-analysis.outputs.response }}' > claude_response.txt
-
-          # 応答が空でないかチェック
-          if [ -s claude_response.txt ]; then
-            RESPONSE_LENGTH=$(wc -c < claude_response.txt)
-            echo "Claude応答をファイルに保存しました (サイズ: ${RESPONSE_LENGTH} bytes)"
-            echo "saved=true" >> $GITHUB_OUTPUT
-          else
-            echo "Claude応答が空です"
-            echo "saved=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Format Claude Response
-        if: steps.bot-check.outputs.should_process == 'true' && steps.save-claude.outputs.saved == 'true' && steps.validate-input.outputs.input_valid == 'true'
-        id: format-claude
-        run: |
-          echo "=== Claude応答フォーマット ==="
-          # 保存されたファイルから応答を読み込み
-          CLAUDE_RESPONSE=$(cat claude_response.txt)
-          echo "Claude Code 応答の長さ: ${#CLAUDE_RESPONSE}"
-
-          # 応答が空でないかチェック
-          if [ -n "$CLAUDE_RESPONSE" ] && [ "$CLAUDE_RESPONSE" != "null" ] && [ "$CLAUDE_RESPONSE" != "" ]; then
-            echo "Claude Code応答を使用"
-            
-            # 自動生成の文言が含まれているかチェック
-            if ! echo "$CLAUDE_RESPONSE" | grep -q "自動生成"; then
-              # 含まれていない場合は追加
-              echo "$CLAUDE_RESPONSE" > temp_response.md
-              echo "" >> temp_response.md
-              echo "---" >> temp_response.md
-              echo "<sub>⚠️ この応答は自動生成されています。</sub>" >> temp_response.md
-              cp temp_response.md final_response.md
-            else
-              echo "$CLAUDE_RESPONSE" > final_response.md
-            fi
-            
-            echo "response_file=final_response.md" >> $GITHUB_OUTPUT
-            echo "source=claude" >> $GITHUB_OUTPUT
-            echo "formatted=true" >> $GITHUB_OUTPUT
-          else
-            echo "Claude応答が空のため、フォールバックを使用"
-            echo "formatted=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Format GitHub Response
-        if: steps.bot-check.outputs.should_process == 'true' && steps.validate-input.outputs.input_valid == 'true'
-        id: format-response
-        run: |
-          echo "=== GitHub応答フォーマット ==="
-          # Claude応答が利用可能かチェック
-          if [ "${{ steps.format-claude.outputs.formatted }}" = "true" ]; then
-            echo "Claude Code応答を使用"
-            echo "response_file=final_response.md" >> $GITHUB_OUTPUT
-            echo "source=claude" >> $GITHUB_OUTPUT
-          else
-            echo "フォールバック応答を使用"
-            echo "理由: Claude Code ステップが失敗したか、応答が空です"
-            cp fallback_response_final.md final_response.md
-            echo "response_file=final_response.md" >> $GITHUB_OUTPUT
-            echo "source=fallback" >> $GITHUB_OUTPUT
-          fi
-          echo "GitHub応答フォーマット完了"
-
-      - name: Post Response to GitHub
-        if: steps.bot-check.outputs.should_process == 'true' && steps.validate-input.outputs.input_valid == 'true'
-        run: |
-          echo "=== GitHub応答投稿 ==="
-          # 応答内容をJSONエスケープして投稿
-          RESPONSE_BODY=$(cat final_response.md | jq -Rs .)
-          RESPONSE_SOURCE="${{ steps.format-response.outputs.source != '' && steps.format-response.outputs.source || 'unknown' }}"
-          echo "応答ソース: $RESPONSE_SOURCE"
-
-          # GitHubへのコメント投稿
-          HTTP_STATUS=$(curl -w "%{http_code}" -s -X POST \
-            -H "Accept: application/vnd.github.v3+json" \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            "${{ github.api_url }}/repos/${{ github.repository }}/issues/${{ steps.parse-issue.outputs.issue_number }}/comments" \
-            -d "{\"body\": $RESPONSE_BODY}" \
-            -o response_output.txt)
-
-          echo "HTTP Status: $HTTP_STATUS"
-          if [ "$HTTP_STATUS" = "201" ]; then
-            echo "✅ GitHub応答投稿成功"
-          else
-            echo "❌ GitHub応答投稿失敗"
-            cat response_output.txt
-            exit 1
-          fi
-
-      - name: Update Issue Labels
-        if: steps.bot-check.outputs.should_process == 'true' && steps.parse-issue.outputs.event_type == 'issue_created' && steps.validate-input.outputs.input_valid == 'true'
-        run: |
-          echo "=== Issue ラベル更新 ==="
-          # 新規Issue作成時のみラベルを更新
-          # コメント追加時はラベル更新をスキップ
-          CATEGORY="${{ steps.categorize.outputs.category }}"
-          PRIORITY="${{ steps.categorize.outputs.priority }}"
-
-          # カテゴリに応じたラベル設定
-          LABELS_TO_ADD=""
-          case "$CATEGORY" in
-            "bug")
-              LABELS_TO_ADD='["bug", "needs-investigation"]'
-              ;;
-            "enhancement")
-              LABELS_TO_ADD='["enhancement", "needs-review"]'
-              ;;
-            "support")
-              LABELS_TO_ADD='["support", "needs-response"]'
-              ;;
-            "security")
-              LABELS_TO_ADD='["security", "priority-high"]'
-              ;;
-            "performance")
-              LABELS_TO_ADD='["performance", "needs-investigation"]'
-              ;;
-            *)
-              LABELS_TO_ADD='["needs-triage"]'
-              ;;
-          esac
-
-          # ラベルを追加
-          HTTP_STATUS=$(curl -w "%{http_code}" -s -X POST \
-            -H "Accept: application/vnd.github.v3+json" \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            "${{ github.api_url }}/repos/${{ github.repository }}/issues/${{ steps.parse-issue.outputs.issue_number }}/labels" \
-            -d "{\"labels\": $LABELS_TO_ADD}" \
-            -o label_output.txt)
-
-          if [ "$HTTP_STATUS" = "200" ]; then
-            echo "✅ ラベル更新完了: $LABELS_TO_ADD"
-          else
-            echo "❌ ラベル更新失敗"
-            cat label_output.txt
-          fi
-
-      # エラーハンドリングの追加
-      - name: Handle Validation Errors
-        if: steps.validate-input.outputs.input_valid == 'false'
-        run: |
-          echo "=== バリデーションエラー処理 ==="
-          echo "❌ 入力データの検証に失敗しました"
+          echo "=== Claude分析結果チェック ==="
+          CLAUDE_OUTCOME="${{ steps.claude-analysis.outcome }}"
+          CLAUDE_RESPONSE="${{ steps.claude-analysis.outputs.response }}"
           
-          # エラー応答を作成
-          cat > error_response.md << ERROR_EOF
-## ⚠️ 入力データエラー
+          if [ "$CLAUDE_OUTCOME" = "success" ] && [ -n "$CLAUDE_RESPONSE" ] && [ "$CLAUDE_RESPONSE" != "null" ]; then
+            echo "claude_success=true" >> $GITHUB_OUTPUT
+            echo "✅ Claudeによる分析が成功し、有効な応答が得られました。"
+          else
+            echo "claude_success=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Claudeによる分析が失敗したか、応答が空です。"
+          fi
 
-申し訳ございませんが、お問い合わせの内容を正常に処理できませんでした。
+      # ステップ6: 応答をIssueに投稿
+      - name: Post Response to Issue
+        if: steps.event-check.outputs.should_process == 'true' && steps.check-claude-result.outputs.claude_success == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const response = `${{ steps.claude-analysis.outputs.response }}`;
+            
+            // 自動生成の文言が含まれているか確認し、なければ追加
+            let finalResponse = response;
+            if (!response.includes("この応答は自動生成されています。")) {
+              finalResponse += "\n\n---\n<sub>⚠️ この応答は自動生成されています。</sub>";
+            }
 
-### 🔍 考えられる原因
-- Issue本文が空または異常に長い
-- 特殊な文字エンコードの問題
-- システム一時的な不具合
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: finalResponse
+            });
+            console.log("✅ Claudeの応答をIssueに投稿しました。");
 
-### 💡 解決方法
-1. **再投稿**: もう一度お問い合わせをお送りください
-2. **内容の簡素化**: 可能であれば、シンプルな文章で再度お試しください
-3. **直接連絡**: 緊急の場合は、開発チームまで直接ご連絡ください
+      # ステップ7: フォールバック応答の投稿 (Claudeが失敗した場合)
+      - name: Post Fallback Response
+        if: steps.event-check.outputs.should_process == 'true' && steps.check-claude-result.outputs.claude_success == 'false'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fallbackBody = `
+            ## ⚠️ 自動分析エラー
 
-技術サポートチームが手動で内容を確認し、対応いたします。
+            ${{ steps.parse-issue.outputs.issue_author }}さん、お問い合わせありがとうございます。
 
----
-<sub>⚠️ この応答は自動生成されています。</sub>
-ERROR_EOF
+            現在、AIによる自動分析システムで問題が発生したため、応答を生成できませんでした。
+            担当者が内容を確認し、手動で対応いたしますので、今しばらくお待ちください。
 
-          # エラー応答を投稿
-          RESPONSE_BODY=$(cat error_response.md | jq -Rs .)
-          curl -s -X POST \
-            -H "Accept: application/vnd.github.v3+json" \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            "${{ github.api_url }}/repos/${{ github.repository }}/issues/${{ steps.parse-issue.outputs.issue_number }}/comments" \
-            -d "{\"body\": $RESPONSE_BODY}"
+            ご不便をおかけして申し訳ございません。
 
+            ---
+            <sub>⚠️ この応答は自動生成されています。</sub>
+            `;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: fallbackBody
+            });
+            console.log("⚠️ Claudeの分析に失敗したため、フォールバック応答を投稿しました。");
+
+      # ステップ8: 一時ファイルのクリーンアップ
       - name: Cleanup
-        if: always()
+        if: always() && steps.event-check.outputs.should_process == 'true'
         run: |
-          echo "=== クリーンアップ ==="
-          rm -f issue_body.txt comment_body.txt claude_prompt.txt
-          rm -f fallback_response.md fallback_response_final.md final_response.md temp_response.md
-          rm -f claude_response.txt response_output.txt label_output.txt error_response.md
-          echo "一時ファイル削除完了"
+          echo "=== クリーンアップ処理 ==="
+          rm -f issue_body.txt comment_body.txt
+          echo "一時ファイルを削除しました。"
+
