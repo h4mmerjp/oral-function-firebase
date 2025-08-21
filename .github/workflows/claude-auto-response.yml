@@ -1,4 +1,4 @@
-name: Claude Code Auto Response
+name: Claude Code Auto Response with Serena MCP
 
 on:
   issues:
@@ -41,24 +41,96 @@ jobs:
         if: steps.event-check.outputs.should_process == 'true'
         uses: actions/checkout@v4
 
-      # ステップ3: Claudeによる分析と応答
-      - name: Run Claude Analysis and Respond
+      # ステップ3: Python環境のセットアップ（Serena用）
+      - name: Set up Python and uv
         if: steps.event-check.outputs.should_process == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        if: steps.event-check.outputs.should_process == 'true'
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      # ステップ4: Serenaのセットアップ
+      - name: Setup Serena MCP Server
+        if: steps.event-check.outputs.should_process == 'true'
+        id: setup-serena
+        run: |
+          echo "=== Serenaのセットアップ ==="
+          
+          # Serenaをuvxでインストール
+          uvx --from git+https://github.com/oraios/serena serena-mcp-server --help > /dev/null
+          
+          # プロジェクトのインデックス作成（大きなプロジェクトの場合）
+          uvx --from git+https://github.com/oraios/serena index-project .
+          
+          echo "serena_ready=true" >> $GITHUB_OUTPUT
+          echo "✅ Serenaの準備が完了しました。"
+
+      # ステップ5: Serena MCPサーバーをバックグラウンドで起動
+      - name: Start Serena MCP Server
+        if: steps.setup-serena.outputs.serena_ready == 'true'
+        id: start-serena
+        run: |
+          echo "=== Serena MCPサーバー起動 ==="
+          
+          # MCPサーバーをSSEモードでバックグラウンド起動
+          uvx --from git+https://github.com/oraios/serena serena-mcp-server \
+            --transport sse \
+            --port 9121 \
+            --context agent \
+            --mode planning \
+            --mode interactive \
+            --project "${{ github.workspace }}" &
+          
+          # サーバーの起動を待つ
+          for i in {1..30}; do
+            if curl -s http://localhost:9121/health > /dev/null 2>&1; then
+              echo "mcp_server_url=http://localhost:9121/sse" >> $GITHUB_OUTPUT
+              echo "✅ Serena MCPサーバーが起動しました。"
+              exit 0
+            fi
+            sleep 1
+          done
+          
+          echo "❌ Serena MCPサーバーの起動に失敗しました。"
+          exit 1
+
+      # ステップ6: Claudeによる高度な分析と応答（Serena統合）
+      - name: Run Enhanced Claude Analysis with Serena
+        if: steps.start-serena.outputs.mcp_server_url != ''
         uses: anthropics/claude-code-action@beta
         id: claude-analysis
-        continue-on-error: true # このステップが失敗してもワークフローを続行
+        continue-on-error: true
         with:
-          # APIキーの代わりにOAuthトークンを使用
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Serena MCPサーバーへの接続設定
+          mcp_servers: |
+            serena:
+              url: ${{ steps.start-serena.outputs.mcp_server_url }}
+              capabilities: ["code_analysis", "semantic_search", "file_operations"]
           direct_prompt: |
             あなたは口腔機能低下症診断・管理アプリの上級技術サポートAIです。
-            以下の問い合わせについて、技術的な観点から分析し、包括的なサポート応答を生成してください。
+            Serena MCPツールを活用して、以下の問い合わせについて包括的な技術分析を行ってください。
+
+            ## 利用可能なSerenaツール
+            - `activate_project`: プロジェクトの有効化
+            - `get_symbols_overview`: ファイル・ディレクトリのシンボル概要取得
+            - `find_symbol`: シンボルの検索
+            - `read_file`: ファイル読み込み
+            - `search_for_pattern`: パターン検索
+            - `find_referencing_code_snippets`: 参照コードスニペット検索
+            - `execute_shell_command`: シェルコマンド実行（テストやビルド用）
 
             ## 問い合わせ情報
             - **Issue番号**: #${{ github.event.issue.number }}
             - **報告者**: ${{ github.event.issue.user.login }}
             - **タイトル**: ${{ github.event.issue.title }}
+            - **リポジトリ**: ${{ github.repository }}
 
             ### 詳細内容
             ${{ github.event.issue.body }}
@@ -66,52 +138,110 @@ jobs:
             ### 追加コメント (該当する場合)
             ${{ github.event_name == 'issue_comment' && github.event.comment.body || 'なし' }}
 
-            ## 指示
-            以下の形式で応答を生成してください。
-            1. **問題分析**: 技術的な原因と影響範囲
-            2. **即座の対応手順**: ユーザーができること
-            3. **恒久的な解決策**: コード修正案やシステム変更案
-            4. **テスト手順**: 解決を確認する方法
+            ## 分析手順
+            1. **プロジェクト分析**: `activate_project`でプロジェクトを有効化し、`get_symbols_overview`で構造を把握
+            2. **関連コード特定**: `find_symbol`や`search_for_pattern`で問題に関連するコードを特定
+            3. **依存関係分析**: `find_referencing_code_snippets`で影響範囲を調査
+            4. **動的検証**: 必要に応じて`execute_shell_command`でテスト実行
+            5. **総合分析**: 収集した情報を基に包括的な解決策を提案
 
-            ⚠️重要: 応答の最後に必ず「この応答は自動生成されています。」という一文を含めてください。
+            ## 応答形式
+            以下の形式で詳細な分析結果を提供してください：
+
+            ### 🔍 技術分析結果
+            - **問題の根本原因**
+            - **影響を受けるコンポーネント**
+            - **関連するコードファイル**
+
+            ### ⚡ 即座の対応手順
+            - **ユーザーができる暫定対応**
+            - **リスクと制約事項**
+
+            ### 🛠️ 恒久的な解決策
+            - **推奨する修正アプローチ**
+            - **コード変更案（具体的な実装例を含む）**
+            - **アーキテクチャ改善提案**
+
+            ### 🧪 検証手順
+            - **修正内容の確認方法**
+            - **回帰テストの推奨事項**
+            - **パフォーマンス影響の確認**
+
+            ### 📋 追加推奨事項
+            - **今後の予防策**
+            - **コードレビューのポイント**
+            - **ドキュメント更新の提案**
+
+            ⚠️重要: 応答の最後に必ず「📡 この応答はSerena MCP統合システムにより自動生成されています。」という一文を含めてください。
+
+            まず、プロジェクトを有効化してコードベースの分析を開始してください。
           trigger_phrase: ".*"
           mode: tag
-          branch_prefix: claude/
-          timeout_minutes: 10
+          branch_prefix: claude-serena/
+          timeout_minutes: 15
 
-      # ステップ4: Claudeの実行結果を確認
-      - name: Check Claude Analysis Result
+      # ステップ7: Claudeの実行結果を確認
+      - name: Check Enhanced Claude Analysis Result
         if: steps.event-check.outputs.should_process == 'true'
         id: check-claude-result
         run: |
           if [ "${{ steps.claude-analysis.outcome }}" = "success" ]; then
             echo "claude_succeeded=true" >> $GITHUB_OUTPUT
-            echo "✅ Claudeによる分析が成功しました。"
+            echo "✅ Serena統合Claudeによる分析が成功しました。"
           else
             echo "claude_succeeded=false" >> $GITHUB_OUTPUT
-            echo "⚠️ Claudeによる分析が失敗しました。フォールバック応答を準備します。"
+            echo "⚠️ Serena統合Claudeによる分析が失敗しました。フォールバック応答を準備します。"
           fi
 
-      # ステップ5: フォールバック応答の投稿 (Claudeが失敗した場合のみ実行)
-      - name: Post Fallback Response
+      # ステップ8: フォールバック応答の投稿 (Claudeが失敗した場合のみ実行)
+      - name: Post Enhanced Fallback Response
         if: steps.check-claude-result.outputs.claude_succeeded == 'false'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fallbackBody = `
-            ## ⚠️ 自動分析エラー
+            ## ⚠️ 自動分析システムエラー
+
             @${{ github.event.issue.user.login }}さん、お問い合わせありがとうございます。
-            現在、AIによる自動分析システムで技術的な問題が発生したため、応答を生成できませんでした。
-            担当者が内容を確認し、手動で対応いたしますので、今しばらくお待ちください。
+
+            現在、Serena MCP統合による高度な自動分析システムで技術的な問題が発生したため、
+            詳細な応答を生成できませんでした。
+
+            ### 基本的なトラブルシューティング
+            問題の内容から、以下の点をご確認ください：
+
+            1. **ログファイルの確認**: \`logs/\`ディレクトリ内のエラーログをご確認ください
+            2. **設定ファイルの検証**: 設定ファイルの構文や必須項目が正しく設定されているか確認してください
+            3. **依存関係の確認**: \`requirements.txt\`や\`package.json\`の依存関係が最新かご確認ください
+
+            ### 次のステップ
+            担当者が以下の高度な分析ツールを使用して詳細調査を行います：
+            - 🔍 セマンティックコード分析
+            - 🔗 依存関係影響範囲調査  
+            - 🧪 自動テスト実行による動的検証
+
+            詳細な分析結果は手動で提供いたしますので、今しばらくお待ちください。
             ご不便をおかけして申し訳ございません。
+
             ---
-            <sub>⚠️ この応答は自動生成されています。</sub>
+            <sub>📡 この応答はSerena MCP統合システムにより自動生成されています。</sub>
             `;
+            
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
               body: fallbackBody
             });
-            console.log("フォールバック応答をIssueに投稿しました。");
+            
+            console.log("強化されたフォールバック応答をIssueに投稿しました。");
+
+      # ステップ9: クリーンアップ
+      - name: Cleanup Serena MCP Server
+        if: always() && steps.start-serena.outputs.mcp_server_url != ''
+        run: |
+          echo "=== Serena MCPサーバーのクリーンアップ ==="
+          # MCPサーバープロセスを終了
+          pkill -f "serena-mcp-server" || true
+          echo "✅ クリーンアップが完了しました。"
