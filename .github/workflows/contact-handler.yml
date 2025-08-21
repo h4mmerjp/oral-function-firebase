@@ -222,9 +222,6 @@ jobs:
     runs-on: ubuntu-latest
     if: failure()
     needs: process-contact
-    permissions:
-      issues: write
-      contents: read
     steps:
       - name: Log Error
         run: |
@@ -267,9 +264,6 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.client_payload.category == 'security'
     needs: process-contact
-    permissions:
-      issues: write
-      contents: read
     steps:
       - name: Security Alert
         run: |
