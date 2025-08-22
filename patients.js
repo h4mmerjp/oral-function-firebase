@@ -186,12 +186,24 @@ class PatientManager {
       line-height: 1.4;
     `;
 
-    notification.innerHTML = `
-      <div style="display: flex; align-items: flex-start; gap: 10px;">
-        <div style="flex: 1;">${message}</div>
-        <button onclick="this.parentElement.parentElement.remove()" style="background: none; border: none; color: white; cursor: pointer; font-size: 18px; padding: 0;">×</button>
-      </div>
-    `;
+    // セキュリティ対策: HTMLエスケープを行い、textContentを使用
+    const messageContainer = document.createElement('div');
+    messageContainer.style.cssText = 'display: flex; align-items: flex-start; gap: 10px;';
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.style.cssText = 'flex: 1;';
+    messageDiv.textContent = message; // XSS対策: textContentを使用
+    
+    const closeButton = document.createElement('button');
+    closeButton.style.cssText = 'background: none; border: none; color: white; cursor: pointer; font-size: 18px; padding: 0;';
+    closeButton.textContent = '×';
+    closeButton.addEventListener('click', () => {
+      notification.remove();
+    });
+    
+    messageContainer.appendChild(messageDiv);
+    messageContainer.appendChild(closeButton);
+    notification.appendChild(messageContainer);
 
     document.body.appendChild(notification);
 
