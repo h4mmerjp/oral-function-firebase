@@ -140,6 +140,14 @@ button:hover {
   background: #2980b9;
 }
 
+.btn-primary {
+  background: #3498db;
+}
+
+.btn-primary:hover {
+  background: #2980b9;
+}
+
 .btn-secondary {
   background: #95a5a6;
 }
@@ -505,7 +513,7 @@ tr:hover {
 
 @media print {
   /* 非印刷要素を非表示 */
-  .no-print, .tabs, header, .tab, button, .btn-success, .btn-secondary, .btn-danger, .btn-warning {
+  .no-print, .tabs, header, .tab, button, .btn-primary, .btn-success, .btn-secondary, .btn-danger, .btn-warning {
     display: none !important;
   }
   
