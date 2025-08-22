@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>よくある質問 - 口腔機能低下症診断・管理アプリ</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>よくある質問</h1>
+      <p>口腔機能低下症診断・管理アプリに関するよくある質問と回答</p>
+      <p><a href="index.html">← アプリに戻る</a> | <a href="contact.html">お問い合わせフォーム</a></p>
+    </header>
+
+    <div class="summary-card">
+      <h2>📋 目次</h2>
+      <ul style="list-style-type: none; padding-left: 0;">
+        <li><a href="#login-issues">🔐 ログイン・認証について</a></li>
+        <li><a href="#data-management">💾 データ管理について</a></li>
+        <li><a href="#patient-management">👥 患者管理について</a></li>
+        <li><a href="#assessment">🔬 検査・診断について</a></li>
+        <li><a href="#technical-issues">💻 技術的な問題について</a></li>
+        <li><a href="#subscription">💎 料金・プランについて</a></li>
+        <li><a href="#support">📞 サポートについて</a></li>
+      </ul>
+    </div>
+
+    <!-- ログイン・認証 -->
+    <section id="login-issues" class="summary-card">
+      <h3>🔐 ログイン・認証について</h3>
+      
+      <details style="margin: 10px 0;">
+        <summary style="cursor: pointer; font-weight: bold;">Q: ログインできません</summary>
+        <div style="padding: 10px 0;">
+          <p><strong>A:</strong> 以下の点をご確認ください：</p>
+          <ul>
+            <li>Googleアカウントでのログインが必要です</li>
+            <li>ブラウザのCookieが有効になっていることを確認</li>
+            <li>ポップアップブロッカーの設定を確認</li>
+            <li>プライベートモード（シークレットモード）では正常に動作しない場合があります</li>
+            <li>ブラウザのキャッシュをクリアしてみてください</li>
+          </ul>
+        </div>
+      </details>
+      
+      <details style="margin: 10px 0;">
+        <summary style="cursor: pointer; font-weight: bold;">Q: ログインしているのにオフライン表示になります</summary>
+        <div style="padding: 10px 0;">
+          <p><strong>A:</strong> Firebase接続に問題がある可能性があります：</p>
+          <ul>
+            <li>インターネット接続を確認してください</li>
+            <li>ページを再読み込み（F5またはCtrl+F5）してください</li>
+            <li>他のブラウザで試してみてください</li>
+            <li>問題が続く場合は、時間をおいて再度お試しください</li>
+          </ul>
+        </div>
+      </details>
+
+      <details style="margin: 10px 0;">
+        <summary style="cursor: pointer; font-weight: bold;">Q: 自動的にログアウトされてしまいます</summary>
+        <div style="padding: 10px 0;">
+          <p><strong>A:</strong> セキュリティのため、一定時間非アクティブが続くとログアウトされます：</p>
+          <ul>
+            <li>重要な作業前には定期的に保存してください</li>
+            <li>長時間の作業時は、時々画面を更新してください</li>
+            <li>ブラウザを閉じる前に作業内容を保存してください</li>
+          </ul>
+        </div>
+      </details>
+    </section>
+
+    <!-- データ管理 -->
+    <section id="data-management" class="summary-card">
+      <h3>💾 データ管理について</h3>
+      
+      <details style="margin: 10px 0;">
+        <summary style="cursor: pointer; font-weight: bold;">Q: 患者データが消えました</summary>
+        <div style="padding: 10px 0;">
+          <p><strong>A:</strong> データの保存状況を確認してください：</p>
+          <ul>
+            <li>ログインしていない状態ではデータが保存されません</li>
+            <li>必ずGoogleアカウントでログインしてご利用ください</li>
+            <li>オフライン時のデータは一時的なもので、ログイン時に同期されます</li>
+            <li>ブラウザのローカルストレージが削除されると、オフラインデータは失われます</li>
+          </ul>
+        </div>
+      </details>
+
+      <details style="margin: 10px 0;">
+        <summary style="cursor: pointer; font-weight: bold;">Q: データのバックアップはありますか？</summary>
+        <div style="padding: 10px 0;">
+          <p><strong>A:</strong> ログイン時のデータは自動的にクラウドに保存されています：</p>
+          <ul>
+            <li>Firebase Firestoreに暗号化して保存</li>
+            <li>複数デバイス間でのデータ同期が可能</li>
+            <li>手動バックアップとして「CSVエクスポート」機能もあります</li>
+            <li>定期的なデータエクスポートをお勧めします</li>
+          </ul>
+        </div>
+      </details>
+
+      <details style="margin: 10px 0;">
+        <summary style="cursor: pointer; font-weight: bold;">Q: データが他の人に見られませんか？</summary>
+        <div style="padding: 10px 0;">
+          <p><strong>A:</strong> データは完全に分離されており、セキュリティ対策も万全です：</p>
+          <ul>
+            <li>ユーザーごとに完全にデータが分離されています</li>
+            <li>Google OAuth 2.0による安全な認証</li>
+            <li>すべてのデータはFirebaseで暗号化保存</li>
+            <li>第三者がアクセスすることはできません</li>
+          </ul>
+        </div>
+      </details>
+    </section>
+
+    <!-- 患者管理 -->
+    <section id="patient-management" class="summary-card">
+      <h3>👥 患者管理について</h3>
+      
+      <details style="margin: 10px 0;">
+        <summary style="cursor: pointer; font-weight: bold;">Q: 5人以上の患者を登録したい</summary>
+        <div style="padding: 10px 0;">
+          <p><strong>A:</strong> 無料プランは5人までの制限があります：</p>
+          <ul>
+            <li>現在は無料プランのみ提供中（5人まで）</li>
+            <li>プレミアムプラン（無制限）は準備中です</li>
+            <li>プレミアムプラン開始時期についてはお問い合わせください</li>
+            <li>必要に応じて、古い患者データを削除してください</li>
+          </ul>
+        </div>
+      </details>
+
+      <details style="margin: 10px 0;">
+        <summary style="cursor: pointer; font-weight: bold;">Q: 患者情報を修正したい</summary>
+        <div style="padding: 10px 0;">
+          <p><strong>A:</strong> 患者情報は「患者情報」タブで編集できます：</p>
+          <ul>
+            <li>患者一覧から対象患者をクリック</li>
+            <li>「患者情報」タブの「編集」ボタンをクリック</li>
+            <li>情報を修正後「保存」してください</li>
+            <li>検査結果は各検査項目から個別に修正可能です</li>
+          </ul>
+        </div>
+      </details>
+
+      <details style="margin: 10px 0;">
+        <summary style="cursor: pointer; font-weight: bold;">Q: 患者を削除したい</summary>
+        <div style="padding: 10px 0;">
+          <p><strong>A:</strong> 患者データの削除は慎重に行ってください：</p>
+          <ul>
+            <li>患者一覧から対象患者の「削除」ボタンをクリック</li>
+            <li>確認ダイアログで「削除」を選択</li>
+            <li>削除されたデータは復元できません</li>
+            <li>削除前に必要に応じてエクスポートしてください</li>
+          </ul>
+        </div>
+      </details>
+    </section>
+
+    <!-- 検査・診断 -->
+    <section id="assessment" class="summary-card">
+      <h3>🔬 検査・診断について</h3>
+      
+      <details style="margin: 10px 0;">
+        <summary style="cursor: pointer; font-weight: bold;">Q: 診断結果の信頼性について</summary>
+        <div style="padding: 10px 0;">
+          <p><strong>A:</strong> 本アプリは診断補助ツールです：</p>
+          <ul>
+            <li>日本老年歯科医学会の基準に基づいています</li>
+            <li>医療機器として認定されていません</li>
+            <li>最終的な診断や治療方針の決定は、必ず医療従事者の判断により行ってください</li>
+            <li>参考情報として活用してください</li>
+          </ul>
+        </div>
+      </details>
+
+      <details style="margin: 10px 0;">
+        <summary style="cursor: pointer; font-weight: bold;">Q: 検査値の基準値を変更できますか？</summary>
+        <div style="padding: 10px 0;">
+          <p><strong>A:</strong> 現在、基準値の変更機能はありません：</p>
+          <ul>
+            <li>基準値は日本老年歯科医学会の推奨値を使用</li>
+            <li>カスタマイズ機能は今後の機能要望として承ります</li>
+            <li>特別な基準値が必要な場合はお問い合わせください</li>
+          </ul>
+        </div>
+      </details>
+
+      <details style="margin: 10px 0;">
+        <summary style="cursor: pointer; font-weight: bold;">Q: 検査結果を印刷したい</summary>
+        <div style="padding: 10px 0;">
+          <p><strong>A:</strong> 各種帳票の印刷機能があります：</p>
+          <ul>
+            <li>診断結果、管理計画書、記録簿が印刷可能</li>
+            <li>ブラウザの印刷機能（Ctrl+P）を使用</li>
+            <li>A4サイズ、縦向きでの印刷を推奨</li>
+            <li>「背景色とイメージを印刷」を有効にしてください</li>
+          </ul>
+        </div>
+      </details>
+    </section>
+
+    <!-- 技術的な問題 -->
+    <section id="technical-issues" class="summary-card">
+      <h3>💻 技術的な問題について</h3>
+      
+      <details style="margin: 10px 0;">
+        <summary style="cursor: pointer; font-weight: bold;">Q: スマートフォンで正常に動作しない</summary>
+        <div style="padding: 10px 0;">
+          <p><strong>A:</strong> モバイル環境での制限があります：</p>
+          <ul>
+            <li>最新のブラウザ（Chrome、Safari）をご利用ください</li>
+            <li>画面サイズの関係で、タブレット以上の画面サイズを推奨</li>
+            <li>縦画面より横画面での利用を推奨</li>
+            <li>重要な操作はデスクトップ環境で行ってください</li>
+          </ul>
+        </div>
+      </details>
+
+      <details style="margin: 10px 0;">
+        <summary style="cursor: pointer; font-weight: bold;">Q: アプリが重い・遅い</summary>
+        <div style="padding: 10px 0;">
+          <p><strong>A:</strong> パフォーマンスの改善方法：</p>
+          <ul>
+            <li>ブラウザのキャッシュをクリア</li>
+            <li>他のタブやアプリケーションを閉じる</li>
+            <li>安定したインターネット接続を確保</li>
+            <li>最新のブラウザを使用</li>
+            <li>メモリ不足の場合はデバイスを再起動</li>
+          </ul>
+        </div>
+      </details>
+
+      <details style="margin: 10px 0;">
+        <summary style="cursor: pointer; font-weight: bold;">Q: エラーメッセージが表示されます</summary>
+        <div style="padding: 10px 0;">
+          <p><strong>A:</strong> エラーの種類に応じて対応してください：</p>
+          <ul>
+            <li>ネットワークエラー: インターネット接続を確認</li>
+            <li>認証エラー: 再ログインを試行</li>
+            <li>データベースエラー: 時間をおいて再試行</li>
+            <li>具体的なエラーメッセージを控えてお問い合わせください</li>
+          </ul>
+        </div>
+      </details>
+    </section>
+
+    <!-- 料金・プラン -->
+    <section id="subscription" class="summary-card">
+      <h3>💎 料金・プランについて</h3>
+      
+      <details style="margin: 10px 0;">
+        <summary style="cursor: pointer; font-weight: bold;">Q: 料金はかかりますか？</summary>
+        <div style="padding: 10px 0;">
+          <p><strong>A:</strong> 現在は無料でご利用いただけます：</p>
+          <ul>
+            <li>無料プラン: 患者5人まで、基本機能すべて利用可能</li>
+            <li>プレミアムプランは準備中（患者数無制限）</li>
+            <li>プレミアムプラン予定料金: 月額2,980円</li>
+            <li>プレミアムプラン開始時期は別途お知らせいたします</li>
+          </ul>
+        </div>
+      </details>
+
+      <details style="margin: 10px 0;">
+        <summary style="cursor: pointer; font-weight: bold;">Q: プレミアムプランの詳細を教えてください</summary>
+        <div style="padding: 10px 0;">
+          <p><strong>A:</strong> プレミアムプランの予定機能：</p>
+          <ul>
+            <li>患者数: 無制限</li>
+            <li>高度な統計機能</li>
+            <li>優先サポート</li>
+            <li>データエクスポート拡張</li>
+            <li>詳細はリリース時にご案内いたします</li>
+          </ul>
+        </div>
+      </details>
+    </section>
+
+    <!-- サポート -->
+    <section id="support" class="summary-card">
+      <h3>📞 サポートについて</h3>
+      
+      <details style="margin: 10px 0;">
+        <summary style="cursor: pointer; font-weight: bold;">Q: 問題が解決しない場合はどうすればいいですか？</summary>
+        <div style="padding: 10px 0;">
+          <p><strong>A:</strong> 以下の方法でサポートを受けられます：</p>
+          <ul>
+            <li><a href="contact.html">お問い合わせフォーム</a>から詳細をご報告ください</li>
+            <li>ログイン後は<a href="index.html">メインアプリのお問い合わせタブ</a>もご利用いただけます</li>
+            <li>エラーメッセージがある場合は正確に記載してください</li>
+            <li>使用環境（ブラウザ、OS、デバイス）も併せてお知らせください</li>
+          </ul>
+        </div>
+      </details>
+
+      <details style="margin: 10px 0;">
+        <summary style="cursor: pointer; font-weight: bold;">Q: 機能要望を出したい</summary>
+        <div style="padding: 10px 0;">
+          <p><strong>A:</strong> ご要望をお聞かせください：</p>
+          <ul>
+            <li><a href="contact.html">お問い合わせフォーム</a>で「機能要望」を選択</li>
+            <li>具体的な機能内容と必要性を記載してください</li>
+            <li>すべてのご要望を検討し、開発計画に反映いたします</li>
+            <li>実装時期についてはお問い合わせください</li>
+          </ul>
+        </div>
+      </details>
+
+      <details style="margin: 10px 0;">
+        <summary style="cursor: pointer; font-weight: bold;">Q: 緊急性の高い問題がある場合</summary>
+        <div style="padding: 10px 0;">
+          <p><strong>A:</strong> 緊急時の対応について：</p>
+          <ul>
+            <li>患者さんの診療に関わる緊急事項は、直接医療機関にご相談ください</li>
+            <li>システムの緊急障害は、お問い合わせフォームで「緊急」と明記してください</li>
+            <li>データ消失などの重大な問題は最優先で対応いたします</li>
+          </ul>
+        </div>
+      </details>
+    </section>
+
+    <div class="summary-card" style="background: #f0f7ff; border: 1px solid #3498db;">
+      <h3>💡 その他のヒント</h3>
+      <ul>
+        <li><strong>定期的な保存:</strong> 重要な作業は定期的に保存してください</li>
+        <li><strong>ブラウザ推奨:</strong> Chrome、Firefox、Safari、Edgeの最新版を推奨</li>
+        <li><strong>セキュリティ:</strong> 患者情報を扱うため、共用パソコンでの利用は避けてください</li>
+        <li><strong>バックアップ:</strong> 重要なデータは定期的にCSVエクスポートでバックアップを取ってください</li>
+      </ul>
+    </div>
+
+    <footer style="text-align: center; padding: 20px; border-top: 1px solid #eee; margin-top: 30px;">
+      <div style="margin-bottom: 15px">
+        <a href="index.html" style="margin: 0 10px">アプリに戻る</a>
+        <a href="contact.html" style="margin: 0 10px">お問い合わせ</a>
+        <a href="about.html" style="margin: 0 10px">アプリについて</a>
+        <a href="privacy-policy.html" style="margin: 0 10px">プライバシーポリシー</a>
+        <a href="terms-of-service.html" style="margin: 0 10px">利用規約</a>
+      </div>
+      <p style="color: #666; font-size: 14px; margin: 0;">
+        口腔機能低下症診断・管理アプリ v2.0<br>
+        本アプリは診断補助ツールです。最終診断は医療従事者の判断によります。
+      </p>
+    </footer>
+  </div>
+
+  <style>
+    details {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px;
+      margin: 10px 0;
+    }
+
+    details summary {
+      font-weight: bold;
+      padding: 5px 0;
+      outline: none;
+      cursor: pointer;
+    }
+
+    details[open] summary {
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+    }
+
+    section {
+      margin-bottom: 30px;
+    }
+
+    .summary-card {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .summary-card h3 {
+      color: #2c3e50;
+      margin-top: 0;
+      border-bottom: 2px solid #3498db;
+      padding-bottom: 10px;
+    }
+
+    a {
+      color: #3498db;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</body>
+</html>
