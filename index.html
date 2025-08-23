@@ -65,6 +65,7 @@
           管理指導記録簿
         </div>
         <div class="tab" onclick="openTab('patient-history')">履歴・統計</div>
+        <div class="tab" onclick="openTab('contact')">お問い合わせ</div>
         <div class="tab" onclick="openTab('information')">参考情報</div>
       </div>
 
@@ -145,6 +146,14 @@
         <h2>履歴・統計</h2>
         <div id="patient-history-content">
           <p>患者を選択して履歴を確認してください。</p>
+        </div>
+      </div>
+
+      <!-- Contact Tab -->
+      <div id="contact" class="tab-content">
+        <h2>お問い合わせ</h2>
+        <div id="contact-content">
+          <p>ログインが必要です。右上の「Googleでログイン」からログインしてください。</p>
         </div>
       </div>
 
@@ -434,6 +443,392 @@
 
     <script src="app.js"></script>
 
+    <!-- お問い合わせ機能用スクリプト -->
+    <script>
+      // お問い合わせタブの表示処理
+      function loadContactForm() {
+        const content = document.getElementById('contact-content');
+        if (!content) return;
+
+        // 認証チェック
+        if (!window.firebaseManager || !window.firebaseManager.getCurrentUser()) {
+          content.innerHTML = `
+            <div class="summary-card">
+              <h3>ログインが必要です</h3>
+              <p>お問い合わせ機能をご利用いただくには、Googleアカウントでのログインが必要です。</p>
+              <div style="text-align: center; margin: 20px 0;">
+                <button onclick="window.firebaseManager.signInWithGoogle()" class="btn-success">Googleでログイン</button>
+              </div>
+              <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                <h4>ログインのメリット:</h4>
+                <ul>
+                  <li>メールアドレスの自動入力</li>
+                  <li>お問い合わせ履歴の管理</li>
+                  <li>迅速な技術サポート</li>
+                </ul>
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        const user = window.firebaseManager.getCurrentUser();
+        
+        content.innerHTML = `
+          <div class="summary-card">
+            <h3>📝 お問い合わせフォーム</h3>
+            <p>口腔機能低下症診断・管理アプリに関するご質問・ご要望・不具合報告等をお気軽にお問い合わせください。</p>
+            
+            <div class="info-box" style="background: #e8f5e8; border: 1px solid #4caf50; padding: 15px; border-radius: 4px; margin: 20px 0;">
+              <h4>🔒 認証済みサポート</h4>
+              <p>ログイン済みのため、優先的なサポートを提供いたします。</p>
+              <p><strong>24時間以内に自動応答システムがお答えします。</strong></p>
+            </div>
+
+            <form id="integrated-contact-form">
+              <div class="form-group">
+                <label for="auth-contact-name">お名前（ニックネーム可） *</label>
+                <input type="text" id="auth-contact-name" required placeholder="例：田中先生、歯科医師A、など" value="${user.displayName || user.email.split('@')[0]}">
+                <small style="color: #666;">※ 技術サポートチーム内でのみ使用されます。</small>
+              </div>
+              
+              <div class="form-group">
+                <label for="auth-contact-email">メールアドレス *</label>
+                <input type="email" id="auth-contact-email" required readonly value="${user.email}" style="background-color: #f5f5f5; cursor: not-allowed;">
+                <small style="color: #666;">※ ログイン中のアドレスが自動設定されています（変更不可）。</small>
+              </div>
+              
+              <div class="form-group">
+                <label for="auth-contact-category">お問い合わせ種別 *</label>
+                <select id="auth-contact-category" required>
+                  <option value="">選択してください</option>
+                  <option value="bug">不具合報告</option>
+                  <option value="feature">機能要望</option>
+                  <option value="question">使い方について</option>
+                  <option value="account">アカウント・ログイン</option>
+                  <option value="performance">パフォーマンス・速度</option>
+                  <option value="ui">UI・デザイン</option>
+                  <option value="compatibility">ブラウザ・デバイス対応</option>
+                  <option value="documentation">ドキュメント・ヘルプ</option>
+                  <option value="security">セキュリティ</option>
+                  <option value="other">その他</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label for="auth-contact-title">タイトル *</label>
+                <input type="text" id="auth-contact-title" required placeholder="例：検査結果が保存されない、患者登録でエラーが発生する、など">
+                <small style="color: #666;">※ 問題や要望を簡潔に表現してください。</small>
+              </div>
+              
+              <div class="form-group">
+                <label for="auth-contact-message">詳細内容 *</label>
+                <textarea id="auth-contact-message" rows="8" required placeholder="具体的な状況や手順をご記入ください。\n\n【推奨記載内容】\n- 発生状況（いつ、どこで、何をした時に）\n- 使用環境（ブラウザ、OS、デバイス）\n- エラーメッセージ（あれば）\n- 期待する動作"></textarea>
+              </div>
+              
+              <div class="form-group">
+                <label for="auth-contact-browser">使用環境（任意）</label>
+                <input type="text" id="auth-contact-browser" placeholder="例：Chrome 120, Windows 11, iPhone Safari など">
+              </div>
+
+              <div class="form-group">
+                <label class="checkbox-item">
+                  <input type="checkbox" id="auth-privacy-agreement" required>
+                  <span>個人情報や患者情報を含まないことを確認しました</span>
+                </label>
+              </div>
+
+              <div class="form-group">
+                <label class="checkbox-item">
+                  <input type="checkbox" id="auth-terms-agreement" required>
+                  <span>お問い合わせ内容の処理と技術サポートでの使用に同意します</span>
+                </label>
+              </div>
+              
+              <div class="form-group">
+                <button type="button" onclick="submitAuthenticatedContact()" class="btn-success">お問い合わせを送信</button>
+                <button type="button" onclick="resetAuthenticatedForm()" class="btn-secondary">リセット</button>
+              </div>
+
+              <div id="auth-submission-status" style="display: none; margin-top: 15px;"></div>
+            </form>
+          </div>
+
+          <div class="summary-card">
+            <h3>❓ よくあるご質問</h3>
+            
+            <details style="margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
+              <summary style="cursor: pointer; font-weight: bold; padding: 5px 0; outline: none;">Q: ログインできません</summary>
+              <p>A: Googleアカウントでのログインが必要です。ブラウザのCookieが有効になっていることを確認してください。ポップアップブロッカーの設定もご確認ください。</p>
+            </details>
+            
+            <details style="margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
+              <summary style="cursor: pointer; font-weight: bold; padding: 5px 0; outline: none;">Q: 患者データが消えました</summary>
+              <p>A: ログインしていない状態ではデータが保存されません。必ずGoogleアカウントでログインしてご利用ください。オフライン時のデータは一時的なものです。</p>
+            </details>
+            
+            <details style="margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
+              <summary style="cursor: pointer; font-weight: bold; padding: 5px 0; outline: none;">Q: 5人以上の患者を登録したい</summary>
+              <p>A: 無料プランは5人までの制限があります。プレミアムプランで無制限に登録できます（現在準備中）。</p>
+            </details>
+            
+            <details style="margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
+              <summary style="cursor: pointer; font-weight: bold; padding: 5px 0; outline: none;">Q: 診断結果の信頼性について</summary>
+              <p>A: 本アプリは診断補助ツールです。最終的な診断や治療方針の決定は、必ず医療従事者の判断により行ってください。</p>
+            </details>
+
+            <details style="margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
+              <summary style="cursor: pointer; font-weight: bold; padding: 5px 0; outline: none;">Q: スマートフォンで正常に動作しない</summary>
+              <p>A: 最新のブラウザ（Chrome、Safari）をご利用ください。画面サイズの関係で、タブレット以上の画面サイズを推奨しています。</p>
+            </details>
+          </div>
+
+          <div class="summary-card">
+            <h3>🛡️ プライバシーについて</h3>
+            <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 4px; margin: 20px 0;">
+              <p><strong>⚠️ 重要な注意事項</strong></p>
+              <ul>
+                <li>患者の個人情報（氏名、連絡先等）は絶対に入力しないでください</li>
+                <li>医療情報や診断内容に関する具体的なデータは含めないでください</li>
+                <li>緊急性の高い医療的な問題については、直接医療機関にご相談ください</li>
+              </ul>
+            </div>
+          </div>
+        `;
+      }
+
+      // 認証済みお問い合わせの送信
+      async function submitAuthenticatedContact() {
+        if (!validateAuthenticatedForm()) return;
+        
+        if (!validateAuthenticatedSensitiveData()) return;
+
+        const submitButton = document.querySelector('button[onclick="submitAuthenticatedContact()"]');
+        const statusDiv = document.getElementById('auth-submission-status');
+        
+        submitButton.disabled = true;
+        submitButton.textContent = '送信中...';
+        statusDiv.style.display = 'block';
+        statusDiv.innerHTML = '<div style="color: #2196f3;">📤 お問い合わせを送信中...</div>';
+
+        try {
+          const formData = collectAuthenticatedFormData();
+          
+          const response = await fetch('/api/contact', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              ...formData,
+              isAuthenticated: true,
+              userUid: window.firebaseManager.getCurrentUser().uid
+            })
+          });
+
+          const result = await response.json();
+
+          if (response.ok) {
+            statusDiv.innerHTML = `
+              <div style="color: #4caf50; background: #e8f5e8; padding: 15px; border-radius: 4px;">
+                <h4>✅ 送信完了</h4>
+                <p>${result.message}</p>
+                <div style="margin: 10px 0; padding: 10px; background: #f0f7ff; border-radius: 4px;">
+                  <strong>📋 受付詳細:</strong><br>
+                  <small>
+                    • 投稿ID: <code>${result.details.submissionId}</code><br>
+                    • カテゴリー: ${result.details.category}<br>
+                    • 予想応答時間: ${result.details.estimatedResponseTime}<br>
+                    • 認証状態: 認証済み（優先サポート）
+                  </small>
+                </div>
+                <p><strong>次のステップ:</strong></p>
+                <ul style="margin: 5px 0; padding-left: 20px;">
+                  ${result.details.nextSteps.map(step => `<li>${step}</li>`).join('')}
+                </ul>
+              </div>
+            `;
+            
+            setTimeout(() => {
+              resetAuthenticatedForm();
+            }, 5000);
+
+          } else {
+            throw new Error(result.message || 'サーバーエラーが発生しました');
+          }
+
+        } catch (error) {
+          console.error('送信エラー:', error);
+          statusDiv.innerHTML = `
+            <div style="color: #f44336; background: #ffebee; padding: 15px; border-radius: 4px;">
+              <h4>❌ 送信に失敗しました</h4>
+              <p>${error.message}</p>
+              <p>お手数ですが、しばらく時間をおいてから再度お試しください。</p>
+            </div>
+          `;
+        } finally {
+          submitButton.disabled = false;
+          submitButton.textContent = 'お問い合わせを送信';
+        }
+      }
+
+      function validateAuthenticatedForm() {
+        const name = document.getElementById('auth-contact-name').value.trim();
+        const email = document.getElementById('auth-contact-email').value.trim();
+        const category = document.getElementById('auth-contact-category').value;
+        const title = document.getElementById('auth-contact-title').value.trim();
+        const message = document.getElementById('auth-contact-message').value.trim();
+        const privacyAgreed = document.getElementById('auth-privacy-agreement').checked;
+        const termsAgreed = document.getElementById('auth-terms-agreement').checked;
+
+        if (!name || !email || !category || !title || !message) {
+          alert('必須項目をすべて入力してください。');
+          return false;
+        }
+
+        if (!privacyAgreed || !termsAgreed) {
+          alert('プライバシーと利用規約の確認事項にチェックを入れてください。');
+          return false;
+        }
+
+        return true;
+      }
+
+      function collectAuthenticatedFormData() {
+        return {
+          name: document.getElementById('auth-contact-name').value.trim(),
+          email: document.getElementById('auth-contact-email').value.trim(),
+          category: document.getElementById('auth-contact-category').value,
+          title: document.getElementById('auth-contact-title').value.trim(),
+          message: document.getElementById('auth-contact-message').value.trim(),
+          browser: document.getElementById('auth-contact-browser').value.trim()
+        };
+      }
+
+      function resetAuthenticatedForm() {
+        // 名前とメール以外をリセット（認証情報は保持）
+        document.getElementById('auth-contact-category').value = '';
+        document.getElementById('auth-contact-title').value = '';
+        document.getElementById('auth-contact-message').value = '';
+        document.getElementById('auth-contact-browser').value = '';
+        document.getElementById('auth-privacy-agreement').checked = false;
+        document.getElementById('auth-terms-agreement').checked = false;
+        document.getElementById('auth-submission-status').style.display = 'none';
+      }
+
+      function validateAuthenticatedSensitiveData() {
+        const formData = collectAuthenticatedFormData();
+        const allContent = Object.values(formData).join(' ');
+        
+        // 基本的なセキュリティチェック
+        const sensitivePatterns = [
+          /\d{3}-?\d{4}-?\d{4}/g, // 電話番号
+          /(田中|佐藤|鈴木|高橋|山田|患者)/g // 基本的な個人情報キーワード
+        ];
+        
+        let hasRisk = false;
+        for (const pattern of sensitivePatterns) {
+          if (pattern.test(allContent)) {
+            hasRisk = true;
+            break;
+          }
+        }
+        
+        if (hasRisk) {
+          return confirm('個人情報が検出されました。本当に送信しますか？\n\nGitHub Issueは公開されます。個人を特定できる情報は削除してください。');
+        }
+        
+        return true;
+      }
+
+      // 認証状態変更時のコンテンツ更新
+      if (window.firebaseManager) {
+        const originalOnUserLogin = window.firebaseManager.onUserLogin;
+        const originalOnUserLogout = window.firebaseManager.onUserLogout;
+        
+        window.firebaseManager.onUserLogin = async function(user) {
+          if (originalOnUserLogin) {
+            await originalOnUserLogin.call(this, user);
+          }
+          // お問い合わせタブが選択されている場合、コンテンツを更新
+          const contactTab = document.getElementById('contact');
+          if (contactTab && contactTab.classList.contains('active')) {
+            loadContactForm();
+          }
+        };
+        
+        window.firebaseManager.onUserLogout = function() {
+          if (originalOnUserLogout) {
+            originalOnUserLogout.call(this);
+          }
+          // お問い合わせタブが選択されている場合、コンテンツを更新
+          const contactTab = document.getElementById('contact');
+          if (contactTab && contactTab.classList.contains('active')) {
+            loadContactForm();
+          }
+        };
+      }
+    </script>
+    
+    <!-- お問い合わせフォーム用スタイル -->
+    <style>
+      .info-box {
+        margin: 20px 0;
+      }
+
+      .info-box h4 {
+        margin: 0 0 10px 0;
+        color: #1976d2;
+      }
+
+      details {
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 10px;
+        margin: 10px 0;
+      }
+
+      details summary {
+        font-weight: bold;
+        padding: 5px 0;
+        outline: none;
+        cursor: pointer;
+      }
+
+      details[open] summary {
+        border-bottom: 1px solid #ddd;
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+      }
+
+      .checkbox-item {
+        display: flex;
+        align-items: flex-start;
+        margin: 10px 0;
+      }
+
+      .checkbox-item input[type="checkbox"] {
+        margin-right: 10px;
+        margin-top: 2px;
+        width: auto;
+      }
+
+      .checkbox-item span {
+        flex: 1;
+      }
+
+      small {
+        display: block;
+        margin-top: 5px;
+        font-size: 12px;
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    </style>
+
     <script>
       if (typeof app !== "undefined" || typeof OralHealthApp !== "undefined") {
         window.appInitStatus.app = true;
@@ -442,6 +837,19 @@
 
       // 最終的な初期化状況を確認
       setTimeout(checkInitialization, 1000);
+      
+      // タブ切り替え時にお問い合わせフォームを読み込み
+      const originalOpenTab = window.openTab;
+      window.openTab = function(tabName) {
+        if (originalOpenTab) {
+          originalOpenTab(tabName);
+        }
+        
+        // お問い合わせタブが選択された場合、フォームを読み込み
+        if (tabName === 'contact') {
+          setTimeout(loadContactForm, 100);
+        }
+      };
 
       // デバッグ用ショートカット（開発時のみ）
       window.addEventListener("keydown", function (e) {

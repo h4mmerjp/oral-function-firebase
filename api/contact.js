@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { name, email, category, title, message, browser } = req.body;
+    const { name, email, category, title, message, browser, isAuthenticated, userUid } = req.body;
 
     // 投稿ID生成
     const submissionId = `SUB_${Date.now()}_${Math.random()
@@ -39,10 +39,16 @@ ${browser ? `**ブラウザ:** ${browser}` : "環境情報なし"}
 ## システム情報
 - **投稿ID:** \`${submissionId}\`
 - **投稿日時:** ${new Date().toISOString()}
+- **認証状態:** ${isAuthenticated ? '認証済み (優先サポート)' : '匿名'}
+${userUid ? `- **ユーザーUID:** \`${userUid}\`` : ''}
 
 ---
-このIssueは[お問い合わせフォーム](https://oral-function-firebase.vercel.app/contact.html)から自動生成されました。`,
-          labels: ["from-contact-form", getCategoryLabel(category)],
+このIssueは[${isAuthenticated ? 'メインアプリ' : 'お問い合わせフォーム'}](https://oral-function-firebase.vercel.app/${isAuthenticated ? 'index.html' : 'contact.html'})から自動生成されました。`,
+          labels: [
+            "from-contact-form", 
+            getCategoryLabel(category),
+            ...(isAuthenticated ? ["authenticated-user"] : [])
+          ],
         }),
       }
     );
