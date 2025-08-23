@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- セキュリティヘッダー -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; 
+                script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; 
+                style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
+                font-src 'self' https://fonts.gstatic.com; 
+                img-src 'self' data: https:; 
+                connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com wss://*.firebaseio.com; 
+                frame-src 'self' https://accounts.google.com https://content.googleapis.com https://*.firebaseapp.com;"
+    />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+    
+    <title>口腔機能低下症診断・管理アプリ - ログイン</title>
+    <link rel="stylesheet" href="styles.css">
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        .landing-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .app-logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            color: white;
+        }
+
+        .app-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .app-subtitle {
+            font-size: 16px;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+
+        .login-section {
+            margin: 30px 0;
+        }
+
+        .google-login-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            gap: 12px;
+            margin: 10px 0;
+        }
+
+        .google-login-btn:hover {
+            background: #357ae8;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(66, 133, 244, 0.3);
+        }
+
+        .google-login-btn:active {
+            transform: translateY(0);
+        }
+
+        .google-login-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .google-icon {
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .features-preview {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+            text-align: left;
+        }
+
+        .features-preview h4 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .features-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .features-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .features-list li:last-child {
+            border-bottom: none;
+        }
+
+        .feature-icon {
+            color: #27ae60;
+            font-weight: bold;
+        }
+
+        .public-links {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .public-links h4 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .public-links a {
+            color: #3498db;
+            text-decoration: none;
+            margin: 0 15px;
+            font-size: 14px;
+        }
+
+        .public-links a:hover {
+            text-decoration: underline;
+        }
+
+        .loading-spinner {
+            display: none;
+            margin: 10px auto;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .auth-status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .auth-status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .auth-status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .auth-status.loading {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="landing-container">
+        <!-- アプリロゴ -->
+        <div class="app-logo">
+            🦷
+        </div>
+
+        <!-- アプリタイトル -->
+        <h1 class="app-title">口腔機能低下症診断・管理アプリ</h1>
+        <p class="app-subtitle">日本老年歯科医学会基準に基づく診断支援ツール</p>
+
+        <!-- 認証セクション -->
+        <div class="login-section">
+            <button id="google-login-btn" class="google-login-btn" onclick="handleGoogleLogin()">
+                <div class="google-icon">G</div>
+                Googleアカウントでログイン
+            </button>
+
+            <div class="loading-spinner" id="loading-spinner">
+                <div class="spinner"></div>
+            </div>
+
+            <div class="auth-status" id="auth-status"></div>
+        </div>
+
+        <!-- 機能プレビュー -->
+        <div class="features-preview">
+            <h4>🔐 ログイン後にご利用いただける機能</h4>
+            <ul class="features-list">
+                <li><span class="feature-icon">✓</span> 患者情報の安全な管理（最大5名まで無料）</li>
+                <li><span class="feature-icon">✓</span> 口腔機能精密検査の記録・分析</li>
+                <li><span class="feature-icon">✓</span> 診断結果の自動計算と管理</li>
+                <li><span class="feature-icon">✓</span> 管理計画書・記録簿の作成</li>
+                <li><span class="feature-icon">✓</span> データの自動同期・バックアップ</li>
+            </ul>
+        </div>
+
+        <!-- パブリックリンク -->
+        <div class="public-links">
+            <h4>📋 サービス情報</h4>
+            <a href="about.html">アプリについて</a>
+            <a href="privacy-policy.html">プライバシーポリシー</a>
+            <a href="terms-of-service.html">利用規約</a>
+            <a href="contact.html">お問い合わせ</a>
+        </div>
+    </div>
+
+    <!-- Firebase SDKをCDNから読み込み -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <!-- Firebase設定を読み込み -->
+    <script src="firebase-config.js"></script>
+    <script src="security.js"></script>
+
+    <script>
+        // グローバル変数
+        let isAuthInProgress = false;
+
+        // ページ読み込み時の初期化
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('ランディングページ初期化開始');
+            
+            // Firebase初期化を待機
+            if (typeof firebaseManager !== 'undefined') {
+                try {
+                    const initialized = await firebaseManager.initialize();
+                    if (initialized) {
+                        console.log('Firebase初期化成功');
+                        setupAuthStateListener();
+                        // リダイレクト結果をチェック
+                        await firebaseManager.handleRedirectResult();
+                    } else {
+                        console.error('Firebase初期化失敗');
+                        showAuthStatus('Firebase初期化に失敗しました。ページを再読み込みしてください。', 'error');
+                    }
+                } catch (error) {
+                    console.error('Firebase初期化エラー:', error);
+                    showAuthStatus('システム初期化エラー: ' + error.message, 'error');
+                }
+            } else {
+                console.error('FirebaseManager が読み込まれていません');
+                showAuthStatus('システムファイルの読み込みに失敗しました。', 'error');
+            }
+        });
+
+        // 認証状態監視の設定
+        function setupAuthStateListener() {
+            if (firebaseManager && firebaseManager.auth) {
+                firebaseManager.auth.onAuthStateChanged((user) => {
+                    console.log('認証状態変更 (ランディングページ):', user ? 'ログイン済み' : '未ログイン');
+                    
+                    if (user && !isAuthInProgress) {
+                        // 認証済みの場合はメインアプリにリダイレクト
+                        console.log('認証済みユーザー検出 - メインアプリにリダイレクト');
+                        showAuthStatus('ログイン成功！メインアプリに移動します...', 'success');
+                        
+                        setTimeout(() => {
+                            window.location.href = 'app.html';
+                        }, 1500);
+                    }
+                });
+            }
+        }
+
+        // Googleログイン処理
+        async function handleGoogleLogin() {
+            if (isAuthInProgress) {
+                console.log('認証処理中のため、重複実行をスキップ');
+                return;
+            }
+
+            const loginBtn = document.getElementById('google-login-btn');
+            const loadingSpinner = document.getElementById('loading-spinner');
+
+            try {
+                isAuthInProgress = true;
+                
+                // UI更新
+                loginBtn.disabled = true;
+                loginBtn.innerHTML = '<div class="google-icon">G</div>認証中...';
+                loadingSpinner.style.display = 'block';
+                showAuthStatus('Googleアカウントで認証中...', 'loading');
+
+                // Firebase Managerの存在確認
+                if (!firebaseManager || !firebaseManager.isInitialized) {
+                    throw new Error('Firebase が初期化されていません');
+                }
+
+                // Google認証実行
+                console.log('Google認証開始');
+                await firebaseManager.signInWithGoogle();
+                
+                // 成功時はonAuthStateChangedでリダイレクトされる
+
+            } catch (error) {
+                console.error('ログインエラー:', error);
+                
+                // エラーメッセージの表示
+                let errorMessage = 'ログインに失敗しました';
+                
+                if (error.message) {
+                    errorMessage = error.message;
+                } else if (error.code) {
+                    switch (error.code) {
+                        case 'auth/popup-closed-by-user':
+                            errorMessage = 'ログインがキャンセルされました';
+                            break;
+                        case 'auth/popup-blocked':
+                            errorMessage = 'ポップアップがブロックされました。ブラウザの設定を確認してください';
+                            break;
+                        case 'auth/network-request-failed':
+                            errorMessage = 'ネットワークエラーが発生しました';
+                            break;
+                        default:
+                            errorMessage = `認証エラー: ${error.code}`;
+                    }
+                }
+                
+                showAuthStatus(errorMessage, 'error');
+
+            } finally {
+                // UI復元
+                isAuthInProgress = false;
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '<div class="google-icon">G</div>Googleアカウントでログイン';
+                loadingSpinner.style.display = 'none';
+            }
+        }
+
+        // 認証状態メッセージ表示
+        function showAuthStatus(message, type) {
+            const statusDiv = document.getElementById('auth-status');
+            statusDiv.textContent = message;
+            statusDiv.className = `auth-status ${type}`;
+            statusDiv.style.display = 'block';
+
+            // エラーメッセージは長めに表示
+            const timeout = type === 'error' ? 8000 : 5000;
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, timeout);
+        }
+
+        // デバッグ用（開発時のみ）
+        window.debugLanding = () => {
+            console.log('Landing Page Debug Info:', {
+                firebaseManager: !!firebaseManager,
+                isInitialized: firebaseManager ? firebaseManager.isInitialized : false,
+                currentUser: firebaseManager ? firebaseManager.getCurrentUser() : null,
+                isAuthInProgress
+            });
+        };
+    </script>
+</body>
+</html>
