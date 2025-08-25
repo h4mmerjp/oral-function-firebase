@@ -376,6 +376,12 @@ class FirebaseManager {
       await this.auth.signOut();
       console.log("ログアウト完了");
       this.showSuccessMessage("ログアウトしました");
+      
+      // ランディングページにリダイレクト
+      setTimeout(() => {
+        window.location.href = 'landing.html';
+      }, 1000);
+      
     } catch (error) {
       console.error("ログアウトエラー:", error);
       this.showErrorMessage("ログアウトに失敗しました");
@@ -410,6 +416,10 @@ class FirebaseManager {
       }
     }
 
+    // app.htmlかどうかを判定
+    const isAppPage = window.location.pathname.includes('app.html') || 
+                      (window.location.pathname === '/' && document.getElementById('main-app'));
+
     if (isLoggedIn && user) {
       authContainer.innerHTML = `
         <div style="display: flex; align-items: center; gap: 10px;">
@@ -428,13 +438,19 @@ class FirebaseManager {
         </div>
       `;
     } else {
-      authContainer.innerHTML = `
-        <div style="text-align: center;">
-          <div style="font-size: 14px; margin-bottom: 8px; color: #e74c3c;">オフライン</div>
-          <button onclick="firebaseManager.signInWithGoogle()" class="btn-success" style="padding: 8px 16px; font-size: 12px; white-space: nowrap;">Googleでログイン</button>
-          <div style="font-size: 11px; color: #888; margin-top: 4px;">データを保存するにはログイン必須</div>
-        </div>
-      `;
+      // app.htmlページでは未認証時はUIを非表示（すでにリダイレクトされるため）
+      if (isAppPage) {
+        authContainer.style.display = 'none';
+      } else {
+        // landing.htmlなど他のページでは通常のログインUIを表示
+        authContainer.innerHTML = `
+          <div style="text-align: center;">
+            <div style="font-size: 14px; margin-bottom: 8px; color: #e74c3c;">オフライン</div>
+            <button onclick="firebaseManager.signInWithGoogle()" class="btn-success" style="padding: 8px 16px; font-size: 12px; white-space: nowrap;">Googleでログイン</button>
+            <div style="font-size: 11px; color: #888; margin-top: 4px;">データを保存するにはログイン必須</div>
+          </div>
+        `;
+      }
     }
   }
 
