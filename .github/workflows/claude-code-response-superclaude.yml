@@ -1,4 +1,5 @@
-name: Claude Code Auto Response with SuperClaude
+env:
+          CLAUDE_RESPONSE_CONTENT: ${{ steps.claude-api-call.outputs.claude_response_content }}name: Claude Code Auto Response with SuperClaude
 
 on:
   issues:
@@ -14,17 +15,17 @@ jobs:
       contents: write
 
     steps:
-      - name: ステップ1: 無限ループ防止のためのイベントトリガーチェック
+      - name: "ステップ1: 無限ループ防止のためのイベントトリガーチェック"
         id: event-check
         run: |
           echo "=== イベントトリガーチェック ==="
-          if "${{ github.event_name }}" = "issues" ]; then
+          if [ "${{ github.event_name }}" = "issues" ]; then
             echo "should_process=true" >> $GITHUB_OUTPUT
             echo "トリガー: Issue作成。処理を継続します。"
             exit 0
           fi
 
-          if "${{ github.event_name }}" = "issue_comment" ]; then
+          if [ "${{ github.event_name }}" = "issue_comment" ]; then
             echo "=== コメントトリガーチェック ==="
             echo "コメントトリガー: Issueコメント。処理を継続します。"
             echo "should_process=true" >> $GITHUB_OUTPUT
@@ -37,7 +38,7 @@ jobs:
           echo "should_process=false" >> $GITHUB_OUTPUT
           exit 0
 
-      - name: ステップ2: 処理続行条件の確認
+      - name: "ステップ2: 処理続行条件の確認"
         if: ${{ github.event.issue.pull_request }}
         run: |
           echo "=== プルリクエストのIssueはスキップ ==="
@@ -45,7 +46,7 @@ jobs:
           echo "should_process=false" >> $GITHUB_OUTPUT
           exit 0
 
-      - name: ステップ3: SuperClaudeのインストール
+      - name: "ステップ3: SuperClaudeのインストール"
         if: ${{ steps.event-check.outputs.should_process == 'true' }}
         run: |
           echo "=== SuperClaudeのインストール ==="
@@ -53,7 +54,7 @@ jobs:
           SuperClaude install
           echo "SuperClaudeがインストールされました。"
 
-      - name: ステップ4: Claude API呼び出しと応答生成 (SuperClaude経由)
+      - name: "ステップ4: Claude API呼び出しと応答生成 (SuperClaude経由)"
         id: claude-api-call
         if: ${{ steps.event-check.outputs.should_process == 'true' }}
         env:
@@ -66,8 +67,10 @@ jobs:
           echo "SuperClaude経由でのClaude API呼び出しが完了しました。"
           echo "claude_response_content=詳細な応答がSuperClaudeによって生成されました。" >> $GITHUB_OUTPUT
 
-      - name: ステップ5: 応答の解析とコメント投稿
+      - name: "ステップ5: 応答の解析とコメント投稿"
         if: ${{ steps.event-check.outputs.should_process == 'true' }}
+        env:
+          CLAUDE_RESPONSE_CONTENT: ${{ steps.claude-api-call.outputs.claude_response_content }}
         uses: actions/github-script@v6
         with:
           script: |
@@ -79,7 +82,7 @@ jobs:
               return;
             }
 
-            github.rest.issues.createComment({
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
@@ -87,37 +90,36 @@ jobs:
             });
             console.log('詳細な応答をIssueに投稿しました。');
 
-      - name: ステップ6: フォールバック応答の投稿 (エラー時)
+      - name: "ステップ6: フォールバック応答の投稿 (エラー時)"
         if: ${{ failure() && steps.event-check.outputs.should_process == 'true' }}
         uses: actions.github-script@v6
         with:
           script: |
             console.log('詳細な応答を生成できませんでした。');
             
-            ### 基本的なトラブルシューティング
+            const fallbackMessage = `### 基本的なトラブルシューティング
             問題の内容から、以下の点をご確認ください：
             
-            1. **ログファイルの確認**: `\logs\` ディレクトリ内のエラーログをご確認ください
+            1. **ログファイルの確認**: \`logs/\` ディレクトリ内のエラーログをご確認ください
             2. **設定ファイルの検証**: 設定ファイルの構文や必須項目が正しく設定されているか確認してください
-            3. **依存関係の確認**: `\requirements.txt` や `\package.json` の依存関係が最新かご確認ください
+            3. **依存関係の確認**: \`requirements.txt\` や \`package.json\` の依存関係が最新かご確認ください
             
             ### 次のステップ
             担当者が以下の詳細な分析ツールを使用して詳細調査を行います：
             
-            - ⚪︎ セマンティックコード分析
-            - ⚪︎ 依存関係影響調査
-            - ⚪︎ 自動テスト実行による動的検証
+            - ○ セマンティックコード分析
+            - ○ 依存関係影響調査
+            - ○ 自動テスト実行による動的検証
             
             詳細な分析結果は手動で提供いたしますので、今しばらくお待ちください。
             ご不便をおかけして申し訳ございません。
             
-            <sub>この応答はSuperClaude統合システムにより自動生成されています。</sub>
+            <sub>この応答はSuperClaude統合システムにより自動生成されています。</sub>`;
             
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `詳細な応答を生成できませんでした。`
+              body: fallbackMessage
             });
             console.log("強化されたフォールバック応答をIssueに投稿しました。");
-
