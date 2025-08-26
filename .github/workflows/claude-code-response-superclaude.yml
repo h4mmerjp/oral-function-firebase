@@ -46,7 +46,7 @@ jobs:
         run: |
           echo "=== SuperClaudeのインストール ==="
           pip install SuperClaude
-          # 非対話モードでインストールを実行 (--yesフラグを使用)
+          # 非対話モードでインストールを実行
           SuperClaude install --yes
           echo "SuperClaudeがインストールされました。"
       - name: "ステップ4: Claude API呼び出しと応答生成 (SuperClaude経由)"
@@ -54,16 +54,19 @@ jobs:
         if: steps.event-check.outputs.should_process == 'true'
         env:
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
           echo "=== Claude API呼び出し (SuperClaude経由) ==="
-          # SuperClaudeのコマンドを使用してClaude APIを呼び出し、応答を生成するロジック
-          # 例: SuperClaude generate-response --prompt "${{ github.event.issue.body }}" > claude_response.json
-          # 実際の応答生成コマンドに置き換えてください
-          RESPONSE="SuperClaudeによる応答のサンプルです。Issueの内容: ${{ github.event.issue.body }}"
+          # SuperClaudeの `generate-response` コマンドを実行
+          # 注: このコマンド名はSuperClaudeの機能からの推測です。実際のコマンド名に合わせて修正してください。
+          RESPONSE=$(SuperClaude generate-response --prompt "$ISSUE_BODY")
+          
+          echo "SuperClaude経由でのClaude API呼び出しが完了しました。"
+          
+          # 複数行の出力をGITHUB_OUTPUTに設定
           echo "claude_response_content<<EOF" >> $GITHUB_OUTPUT
           echo "$RESPONSE" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          echo "SuperClaude経由でのClaude API呼び出しが完了しました。"
       - name: "ステップ5: 応答の解析とコメント投稿"
         if: steps.event-check.outputs.should_process == 'true'
         uses: actions/github-script@v6
