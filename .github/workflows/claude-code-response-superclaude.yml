@@ -46,8 +46,8 @@ jobs:
         run: |
           echo "=== SuperClaudeのインストール ==="
           pip install SuperClaude
-          # 非対話モードでインストールを実行
-          SuperClaude install --non-interactive
+          # 非対話モードでインストールを実行 (--yesフラグを使用)
+          SuperClaude install --yes
           echo "SuperClaudeがインストールされました。"
       - name: "ステップ4: Claude API呼び出しと応答生成 (SuperClaude経由)"
         id: claude-api-call
@@ -58,17 +58,20 @@ jobs:
           echo "=== Claude API呼び出し (SuperClaude経由) ==="
           # SuperClaudeのコマンドを使用してClaude APIを呼び出し、応答を生成するロジック
           # 例: SuperClaude generate-response --prompt "${{ github.event.issue.body }}" > claude_response.json
-          # ここでは、SuperClaudeが内部的にMCPサーバーを管理するため、Serena MCPのURLは不要です。
+          # 実際の応答生成コマンドに置き換えてください
+          RESPONSE="SuperClaudeによる応答のサンプルです。Issueの内容: ${{ github.event.issue.body }}"
+          echo "claude_response_content<<EOF" >> $GITHUB_OUTPUT
+          echo "$RESPONSE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
           echo "SuperClaude経由でのClaude API呼び出しが完了しました。"
-          echo "claude_response_content=詳細な応答がSuperClaudeによって生成されました。" >> $GITHUB_OUTPUT
       - name: "ステップ5: 応答の解析とコメント投稿"
         if: steps.event-check.outputs.should_process == 'true'
         uses: actions/github-script@v6
         with:
           script: |
-            const responseContent = "${{ steps.claude-api-call.outputs.claude_response_content }}";
+            const responseContent = `${{ steps.claude-api-call.outputs.claude_response_content }}`;
             
-            if (!responseContent || responseContent === "詳細な応答がSuperClaudeによって生成されました。") {
+            if (!responseContent) {
               console.log('詳細な応答が生成されませんでした。');
               return;
             }
