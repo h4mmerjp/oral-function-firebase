@@ -7,13 +7,13 @@
     <!-- セキュリティヘッダー -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; 
-                script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com https://pagead2.googlesyndication.com; 
-                style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
-                font-src 'self' https://fonts.gstatic.com; 
-                img-src 'self' data: https: blob:; 
-                connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com wss://*.firebaseio.com; 
-                frame-src 'self' https://accounts.google.com https://content.googleapis.com https://*.firebaseapp.com;"
+      content="default-src 'self';
+              script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com https://pagead2.googlesyndication.com;
+              style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+              font-src 'self' https://fonts.gstatic.com;
+              img-src 'self' data: https: blob:;
+              connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com wss://*.firebaseio.com;
+              frame-src 'self' https://accounts.google.com https://content.googleapis.com https://*.firebaseapp.com;"
     />
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
@@ -23,7 +23,6 @@
       content="strict-origin-when-cross-origin"
     />
 
-    <!-- AdSense審査用メタタグ -->
     <meta
       name="description"
       content="日本老年歯科医学会基準に基づく口腔機能低下症の診断・管理ツール。歯科医師・歯科衛生士向けの診断補助アプリケーション。"
@@ -39,418 +38,432 @@
     </title>
     <link rel="stylesheet" href="styles.css" />
 
-</head>
+    <style>
+      .landing-container {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-align: center;
+        padding: 20px;
+      }
+
+      .landing-card {
+        background: white;
+        color: #333;
+        padding: 40px;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+        max-width: 600px;
+        width: 100%;
+        margin: 20px;
+      }
+
+      .landing-title {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 20px;
+        color: #2c3e50;
+      }
+
+      .landing-subtitle {
+        font-size: 1.2rem;
+        color: #7f8c8d;
+        margin-bottom: 30px;
+      }
+
+      .features-list {
+        text-align: left;
+        margin: 30px 0;
+      }
+
+      .feature-item {
+        display: flex;
+        align-items: center;
+        margin: 15px 0;
+        font-size: 1.1rem;
+      }
+
+      .feature-icon {
+        width: 24px;
+        height: 24px;
+        margin-right: 15px;
+        background: #27ae60;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+      }
+
+      .auth-section {
+        background: #f8f9fa;
+        padding: 30px;
+        border-radius: 12px;
+        margin: 20px 0;
+      }
+
+      .auth-title {
+        font-size: 1.3rem;
+        margin-bottom: 15px;
+        color: #2c3e50;
+      }
+
+      .google-login-btn {
+        background: #4285f4;
+        color: white;
+        border: none;
+        padding: 15px 30px;
+        border-radius: 8px;
+        font-size: 1.1rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        transition: background-color 0.3s;
+      }
+
+      .google-login-btn:hover {
+        background: #3367d6;
+      }
+
+      .google-login-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+
+      .loading-spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #ffffff;
+        border-top: 2px solid transparent;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .offline-notice {
+        background: #f39c12;
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 20px 0;
+        font-size: 0.9rem;
+      }
+
+      .demo-link {
+        display: inline-block;
+        margin-top: 20px;
+        color: #3498db;
+        text-decoration: none;
+        font-size: 1rem;
+      }
+
+      .demo-link:hover {
+        text-decoration: underline;
+      }
+
+      @media (max-width: 768px) {
+        .landing-title {
+          font-size: 2rem;
+        }
+
+        .landing-card {
+          padding: 30px 20px;
+          margin: 10px;
+        }
+      }
+    </style>
+  </head>
+
   <body>
-    <div class="container">
-      <header>
-        <h1>口腔機能低下症 診断・管理アプリ</h1>
-        <p>日本老年歯科医学会の基準に基づく診断・管理ツール</p>
-        <div style="margin-top: 10px">
-          <button onclick="exportDatabaseCSV()" class="btn-secondary no-print">
-            CSVエクスポート
-          </button>
-          <button onclick="window.print()" class="btn-secondary no-print">
-            印刷
-          </button>
-        </div>
-      </header>
+    <div class="landing-container">
+      <div class="landing-card">
+        <h1 class="landing-title">口腔機能低下症<br />診断・管理アプリ</h1>
+        <p class="landing-subtitle">
+          日本老年歯科医学会の基準に基づく診断・管理ツール
+        </p>
 
-      <div class="tabs no-print">
-        <div class="tab active" onclick="openTab('patient-list')">患者一覧</div>
-        <div class="tab" onclick="openTab('patient-info')">患者情報</div>
-        <div class="tab" onclick="openTab('assessment')">口腔機能精密検査</div>
-        <div class="tab" onclick="openTab('diagnosis')">診断結果</div>
-        <div class="tab" onclick="openTab('management-plan')">管理計画書</div>
-        <div class="tab" onclick="openTab('progress-record')">
-          管理指導記録簿
-        </div>
-        <div class="tab" onclick="openTab('patient-history')">履歴・統計</div>
-        <div class="tab" onclick="openTab('information')">参考情報</div>
-      </div>
-
-      <!-- Patient List Tab -->
-      <div id="patient-list" class="tab-content active">
-        <h2>患者一覧</h2>
-
-        <div class="search-container">
-          <input
-            type="text"
-            id="search-patients"
-            placeholder="患者名、患者IDで検索..."
-            onkeyup="searchPatients()"
-          />
-          <select id="filter-status" onchange="filterPatients()">
-            <option value="">すべて表示</option>
-            <option value="diagnosed">口腔機能低下症</option>
-            <option value="normal">正常</option>
-            <option value="pending">未診断</option>
-          </select>
-          <button onclick="showAddPatientModal()" class="btn-success">
-            新規患者登録
-          </button>
-        </div>
-
-        <div id="patients-grid" class="grid-container">
-          <div class="no-patients">
-            <p>登録された患者がありません。</p>
-            <button onclick="showAddPatientModal()" class="btn-success">
-              最初の患者を登録
-            </button>
+        <div class="features-list">
+          <div class="feature-item">
+            <div class="feature-icon">✓</div>
+            <span>口腔機能精密検査の支援</span>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">✓</div>
+            <span>診断結果の自動判定</span>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">✓</div>
+            <span>管理計画書・記録簿の作成</span>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">✓</div>
+            <span>患者データの安全な管理</span>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">✓</div>
+            <span>クラウド同期でどこからでもアクセス</span>
           </div>
         </div>
-      </div>
 
-      <!-- Patient Information Tab -->
-      <div id="patient-info" class="tab-content">
-        <h2>患者基本情報</h2>
-        <div id="patient-info-content">
-          <p>患者一覧から患者を選択するか、新規登録を行ってください。</p>
-        </div>
-      </div>
-
-      <!-- Assessment Tab -->
-      <div id="assessment" class="tab-content">
-        <h2>口腔機能精密検査</h2>
-        <div id="assessment-content">
-          <p>患者を選択してから検査を開始してください。</p>
-        </div>
-      </div>
-
-      <!-- Diagnosis Tab -->
-      <div id="diagnosis" class="tab-content">
-        <h2>診断結果</h2>
-        <div id="diagnosis-content">
-          <p>検査完了後に診断結果が表示されます。</p>
-        </div>
-      </div>
-
-      <!-- Management Plan Tab -->
-      <div id="management-plan" class="tab-content">
-        <h2>管理計画書</h2>
-        <div id="management-plan-content">
-          <p>診断完了後に管理計画書が作成できます。</p>
-        </div>
-      </div>
-
-      <!-- Progress Record Tab -->
-      <div id="progress-record" class="tab-content">
-        <h2>管理指導記録簿</h2>
-        <div id="progress-record-content">
-          <p>患者を選択して管理指導記録を入力してください。</p>
-        </div>
-      </div>
-
-      <!-- Patient History Tab -->
-      <div id="patient-history" class="tab-content">
-        <h2>履歴・統計</h2>
-        <div id="patient-history-content">
-          <p>患者を選択して履歴を確認してください。</p>
-        </div>
-      </div>
-
-      <!-- Information Tab -->
-      <div id="information" class="tab-content">
-        <h2>口腔機能低下症に関する参考情報</h2>
-
-        <div class="summary-card">
-          <h3>口腔機能低下症とは</h3>
-          <p>
-            口腔機能低下症は、加齢だけでなく，疾患や障害など様々な要因によって，口腔の機能が複合的に低下している疾患です。放置しておくと咀嚼障害，摂食嚥下障害など口腔の機能障害を引き起こし，また，低栄養やフレイル、サルコペニアを進展させるなど全身の健康を損なう可能性があります。
+        <div class="auth-section">
+          <h3 class="auth-title">ログインして始める</h3>
+          <p style="margin-bottom: 20px; color: #666; font-size: 0.9rem">
+            患者データを安全に保存し、複数のデバイスから利用できます
           </p>
-          <p>
-            口腔機能低下症の7つの下位症状（口腔衛生状態不良，口腔乾燥，咬合力低下，舌口唇運動機能低下，低舌圧，咀嚼機能低下，嚥下機能低下）のうち，3項目以上該当する場合に口腔機能低下症と診断されます。
-          </p>
-        </div>
 
-        <div class="summary-card">
-          <h3>口腔機能低下症とオーラルフレイル</h3>
-          <p>
-            オーラルフレイルは、わずかなむせや食べこぼし、滑舌の低下といった口腔機能が低下した状態を示すものであり、国民の啓発に用いる用語（キャッチフレーズ）です。
-          </p>
-          <p>
-            一方、口腔機能低下症は、検査結果に基づく疾患名です。従って、オーラルフレイルと口腔機能低下症はオーバーラップされる部分が多く、区別されるものではありません。
-          </p>
-        </div>
-
-        <div class="summary-card">
-          <h3>口腔機能低下症の管理</h3>
-          <p>
-            口腔機能低下症の管理は，口腔機能のさらなる悪化を予防し，口腔機能を維持，回復することを目的とします。
-          </p>
-          <h4>各症状の管理方法例</h4>
-          <table>
-            <thead>
-              <tr>
-                <th>症状・状態</th>
-                <th>管理方法の例</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>口腔衛生状態不良</td>
-                <td>
-                  歯科医師・歯科衛生士による口腔衛生管理、患者や家族等による口腔ケアの指導
-                </td>
-              </tr>
-              <tr>
-                <td>口腔乾燥</td>
-                <td>
-                  水分管理・水分補給の指導、唾液腺マッサージの指導・健口体操、口腔保湿剤の指導
-                </td>
-              </tr>
-              <tr>
-                <td>口唇・舌の機能低下</td>
-                <td>
-                  「パ」「タ」「カ」の繰り返し発音訓練の指導、口唇・舌の自動運動の指導
-                </td>
-              </tr>
-              <tr>
-                <td>咬合力・咀嚼機能の低下</td>
-                <td>咬合支持の確立，義歯の製作・調整、咀嚼指導、食事指導</td>
-              </tr>
-              <tr>
-                <td>嚥下機能の低下</td>
-                <td>嚥下体操の指導、開口訓練、嚥下の間接訓練・直接訓練</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="summary-card">
-           <h3>参考資料・リンク</h3>
-        <ul>
-          <li><a href="https://www.jads.jp/assets/pdf/basic/r06/document-240329.pdf" target="_blank" rel="noopener noreferrer">日本歯科医学会：口腔機能低下症に関する基本的な考え方</a></li>
-          <li><a href="https://www.gerodontology.jp/" target="_blank" rel="noopener noreferrer">日本老年歯科医学会：公式ホームページ</a></li>
-        </ul>
-        </div>
-      </div>
-    </div>
-
-
-    <!-- Release Notes Section -->
-    <footer class="app-footer no-print">
-      <div
-        style="
-          text-align: center;
-          padding: 20px;
-          border-top: 1px solid #eee;
-          margin-top: 30px;
-        "
-      >
-        <!-- 必須リンク -->
-        <div style="margin-bottom: 15px">
-          <a href="about.html" style="margin: 0 10px">アプリについて</a>
-          <a href="privacy-policy.html" style="margin: 0 10px"
-            >プライバシーポリシー</a
+          <button
+            id="google-login-btn"
+            class="google-login-btn"
+            onclick="handleGoogleLogin()"
           >
-          <a href="terms-of-service.html" style="margin: 0 10px">利用規約</a>
-          <a href="contact.html" style="margin: 0 10px">お問い合わせ</a>
-        </div>
-
-        <!-- リリースノートボタン -->
-        <button
-          onclick="showReleaseNotes()"
-          class="btn-secondary"
-          style="margin: 5px"
-        >
-          📋 更新情報・リリースノート
-        </button>
-
-        <!-- コピーライトとアプリ説明 -->
-        <p style="font-size: 12px; color: #666; margin: 10px 0">
-          口腔機能低下症診断・管理アプリ | 日本老年歯科医学会基準準拠
-        </p>
-
-        <p style="font-size: 11px; color: #999; margin: 5px 0">
-          ※
-          本アプリは診断補助ツールです。最終的な診断は医療従事者が行ってください。
-        </p>
-
-      </div>
-    </footer>
-
-    <!-- Release Notes Modal -->
-    <div id="releaseNotesModal" class="modal">
-      <div class="modal-content">
-        <span class="close" onclick="closeReleaseNotesModal()">&times;</span>
-        <h2>📋 更新情報・リリースノート</h2>
-        <div id="release-notes-content">
-          <div style="text-align: center; padding: 20px">
-            <p>更新情報を読み込み中...</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Add Patient Modal -->
-    <div id="addPatientModal" class="modal">
-      <div class="modal-content">
-        <span class="close" onclick="closeAddPatientModal()">&times;</span>
-        <h2 id="modal-title">新規患者登録</h2>
-        <form id="patient-form">
-          <input type="hidden" id="edit-patient-id" />
-
-          <div class="grid-container">
-            <div class="form-group">
-              <label for="modal-patient-name">患者氏名 *</label>
-              <input type="text" id="modal-patient-name" required />
-            </div>
-            <div class="form-group">
-              <label for="modal-patient-id">患者ID *</label>
-              <input type="text" id="modal-patient-id" required />
-            </div>
-            <div class="form-group">
-              <label for="modal-patient-kana">フリガナ</label>
-              <input type="text" id="modal-patient-kana" />
-            </div>
-            <div class="form-group">
-              <label for="modal-birthdate">生年月日</label>
-              <input type="date" id="modal-birthdate" />
-            </div>
-            <div class="form-group">
-              <label for="modal-gender">性別</label>
-              <select id="modal-gender">
-                <option value="">選択してください</option>
-                <option value="male">男性</option>
-                <option value="female">女性</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="modal-phone">電話番号</label>
-              <input type="tel" id="modal-phone" />
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="modal-address">住所</label>
-            <textarea id="modal-address" rows="3"></textarea>
-          </div>
-
-          <div style="text-align: right; margin-top: 20px">
-            <button
-              type="button"
-              onclick="closeAddPatientModal()"
-              class="btn-secondary"
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 18 18"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
             >
-              キャンセル
-            </button>
-            <button type="submit" class="btn-success">保存</button>
+              <path
+                d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"
+                fill="#4285F4"
+              />
+              <path
+                d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z"
+                fill="#34A853"
+              />
+              <path
+                d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"
+                fill="#FBBC05"
+              />
+              <path
+                d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"
+                fill="#EA4335"
+              />
+            </svg>
+            <span id="login-text">Googleでログイン</span>
+          </button>
+        </div>
+
+        <!-- よくある質問セクション -->
+        <div class="faq-section" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+          <h3 style="font-size: 1.2rem; color: #2c3e50; margin-bottom: 20px; text-align: center;">❓ よくある質問</h3>
+
+          <!-- FAQ コンテンツはJavaScriptで動的に読み込まれます -->
+          <div id="faq-content" style="text-align: center; color: #666; padding: 20px;">
+            📄 よくある質問を読み込み中...
           </div>
-        </form>
+
+          <div style="margin-top: 15px; text-align: center;">
+            <a href="faq.html" style="color: #3498db; text-decoration: none; font-size: 0.9rem;">すべての質問を見る</a> |
+            <a href="contact.html" style="color: #3498db; text-decoration: none; font-size: 0.9rem;">お問い合わせ</a>
+          </div>
+
+        <div
+          style="
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+          "
+        >
+        
+          <p style="font-size: 0.8rem; color: #999">
+            ※
+            本アプリは診断補助ツールです。最終的な診断は医療従事者が行ってください。
+          </p>
+        </div>
       </div>
     </div>
 
-    <!-- File input for import -->
-
-    <!-- Firebase SDKをCDNから読み込み（v8 compat版を使用） -->
+    <!-- Firebase SDKをCDNから読み込み -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-    <!-- スクリプト読み込み順序を最適化 -->
-    <script>
-      // 初期化状況を監視するためのフラグ
-      window.appInitStatus = {
-        database: false,
-        patients: false,
-        assessment: false,
-        management: false,
-        firebase: false,
-        security: false,
-        app: false,
-      };
+    <!-- Firebase設定 -->
+    <script src="firebase-config.js"></script>
 
-      // 初期化完了を監視する関数
-      function checkInitialization() {
-        const allInitialized = Object.values(window.appInitStatus).every(
-          (status) => status
-        );
-        if (allInitialized) {
-          console.log("すべてのモジュールが初期化完了しました");
-          console.log("初期化状況:", window.appInitStatus);
-        } else {
-          console.log("初期化待機中:", window.appInitStatus);
+    <script>
+      let isLoggingIn = false;
+
+      // faq.htmlからよくある質問を動的に読み込む関数
+      async function loadFAQFromExternal() {
+        try {
+          const response = await fetch('faq.html');
+          const text = await response.text();
+
+          // HTMLパーサーを作成
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(text, 'text/html');
+
+          // よくある質問のdetails要素を取得（最初の5個のみ表示）
+          const faqDetails = Array.from(doc.querySelectorAll('details')).slice(0, 5);
+          const faqContentDiv = document.getElementById('faq-content');
+
+          if (faqDetails.length > 0 && faqContentDiv) {
+            // コンテンツをクリア
+            faqContentDiv.innerHTML = '';
+            faqContentDiv.style.textAlign = 'left';
+
+            // faq.htmlからdetails要素をコピー
+            faqDetails.forEach(detail => {
+              if (detail.querySelector('summary')) {
+                const clonedDetail = detail.cloneNode(true);
+                // index.html用にスタイルを軽く調整
+                clonedDetail.style.cssText = 'margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; padding: 8px;';
+                const summary = clonedDetail.querySelector('summary');
+                if (summary) {
+                  summary.style.cssText = 'cursor: pointer; font-weight: bold; padding: 4px 0; outline: none; font-size: 0.95rem;';
+                }
+                const content = clonedDetail.querySelector('p');
+                if (content) {
+                  content.style.cssText = 'margin: 0; font-size: 0.85rem; color: #555; line-height: 1.4;';
+                  content.parentElement.style.cssText = 'border-top: 1px solid #ddd; margin-top: 8px; padding-top: 8px;';
+                }
+
+                faqContentDiv.appendChild(clonedDetail);
+              }
+            });
+
+            console.log('よくある質問を動的に更新しました');
+          }
+        } catch (error) {
+          console.log('よくある質問の動的読み込みに失敗しました:', error);
+          // 失敗時はエラーメッセージを表示
+          const faqContentDiv = document.getElementById('faq-content');
+          if (faqContentDiv) {
+            faqContentDiv.innerHTML = '<p style="color: #999; font-size: 0.9rem;">よくある質問の読み込みに失敗しました。<a href="faq.html">こちら</a>からご覧ください。</p>';
+          }
         }
       }
-    </script>
 
-    <!-- Firebase設定を最初に読み込み -->
-    <script src="firebase-config.js"></script>
-    <script>
-      if (typeof firebaseManager !== "undefined") {
-        window.appInitStatus.firebase = true;
-        console.log("firebase-config.js 読み込み完了");
 
-        // Firebase初期化を非同期で実行
-        firebaseManager.initialize().then((success) => {
-          if (success) {
-            console.log("Firebase 初期化成功");
+      // Firebase初期化待ち
+      document.addEventListener("DOMContentLoaded", async function () {
+        try {
+          // よくある質問を動的に読み込み
+          await loadFAQFromExternal();
+
+          // Firebase初期化
+          if (typeof firebaseManager !== "undefined") {
+            await firebaseManager.initialize();
+            console.log("Firebase初期化完了");
+
+            // 認証状態の監視
+            if (firebaseManager.auth) {
+              firebaseManager.auth.onAuthStateChanged((user) => {
+                if (user) {
+                  console.log(
+                    "ログイン済みユーザーを検出、ダッシュボードにリダイレクト"
+                  );
+                  window.location.href = "dashboard.html";
+                } else {
+                  console.log("未ログインユーザー");
+                  showOfflineOption();
+                }
+              });
+            }
           } else {
-            console.log("Firebase 初期化失敗 - ローカルモードで続行");
+            console.error("firebaseManager が利用できません");
+            showOfflineOption();
           }
-        });
-      }
-    </script>
-
-    <script src="database.js"></script>
-    <script>
-      if (typeof db !== "undefined") {
-        window.appInitStatus.database = true;
-        console.log("database.js 読み込み完了");
-      }
-    </script>
-
-    <script src="patients.js"></script>
-    <script>
-      if (typeof patientManager !== "undefined") {
-        window.appInitStatus.patients = true;
-        console.log("patients.js 読み込み完了");
-      }
-    </script>
-
-    <script src="assessment.js"></script>
-    <script>
-      if (typeof assessmentManager !== "undefined") {
-        window.appInitStatus.assessment = true;
-        console.log("assessment.js 読み込み完了");
-      }
-    </script>
-
-    <script src="management.js"></script>
-    <script>
-      if (typeof managementManager !== "undefined") {
-        window.appInitStatus.management = true;
-        console.log("management.js 読み込み完了");
-      }
-    </script>
-
-    <script src="security.js"></script>
-    <script>
-      if (typeof securityUtils !== "undefined") {
-        window.appInitStatus.security = true;
-        console.log("security.js 読み込み完了");
-      }
-    </script>
-
-    <script src="app.js"></script>
-
-    <script>
-      if (typeof app !== "undefined" || typeof OralHealthApp !== "undefined") {
-        window.appInitStatus.app = true;
-        console.log("app.js 読み込み完了");
-      }
-
-      // 最終的な初期化状況を確認
-      setTimeout(checkInitialization, 1000);
-
-      // デバッグ用ショートカット（開発時のみ）
-      window.addEventListener("keydown", function (e) {
-        if (e.ctrlKey && e.shiftKey && e.key === "F") {
-          if (window.fbDebug) {
-            fbDebug();
-          }
+        } catch (error) {
+          console.error("初期化エラー:", error);
+          showOfflineOption();
         }
       });
+
+      // Googleログイン処理
+      async function handleGoogleLogin() {
+        if (isLoggingIn) return;
+
+        try {
+          isLoggingIn = true;
+          updateLoginButton(true);
+
+          if (!firebaseManager || !firebaseManager.isAvailable()) {
+            throw new Error("Firebase が利用できません");
+          }
+
+          await firebaseManager.signInWithGoogle();
+          // ログイン成功時は onAuthStateChanged でリダイレクトされる
+        } catch (error) {
+          console.error("ログインエラー:", error);
+          isLoggingIn = false;
+          updateLoginButton(false);
+
+          // エラーメッセージの表示
+          showErrorMessage(error.message || "ログインに失敗しました");
+        }
+      }
+
+      // ログインボタンの状態更新
+      function updateLoginButton(loading) {
+        const btn = document.getElementById("google-login-btn");
+        const text = document.getElementById("login-text");
+
+        if (loading) {
+          btn.disabled = true;
+          text.innerHTML = '<div class="loading-spinner"></div> ログイン中...';
+        } else {
+          btn.disabled = false;
+          text.textContent = "Googleでログイン";
+        }
+      }
+
+      // オフライン時の選択肢表示
+      function showOfflineOption() {
+        const offlineNotice = document.getElementById("offline-notice");
+        const demoLink = document.getElementById("demo-link");
+
+        if (offlineNotice) offlineNotice.style.display = "block";
+        if (demoLink) demoLink.style.display = "inline-block";
+      }
+
+      // エラーメッセージ表示
+      function showErrorMessage(message) {
+        // 既存のエラーメッセージを削除
+        const existingError = document.getElementById("error-message");
+        if (existingError) existingError.remove();
+
+        const errorDiv = document.createElement("div");
+        errorDiv.id = "error-message";
+        errorDiv.style.cssText = `
+        background: #e74c3c;
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        font-size: 0.9rem;
+        text-align: center;
+      `;
+        errorDiv.textContent = message;
+
+        const authSection = document.querySelector(".auth-section");
+        authSection.appendChild(errorDiv);
+
+        // 5秒後に自動削除
+        setTimeout(() => {
+          if (errorDiv.parentElement) {
+            errorDiv.remove();
+          }
+        }, 5000);
+      }
     </script>
   </body>
 </html>

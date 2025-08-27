@@ -105,38 +105,17 @@
         </form>
       </div>
 
-      <h3>🔍 既存の問題・要望について</h3>
-      <p>技術サポートチームが過去のお問い合わせを参照し、重複した問題の効率的な解決に努めています。</p>
-      <div style="background: #f0f7ff; padding: 15px; border-radius: 4px; margin: 15px 0;">
-        <p><strong>💡 お知らせ:</strong> よくあるご質問の充実と、24時間自動応答システムにより迅速な対応を実現しています。</p>
-      </div>
 
       <h3>❓ よくあるご質問</h3>
-      
-      <details style="margin: 10px 0;">
-        <summary style="cursor: pointer; font-weight: bold;">Q: ログインできません</summary>
-        <p>A: Googleアカウントでのログインが必要です。ブラウザのCookieが有効になっていることを確認してください。ポップアップブロッカーの設定もご確認ください。</p>
-      </details>
-      
-      <details style="margin: 10px 0;">
-        <summary style="cursor: pointer; font-weight: bold;">Q: 患者データが消えました</summary>
-        <p>A: ログインしていない状態ではデータが保存されません。必ずGoogleアカウントでログインしてご利用ください。オフライン時のデータは一時的なものです。</p>
-      </details>
-      
-      <details style="margin: 10px 0;">
-        <summary style="cursor: pointer; font-weight: bold;">Q: 5人以上の患者を登録したい</summary>
-        <p>A: 無料プランは5人までの制限があります。プレミアムプランで無制限に登録できます（現在準備中）。</p>
-      </details>
-      
-      <details style="margin: 10px 0;">
-        <summary style="cursor: pointer; font-weight: bold;">Q: 診断結果の信頼性について</summary>
-        <p>A: 本アプリは診断補助ツールです。最終的な診断や治療方針の決定は、必ず医療従事者の判断により行ってください。</p>
-      </details>
 
-      <details style="margin: 10px 0;">
-        <summary style="cursor: pointer; font-weight: bold;">Q: スマートフォンで正常に動作しない</summary>
-        <p>A: 最新のブラウザ（Chrome、Safari）をご利用ください。画面サイズの関係で、タブレット以上の画面サイズを推奨しています。</p>
-      </details>
+      <!-- FAQ コンテンツはJavaScriptで動的に読み込まれます -->
+      <div id="faq-content" style="margin: 20px 0;">
+        📄 よくある質問を読み込み中...
+      </div>
+
+      <div style="margin: 20px 0; text-align: center;">
+        <a href="faq.html" style="display: inline-block; background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">すべての質問を見る</a>
+      </div>
 
       <h3>🛡️ プライバシーについて</h3>
       <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 4px; margin: 20px 0;">
@@ -149,6 +128,61 @@
       </div>
 
   <script>
+    // faq.htmlからよくある質問を動的に読み込む関数
+    async function loadFAQFromExternal() {
+      try {
+        const response = await fetch('faq.html');
+        const text = await response.text();
+
+        // HTMLパーサーを作成
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, 'text/html');
+
+        // よくある質問のdetails要素を取得
+        const faqDetails = doc.querySelectorAll('details');
+        const faqContentDiv = document.getElementById('faq-content');
+
+        if (faqDetails.length > 0 && faqContentDiv) {
+          // コンテンツをクリア
+          faqContentDiv.innerHTML = '';
+
+          // faq.htmlからdetails要素をコピー
+          faqDetails.forEach(detail => {
+            if (detail.querySelector('summary')) {
+              const clonedDetail = detail.cloneNode(true);
+              // contact.html用にスタイルを適用
+              clonedDetail.style.cssText = 'margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; padding: 10px;';
+              const summary = clonedDetail.querySelector('summary');
+              if (summary) {
+                summary.style.cssText = 'cursor: pointer; font-weight: bold; padding: 5px 0; outline: none;';
+              }
+              const content = clonedDetail.querySelector('p');
+              if (content) {
+                content.style.cssText = 'margin: 0; font-size: 0.9rem; color: #555;';
+                content.parentElement.style.cssText = 'border-top: 1px solid #ddd; margin-top: 10px; padding-top: 10px;';
+              }
+
+              faqContentDiv.appendChild(clonedDetail);
+            }
+          });
+
+          console.log('よくある質問を動的に更新しました');
+        }
+      } catch (error) {
+        console.log('よくある質問の動的読み込みに失敗しました:', error);
+        // 失敗時はエラーメッセージを表示
+        const faqContentDiv = document.getElementById('faq-content');
+        if (faqContentDiv) {
+          faqContentDiv.innerHTML = '<p style="color: #999; font-size: 0.9rem;">よくある質問の読み込みに失敗しました。<a href="faq.html">こちら</a>からご覧ください。</p>';
+        }
+      }
+    }
+
+    // ページ読み込み時にFAQを読み込み
+    document.addEventListener('DOMContentLoaded', function() {
+      loadFAQFromExternal();
+    });
+
     // プライベートお問い合わせAPI呼び出し
     async function submitContact() {
       // バリデーション

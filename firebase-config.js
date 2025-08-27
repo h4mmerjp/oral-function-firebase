@@ -127,6 +127,13 @@ class FirebaseManager {
     try {
       console.log("ユーザーログイン処理開始:", user.email);
 
+      // ランディングページにいる場合はダッシュボードにリダイレクト
+      if (window.location.pathname === '/' || window.location.pathname.includes('index.html')) {
+        console.log("ランディングページからダッシュボードにリダイレクト");
+        window.location.href = 'dashboard.html';
+        return;
+      }
+
       // データベースの基本準備確認
       if (!window.db) {
         console.log("データベース準備待機中...");
