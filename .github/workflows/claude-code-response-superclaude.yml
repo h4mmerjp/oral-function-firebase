@@ -106,6 +106,7 @@ jobs:
         if: steps.event-check.outputs.should_process == 'true'
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
         run: |
           echo "=== Claude OAuth APIを使用した応答生成 ==="
           
@@ -124,7 +125,7 @@ jobs:
 
           # Issue情報の取得
           issue_body = """${{ github.event.issue.body }}"""
-          issue_title = """${{ github.event.issue.title }}"""
+          issue_title = os.environ.get('ISSUE_TITLE', '')
           issue_number = "${{ github.event.issue.number }}"
 
           # Claude OAuth API エンドポイント
