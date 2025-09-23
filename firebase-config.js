@@ -1,4 +1,4 @@
-// Firebase設定とSDK初期化（最小修正版 - 既存機能との完全互換性維持）
+// Firebase設定とSDK初期化（Stripe連携対応版）
 class FirebaseManager {
   constructor() {
     this.app = null;
@@ -6,7 +6,14 @@ class FirebaseManager {
     this.firestore = null;
     this.currentUser = null;
     this.isInitialized = false;
-
+    // Stripe設定
+    this.stripe = null;
+    this.stripeConfig = {
+      publishableKey: 'pk_test_51Q9vNaRyGCrOZJI8KLEm7SZDuNLmJ8YrptcxBQHYFRgqTPH8GfCfn7vn8GSkR6lCG5U4gZxNO4kGUxKMDDo3qC1j00qITFNrp4', // サンドボックス用
+      priceId: 'price_1Q9vO5RyGCrOZJI8p7kNvMqo', // プレミアムプランの価格ID（実際の値に要更新）
+      successUrl: window.location.origin + '/dashboard.html?subscription=success',
+      cancelUrl: window.location.origin + '/dashboard.html?subscription=cancelled'
+    };
   }
 
   // Firebase初期化
@@ -244,10 +251,16 @@ class FirebaseManager {
           name: user.displayName || user.email.split("@")[0],
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
           subscription: {
-            plan: "free",
+            plan: "free", // "free" or "premium"
+            status: "active", // "active", "cancelled", "past_due", "incomplete"
             startDate: firebase.firestore.FieldValue.serverTimestamp(),
             endDate: null,
-            patientLimit: 5,
+            patientLimit: 5, // 無料: 5, プレミアム: 999
+            stripeCustomerId: null,
+            stripeSubscriptionId: null,
+            currentPeriodStart: null,
+            currentPeriodEnd: null,
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
           },
           usage: {
             patientCount: 0,
@@ -445,7 +458,7 @@ class FirebaseManager {
     }
   }
 
-  // 患者数制限チェック（Firestore直接版）
+  // 患者数制限チェック（サブスクリプション対応版）
   async checkPatientLimit() {
     try {
       if (!this.currentUser) {
@@ -467,20 +480,43 @@ class FirebaseManager {
         const subscription = userData.subscription || {};
         const usage = userData.usage || {};
 
-        const limit = subscription.patientLimit || 5;
+        const plan = subscription.plan || "free";
         const current = usage.patientCount || 0;
+
+        // プレミアムプランの場合は実質無制限
+        if (plan === "premium") {
+          // サブスクリプションの有効期限をチェック
+          const isValidSubscription = await this.validateSubscription(subscription);
+
+          if (isValidSubscription) {
+            return {
+              allowed: true,
+              current: current,
+              limit: 999, // 実質無制限
+              plan: "premium",
+              isOffline: false,
+            };
+          } else {
+            // 期限切れの場合は無料プランに降格
+            await this.downgradeToFreePlan();
+          }
+        }
+
+        // 無料プランの制限チェック
+        const limit = subscription.patientLimit || 5;
 
         console.log("制限チェック結果:", {
           current,
           limit,
           allowed: current < limit,
+          plan
         });
 
         return {
           allowed: current < limit,
           current: current,
           limit: limit,
-          plan: subscription.plan || "free",
+          plan: "free",
           isOffline: false,
         };
       }
@@ -500,6 +536,53 @@ class FirebaseManager {
         isOffline: true,
         message: "エラー発生: " + error.message,
       };
+    }
+  }
+
+  // サブスクリプション有効性チェック
+  async validateSubscription(subscription) {
+    try {
+      if (subscription.plan !== "premium") return false;
+
+      // 有効期限をチェック
+      if (subscription.currentPeriodEnd) {
+        const endDate = subscription.currentPeriodEnd.toDate ?
+          subscription.currentPeriodEnd.toDate() :
+          new Date(subscription.currentPeriodEnd);
+
+        return endDate > new Date();
+      }
+
+      return subscription.status === "active";
+    } catch (error) {
+      console.error("サブスクリプション検証エラー:", error);
+      return false;
+    }
+  }
+
+  // 無料プランに降格
+  async downgradeToFreePlan() {
+    try {
+      if (!this.currentUser) return;
+
+      console.log("プレミアムプランの期限切れを検出、無料プランに降格中...");
+
+      const userRef = this.firestore.collection("users").doc(this.currentUser.uid);
+      await userRef.update({
+        "subscription.plan": "free",
+        "subscription.status": "cancelled",
+        "subscription.patientLimit": 5,
+        "subscription.lastUpdated": firebase.firestore.FieldValue.serverTimestamp(),
+      });
+
+      this.showErrorMessage("プレミアムプランの有効期限が切れました。無料プランに戻りました。");
+
+      // UIを更新
+      if (window.stripeManager) {
+        window.stripeManager.updateSubscriptionUI();
+      }
+    } catch (error) {
+      console.error("プラン降格エラー:", error);
     }
   }
 
@@ -527,22 +610,54 @@ class FirebaseManager {
     }
   }
 
-  // プラン状況表示の更新
-  updatePlanStatus(currentCount) {
-    const planStatus = document.getElementById("plan-status");
-    if (planStatus) {
-      const remaining = 5 - currentCount; // 無料プランは5人まで
+  // プラン状況表示の更新（サブスクリプション対応版）
+  async updatePlanStatus(currentCount) {
+    try {
+      const planStatus = document.getElementById("plan-status");
+      if (!planStatus || !this.currentUser) return;
 
-      if (remaining <= 0) {
-        planStatus.innerHTML = "⚠️ 無料プラン (5/5人) 上限到達";
-        planStatus.style.color = "#e74c3c";
-      } else if (remaining <= 1) {
-        planStatus.innerHTML = `⚠️ 無料プラン (${currentCount}/5人) 残り${remaining}人`;
-        planStatus.style.color = "#f39c12";
-      } else {
-        planStatus.innerHTML = `✓ 無料プラン (${currentCount}/5人)`;
-        planStatus.style.color = "#27ae60";
+      // 現在のユーザーデータを取得
+      const userRef = this.firestore.collection("users").doc(this.currentUser.uid);
+      const userDoc = await userRef.get();
+
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        const subscription = userData.subscription || {};
+        const plan = subscription.plan || "free";
+        const limit = subscription.patientLimit || 5;
+
+        if (plan === "premium") {
+          // プレミアムプラン表示
+          planStatus.innerHTML = `🌟 プレミアムプラン (${currentCount}人/無制限)`;
+          planStatus.style.color = "#8e44ad";
+
+          // 期限表示
+          if (subscription.currentPeriodEnd) {
+            const endDate = subscription.currentPeriodEnd.toDate ?
+              subscription.currentPeriodEnd.toDate() :
+              new Date(subscription.currentPeriodEnd);
+
+            const endDateStr = endDate.toLocaleDateString('ja-JP');
+            planStatus.title = `次回請求日: ${endDateStr}`;
+          }
+        } else {
+          // 無料プラン表示
+          const remaining = limit - currentCount;
+
+          if (remaining <= 0) {
+            planStatus.innerHTML = `⚠️ 無料プラン (${limit}/${limit}人) 上限到達`;
+            planStatus.style.color = "#e74c3c";
+          } else if (remaining <= 1) {
+            planStatus.innerHTML = `⚠️ 無料プラン (${currentCount}/${limit}人) 残り${remaining}人`;
+            planStatus.style.color = "#f39c12";
+          } else {
+            planStatus.innerHTML = `✓ 無料プラン (${currentCount}/${limit}人)`;
+            planStatus.style.color = "#27ae60";
+          }
+        }
       }
+    } catch (error) {
+      console.error("プラン状況更新エラー:", error);
     }
   }
 

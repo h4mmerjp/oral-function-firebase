@@ -1,0 +1,22 @@
+{
+  "name": "oral-function-firebase",
+  "version": "1.0.0",
+  "description": "口腔機能低下症診断・管理アプリ",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Static site - no build required'",
+    "start": "echo 'Static site'",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "stripe": "^14.0.0",
+    "firebase-admin": "^11.11.0"
+  },
+  "devDependencies": {
+    "vercel": "^32.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

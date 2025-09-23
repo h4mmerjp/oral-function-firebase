@@ -39,12 +39,33 @@
     </title>
     <link rel="stylesheet" href="styles.css" />
 
+    <!-- Stripe.js -->
+    <script src="https://js.stripe.com/v3/"></script>
+
 </head>
   <body>
     <div class="container">
       <header>
         <h1>口腔機能低下症 診断・管理アプリ</h1>
         <p>日本老年歯科医学会の基準に基づく診断・管理ツール</p>
+
+        <!-- プラン表示と管理ボタン -->
+        <div class="subscription-status" style="margin: 15px 0; padding: 10px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #27ae60;">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <span id="plan-status" style="font-weight: bold; color: #27ae60;">✓ 無料プラン (0/5人)</span>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button id="upgrade-btn" onclick="upgradeToPremium()" class="btn-primary" style="display: inline-block; background: #8e44ad; border: none; padding: 8px 16px; color: white; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">
+                🌟 プレミアムにアップグレード
+              </button>
+              <button id="cancel-subscription-btn" onclick="cancelSubscription()" class="btn-secondary" style="display: none; padding: 8px 16px; border: 1px solid #ccc; background: white; color: #666; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">
+                サブスクリプションをキャンセル
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div style="margin-top: 10px">
           <button onclick="exportDatabaseCSV()" class="btn-secondary no-print">
             CSVエクスポート
@@ -360,6 +381,10 @@
                 window.location.href = 'index.html';
               } else {
                 console.log('認証済みユーザー、ダッシュボードを表示');
+                // Stripe決済結果をチェック
+                if (window.stripeManager) {
+                  window.stripeManager.handlePaymentCallback();
+                }
               }
             });
           } else {
@@ -456,6 +481,24 @@
       }
     </script>
 
+    <script src="stripe-integration.js"></script>
+    <script>
+      if (typeof stripeManager !== "undefined") {
+        console.log("stripe-integration.js 読み込み完了");
+
+        // Stripe初期化
+        stripeManager.initialize().then((success) => {
+          if (success) {
+            console.log('Stripe初期化成功');
+            // サブスクリプションUIを更新
+            stripeManager.updateSubscriptionUI();
+          } else {
+            console.log('Stripe初期化失敗');
+          }
+        });
+      }
+    </script>
+
     <script src="app.js"></script>
 
     <script>
@@ -466,6 +509,23 @@
 
       // 最終的な初期化状況を確認
       setTimeout(checkInitialization, 1000);
+
+      // グローバル関数を定義
+      window.upgradeToPremium = function() {
+        if (window.stripeManager && window.stripeManager.isAvailable()) {
+          window.stripeManager.upgradeToPremium();
+        } else {
+          alert('Stripeが利用できません。しばらくしてから再度お試しください。');
+        }
+      };
+
+      window.cancelSubscription = function() {
+        if (window.stripeManager && window.stripeManager.isAvailable()) {
+          window.stripeManager.cancelSubscription();
+        } else {
+          alert('サブスクリプション管理が利用できません。');
+        }
+      };
 
       // デバッグ用ショートカット（開発時のみ）
       window.addEventListener("keydown", function (e) {

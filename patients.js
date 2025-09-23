@@ -44,12 +44,25 @@ class PatientManager {
     });
   }
 
-  // 患者数制限チェック（Firebase専用）
+  // 患者数制限チェック（Stripe連携対応版）
   async checkPatientLimit() {
     try {
       if (window.firebaseManager && window.firebaseManager.isAvailable()) {
         const limitInfo = await window.firebaseManager.checkPatientLimit();
         console.log("Firebase制限チェック結果:", limitInfo);
+
+        // Stripeサブスクリプション状態もチェック
+        if (window.stripeManager && window.stripeManager.isAvailable()) {
+          const subscriptionStatus = await window.stripeManager.checkSubscriptionStatus();
+
+          // プレミアムプランの場合は制限を無制限に更新
+          if (subscriptionStatus === 'premium') {
+            limitInfo.limit = 999; // 実質無制限
+            limitInfo.plan = 'premium';
+            limitInfo.allowed = limitInfo.current < limitInfo.limit;
+          }
+        }
+
         return limitInfo;
       } else {
         return {
@@ -145,11 +158,32 @@ class PatientManager {
     }
   }
 
-  startUpgradeProcess() {
-    alert(
-      "アップグレード機能は次のフェーズで実装予定です。\n現在はデモ版のため、この機能は利用できません。"
-    );
-    this.closeUpgradeModal();
+  // Stripeアップグレードプロセス開始
+  async startUpgradeProcess() {
+    try {
+      this.closeUpgradeModal();
+
+      // Stripeマネージャーの初期化確認
+      if (!window.stripeManager || !window.stripeManager.isAvailable()) {
+        // Stripe初期化を試行
+        if (window.stripeManager) {
+          await window.stripeManager.initialize();
+        }
+
+        if (!window.stripeManager.isAvailable()) {
+          throw new Error('決済システムの初期化に失敗しました');
+        }
+      }
+
+      // アップグレード開始
+      await window.stripeManager.upgradeToPremium();
+
+    } catch (error) {
+      console.error('アップグレードプロセスエラー:', error);
+      window.firebaseManager.showErrorMessage(
+        'アップグレードに失敗しました: ' + error.message
+      );
+    }
   }
 
   // 通知表示機能
@@ -1584,6 +1618,45 @@ ${plan.goals || "記載なし"}
       window.app.openTab("management-plan");
     } else {
       this.directTabSwitch("management-plan");
+    }
+  }
+
+  // 患者制限UI更新（Stripe連携対応）
+  async updatePatientLimitUI() {
+    try {
+      if (!window.firebaseManager || !window.firebaseManager.currentUser) return;
+
+      // 現在のサブスクリプション状態を確認
+      let plan = 'free';
+      let current = 0;
+      let limit = 5;
+
+      if (window.stripeManager && window.stripeManager.isAvailable()) {
+        plan = await window.stripeManager.checkSubscriptionStatus();
+      }
+
+      // Firestoreから最新の患者数を取得
+      const limitInfo = await this.checkPatientLimit();
+      if (limitInfo && !limitInfo.isOffline) {
+        current = limitInfo.current || 0;
+        limit = limitInfo.limit || (plan === 'premium' ? 999 : 5);
+        plan = limitInfo.plan || plan;
+      }
+
+      // プラン状態を更新
+      if (window.firebaseManager.updatePlanStatus) {
+        window.firebaseManager.updatePlanStatus(current);
+      }
+
+      // Stripe UIも更新
+      if (window.stripeManager && window.stripeManager.updateSubscriptionUI) {
+        await window.stripeManager.updateSubscriptionUI();
+      }
+
+      console.log('患者制限UI更新完了:', { plan, current, limit });
+
+    } catch (error) {
+      console.error('患者制限UI更新エラー:', error);
     }
   }
 }
