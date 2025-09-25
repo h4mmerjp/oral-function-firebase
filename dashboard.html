@@ -4,25 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- セキュリティヘッダー -->
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; 
-                script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com https://pagead2.googlesyndication.com; 
-                style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
-                font-src 'self' https://fonts.gstatic.com; 
-                img-src 'self' data: https: blob:; 
-                connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com wss://*.firebaseio.com; 
-                frame-src 'self' https://accounts.google.com https://content.googleapis.com https://*.firebaseapp.com;"
-    />
-    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
-    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
-    <meta
-      http-equiv="Referrer-Policy"
-      content="strict-origin-when-cross-origin"
-    />
-
     <!-- AdSense審査用メタタグ -->
     <meta
       name="description"
@@ -40,8 +21,7 @@
     <link rel="stylesheet" href="styles.css" />
 
     <!-- Firebase Extension handles Stripe integration -->
-
-</head>
+  </head>
   <body>
     <div class="container">
       <header>
@@ -49,16 +29,63 @@
         <p>日本老年歯科医学会の基準に基づく診断・管理ツール</p>
 
         <!-- プラン表示と管理ボタン -->
-        <div class="subscription-status" style="margin: 15px 0; padding: 10px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #27ae60;">
-          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+        <div
+          class="subscription-status"
+          style="
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #27ae60;
+          "
+        >
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              flex-wrap: wrap;
+              gap: 10px;
+            "
+          >
             <div>
-              <span id="plan-status" style="font-weight: bold; color: #27ae60;">✓ 無料プラン (0/5人)</span>
+              <span id="plan-status" style="font-weight: bold; color: #27ae60"
+                >✓ 無料プラン (0/5人)</span
+              >
             </div>
-            <div style="display: flex; gap: 10px;">
-              <button id="upgrade-btn" onclick="upgradeToPremium()" class="btn-primary" style="display: inline-block; background: #8e44ad; border: none; padding: 8px 16px; color: white; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">
+            <div style="display: flex; gap: 10px">
+              <button
+                id="upgrade-btn"
+                onclick="upgradeToPremium()"
+                class="btn-primary"
+                style="
+                  display: inline-block;
+                  background: #8e44ad;
+                  border: none;
+                  padding: 8px 16px;
+                  color: white;
+                  border-radius: 4px;
+                  cursor: pointer;
+                  font-size: 0.9rem;
+                "
+              >
                 🌟 プレミアムにアップグレード
               </button>
-              <button id="cancel-subscription-btn" onclick="cancelSubscription()" class="btn-secondary" style="display: none; padding: 8px 16px; border: 1px solid #ccc; background: white; color: #666; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">
+              <button
+                id="cancel-subscription-btn"
+                onclick="cancelSubscription()"
+                class="btn-secondary"
+                style="
+                  display: none;
+                  padding: 8px 16px;
+                  border: 1px solid #ccc;
+                  background: white;
+                  color: #666;
+                  border-radius: 4px;
+                  cursor: pointer;
+                  font-size: 0.9rem;
+                "
+              >
                 サブスクリプションをキャンセル
               </button>
             </div>
@@ -237,15 +264,28 @@
         </div>
 
         <div class="summary-card">
-           <h3>参考資料・リンク</h3>
-        <ul>
-          <li><a href="https://www.jads.jp/assets/pdf/basic/r06/document-240329.pdf" target="_blank" rel="noopener noreferrer">日本歯科医学会：口腔機能低下症に関する基本的な考え方</a></li>
-          <li><a href="https://www.gerodontology.jp/" target="_blank" rel="noopener noreferrer">日本老年歯科医学会：公式ホームページ</a></li>
-        </ul>
+          <h3>参考資料・リンク</h3>
+          <ul>
+            <li>
+              <a
+                href="https://www.jads.jp/assets/pdf/basic/r06/document-240329.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                >日本歯科医学会：口腔機能低下症に関する基本的な考え方</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://www.gerodontology.jp/"
+                target="_blank"
+                rel="noopener noreferrer"
+                >日本老年歯科医学会：公式ホームページ</a
+              >
+            </li>
+          </ul>
         </div>
       </div>
     </div>
-
 
     <!-- Release Notes Section -->
     <footer class="app-footer no-print">
@@ -285,7 +325,6 @@
           ※
           本アプリは診断補助ツールです。最終的な診断は医療従事者が行ってください。
         </p>
-
       </div>
     </footer>
 
@@ -371,16 +410,16 @@
     <!-- 認証チェック -->
     <script>
       // 認証状態をチェックしてランディングページへリダイレクト
-      document.addEventListener('DOMContentLoaded', function() {
+      document.addEventListener("DOMContentLoaded", function () {
         // Firebase設定の読み込みを待つ
         const checkAuth = () => {
-          if (typeof firebaseManager !== 'undefined' && firebaseManager.auth) {
+          if (typeof firebaseManager !== "undefined" && firebaseManager.auth) {
             firebaseManager.auth.onAuthStateChanged((user) => {
               if (!user) {
-                console.log('未認証ユーザー、ランディングページにリダイレクト');
-                window.location.href = 'index.html';
+                console.log("未認証ユーザー、ランディングページにリダイレクト");
+                window.location.href = "index.html";
               } else {
-                console.log('認証済みユーザー、ダッシュボードを表示');
+                console.log("認証済みユーザー、ダッシュボードを表示");
                 // Stripe決済結果をチェック
                 if (window.stripeManager) {
                   window.stripeManager.handlePaymentCallback();
@@ -489,11 +528,11 @@
         // Firebase Functions初期化
         stripeManager.initialize().then((success) => {
           if (success) {
-            console.log('Firebase Functions初期化成功');
+            console.log("Firebase Functions初期化成功");
             // サブスクリプションUIを更新
             stripeManager.updateSubscriptionUI();
           } else {
-            console.log('Firebase Functions初期化失敗');
+            console.log("Firebase Functions初期化失敗");
           }
         });
       }
@@ -511,19 +550,19 @@
       setTimeout(checkInitialization, 1000);
 
       // グローバル関数を定義
-      window.upgradeToPremium = function() {
+      window.upgradeToPremium = function () {
         if (window.stripeManager && window.stripeManager.isAvailable()) {
           window.stripeManager.upgradeToPremium();
         } else {
-          alert('Stripeが利用できません。しばらくしてから再度お試しください。');
+          alert("Stripeが利用できません。しばらくしてから再度お試しください。");
         }
       };
 
-      window.cancelSubscription = function() {
+      window.cancelSubscription = function () {
         if (window.stripeManager && window.stripeManager.isAvailable()) {
           window.stripeManager.cancelSubscription();
         } else {
-          alert('サブスクリプション管理が利用できません。');
+          alert("サブスクリプション管理が利用できません。");
         }
       };
 
