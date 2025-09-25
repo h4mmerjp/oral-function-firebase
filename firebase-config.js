@@ -9,9 +9,11 @@ class FirebaseManager {
     // Firebase Functions設定（Firebase Extension使用）
     this.functions = null;
     this.stripeConfig = {
-      priceId: 'price_1QA6EjRp5qHFDcZYkAYdNt1k', // プレミアムプランの価格ID
-      successUrl: window.location.origin + '/dashboard.html?subscription=success',
-      cancelUrl: window.location.origin + '/dashboard.html?subscription=cancelled'
+      priceId: "price_1QA6EjRp5qHFDcZYkAYdNt1k", // プレミアムプランの価格ID
+      successUrl:
+        window.location.origin + "/dashboard.html?subscription=success",
+      cancelUrl:
+        window.location.origin + "/dashboard.html?subscription=cancelled",
     };
   }
 
@@ -26,7 +28,8 @@ class FirebaseManager {
 
       // Firebase設定（環境変数から取得）
       const firebaseConfig = {
-        apiKey: window.FIREBASE_API_KEY || "AIzaSyC8_B2eo47C2plYkGPq_ek6VaD113tNEBk",
+        apiKey:
+          window.FIREBASE_API_KEY || "AIzaSyC8_B2eo47C2plYkGPq_ek6VaD113tNEBk",
         authDomain: "oral-health-diagnosis-ap-b3592.firebaseapp.com",
         projectId: "oral-health-diagnosis-ap-b3592",
         storageBucket: "oral-health-diagnosis-ap-b3592.firebasestorage.app",
@@ -36,8 +39,8 @@ class FirebaseManager {
       };
 
       // 本番環境での追加セキュリティチェック
-      if (location.hostname !== 'localhost' && location.protocol !== 'https:') {
-        throw new Error('HTTPS接続が必要です');
+      if (location.hostname !== "localhost" && location.protocol !== "https:") {
+        throw new Error("HTTPS接続が必要です");
       }
 
       // Firebase初期化
@@ -50,7 +53,17 @@ class FirebaseManager {
       // サービス初期化
       this.auth = firebase.auth();
       this.firestore = firebase.firestore();
-      this.functions = firebase.functions();
+
+      // Firebase Functions（使用可能な場合のみ初期化）
+      if (firebase.functions) {
+        this.functions = firebase.functions();
+        console.log("Firebase Functions 初期化成功");
+      } else {
+        this.functions = null;
+        console.log(
+          "Firebase Functions は使用できません（Stripe機能は制限されます）"
+        );
+      }
 
       // Firestore設定
       try {
@@ -66,6 +79,14 @@ class FirebaseManager {
       this.setupAuthListener();
 
       this.isInitialized = true;
+
+      // 初期化完了後、現在のユーザー状態をチェックして患者数を更新
+      setTimeout(async () => {
+        if (this.currentUser) {
+          console.log("初期化完了後の患者数更新を実行");
+          await this.syncPatientCountFromFirestore();
+        }
+      }, 2000);
 
       return true;
     } catch (error) {
@@ -93,19 +114,16 @@ class FirebaseManager {
   setupAuthListener() {
     this.auth.onAuthStateChanged(async (user) => {
       // セキュリティ: ログでのメールアドレス出力を制限
-      console.log(
-        "認証状態変更:",
-        user ? `ログイン済み` : "未ログイン"
-      );
+      console.log("認証状態変更:", user ? `ログイン済み` : "未ログイン");
       this.currentUser = user;
 
       if (user) {
         // セキュリティチェック
         if (window.securityUtils) {
           await window.securityUtils.checkAuthTokenExpiry(user);
-          window.securityUtils.logUserAction('user_login', { 
+          window.securityUtils.logUserAction("user_login", {
             email: user.email,
-            uid: user.uid 
+            uid: user.uid,
           });
         }
 
@@ -115,7 +133,7 @@ class FirebaseManager {
         await this.onUserLogin(user);
       } else {
         if (window.securityUtils) {
-          window.securityUtils.logUserAction('user_logout');
+          window.securityUtils.logUserAction("user_logout");
         }
         this.onUserLogout();
       }
@@ -135,9 +153,12 @@ class FirebaseManager {
       console.log("ユーザーログイン処理開始:", user.email);
 
       // ランディングページにいる場合はダッシュボードにリダイレクト
-      if (window.location.pathname === '/' || window.location.pathname.includes('index.html')) {
+      if (
+        window.location.pathname === "/" ||
+        window.location.pathname.includes("index.html")
+      ) {
         console.log("ランディングページからダッシュボードにリダイレクト");
-        window.location.href = 'dashboard.html';
+        window.location.href = "dashboard.html";
         return;
       }
 
@@ -486,7 +507,9 @@ class FirebaseManager {
         // プレミアムプランの場合は実質無制限
         if (plan === "premium") {
           // サブスクリプションの有効期限をチェック
-          const isValidSubscription = await this.validateSubscription(subscription);
+          const isValidSubscription = await this.validateSubscription(
+            subscription
+          );
 
           if (isValidSubscription) {
             return {
@@ -509,7 +532,7 @@ class FirebaseManager {
           current,
           limit,
           allowed: current < limit,
-          plan
+          plan,
         });
 
         return {
@@ -546,9 +569,9 @@ class FirebaseManager {
 
       // 有効期限をチェック
       if (subscription.currentPeriodEnd) {
-        const endDate = subscription.currentPeriodEnd.toDate ?
-          subscription.currentPeriodEnd.toDate() :
-          new Date(subscription.currentPeriodEnd);
+        const endDate = subscription.currentPeriodEnd.toDate
+          ? subscription.currentPeriodEnd.toDate()
+          : new Date(subscription.currentPeriodEnd);
 
         return endDate > new Date();
       }
@@ -567,15 +590,20 @@ class FirebaseManager {
 
       console.log("プレミアムプランの期限切れを検出、無料プランに降格中...");
 
-      const userRef = this.firestore.collection("users").doc(this.currentUser.uid);
+      const userRef = this.firestore
+        .collection("users")
+        .doc(this.currentUser.uid);
       await userRef.update({
         "subscription.plan": "free",
         "subscription.status": "cancelled",
         "subscription.patientLimit": 5,
-        "subscription.lastUpdated": firebase.firestore.FieldValue.serverTimestamp(),
+        "subscription.lastUpdated":
+          firebase.firestore.FieldValue.serverTimestamp(),
       });
 
-      this.showErrorMessage("プレミアムプランの有効期限が切れました。無料プランに戻りました。");
+      this.showErrorMessage(
+        "プレミアムプランの有効期限が切れました。無料プランに戻りました。"
+      );
 
       // UIを更新
       if (window.stripeManager) {
@@ -604,7 +632,7 @@ class FirebaseManager {
       console.log("Firebase使用量更新完了:", count);
 
       // UI上の制限表示を更新
-      this.updatePlanStatus(count);
+      await this.updatePlanStatus(count);
     } catch (error) {
       console.error("使用量更新エラー:", error);
     }
@@ -617,7 +645,9 @@ class FirebaseManager {
       if (!planStatus || !this.currentUser) return;
 
       // 現在のユーザーデータを取得
-      const userRef = this.firestore.collection("users").doc(this.currentUser.uid);
+      const userRef = this.firestore
+        .collection("users")
+        .doc(this.currentUser.uid);
       const userDoc = await userRef.get();
 
       if (userDoc.exists) {
@@ -633,11 +663,11 @@ class FirebaseManager {
 
           // 期限表示
           if (subscription.currentPeriodEnd) {
-            const endDate = subscription.currentPeriodEnd.toDate ?
-              subscription.currentPeriodEnd.toDate() :
-              new Date(subscription.currentPeriodEnd);
+            const endDate = subscription.currentPeriodEnd.toDate
+              ? subscription.currentPeriodEnd.toDate()
+              : new Date(subscription.currentPeriodEnd);
 
-            const endDateStr = endDate.toLocaleDateString('ja-JP');
+            const endDateStr = endDate.toLocaleDateString("ja-JP");
             planStatus.title = `次回請求日: ${endDateStr}`;
           }
         } else {
@@ -781,6 +811,19 @@ class FirebaseManager {
     return this.currentUser;
   }
 
+  // 手動でカウント更新をトリガー（デバッグ用）
+  async forceUpdatePatientCount() {
+    try {
+      console.log("手動でカウント更新を実行中...");
+      await this.syncPatientCountFromFirestore();
+      console.log("手動カウント更新完了");
+      return true;
+    } catch (error) {
+      console.error("手動カウント更新エラー:", error);
+      return false;
+    }
+  }
+
   // デバッグ情報表示
   getDebugInfo() {
     return {
@@ -815,4 +858,3 @@ document.addEventListener("DOMContentLoaded", () => {
     firebaseManager.handleRedirectResult();
   }
 });
-

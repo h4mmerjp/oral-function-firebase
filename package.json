@@ -4,14 +4,15 @@
   "description": "口腔機能低下症診断・管理アプリ",
   "main": "index.html",
   "scripts": {
-    "dev": "vercel dev",
+    "dev": "npx http-server -p 3001 -c-1",
     "build": "echo 'Static site - no build required'",
     "start": "echo 'Static site'",
     "deploy": "vercel --prod"
   },
   "dependencies": {
-    "stripe": "^14.0.0",
-    "firebase-admin": "^11.11.0"
+    "firebase-admin": "^11.11.0",
+    "http-server": "^14.1.1",
+    "stripe": "^14.0.0"
   },
   "devDependencies": {
     "vercel": "^32.0.0"

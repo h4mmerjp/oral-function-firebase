@@ -1273,8 +1273,19 @@ class PatientManager {
       } else {
         updatedPatient = await window.db.createPatient(patientData);
 
+        // 患者作成成功後、Firebase接続確認とカウント更新
         if (window.firebaseManager && window.firebaseManager.isAvailable()) {
-          await window.firebaseManager.syncPatientCountFromFirestore();
+          console.log("患者作成後のカウント更新を実行中...");
+
+          // 少し待機してFirestoreの書き込みが確実に完了するのを待つ
+          setTimeout(async () => {
+            try {
+              await window.firebaseManager.syncPatientCountFromFirestore();
+              console.log("患者数カウント更新完了");
+            } catch (error) {
+              console.error("カウント更新エラー:", error);
+            }
+          }, 1000);
         }
 
         this.showNotification("患者が登録されました", "success");
