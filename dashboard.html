@@ -39,8 +39,7 @@
     </title>
     <link rel="stylesheet" href="styles.css" />
 
-    <!-- Stripe.js -->
-    <script src="https://js.stripe.com/v3/"></script>
+    <!-- Firebase Extension handles Stripe integration -->
 
 </head>
   <body>
@@ -486,14 +485,14 @@
       if (typeof stripeManager !== "undefined") {
         console.log("stripe-integration.js 読み込み完了");
 
-        // Stripe初期化
+        // Firebase Functions初期化
         stripeManager.initialize().then((success) => {
           if (success) {
-            console.log('Stripe初期化成功');
+            console.log('Firebase Functions初期化成功');
             // サブスクリプションUIを更新
             stripeManager.updateSubscriptionUI();
           } else {
-            console.log('Stripe初期化失敗');
+            console.log('Firebase Functions初期化失敗');
           }
         });
       }

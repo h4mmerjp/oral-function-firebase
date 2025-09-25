@@ -8,32 +8,31 @@ class StripeManager {
     this.subscriptionStatus = null;
   }
 
-  // Stripe初期化
+  // Firebase Functions初期化
   async initialize() {
     try {
-      // Stripe.jsライブラリの読み込み確認
-      if (typeof Stripe === 'undefined') {
-        console.error('Stripe.js が読み込まれていません');
+      // Firebase Functions の読み込み確認
+      if (!window.firebaseManager.functions) {
+        console.error('Firebase Functions が初期化されていません');
         return false;
       }
 
-      // Stripeインスタンス作成
-      this.stripe = Stripe(window.firebaseManager.stripeConfig.publishableKey);
+      this.functions = window.firebaseManager.functions;
       this.isInitialized = true;
 
-      console.log('Stripe初期化完了');
+      console.log('Firebase Functions初期化完了');
       return true;
     } catch (error) {
-      console.error('Stripe初期化エラー:', error);
+      console.error('Firebase Functions初期化エラー:', error);
       return false;
     }
   }
 
-  // プレミアムプランへのアップグレード
+  // プレミアムプランへのアップグレード（Firebase Extension使用）
   async upgradeToPremium() {
     try {
       if (!this.isInitialized) {
-        throw new Error('Stripeが初期化されていません');
+        throw new Error('Firebase Functionsが初期化されていません');
       }
 
       if (!window.firebaseManager.currentUser) {
@@ -49,34 +48,20 @@ class StripeManager {
         return;
       }
 
-      // Stripe Checkoutセッション作成のためのAPI呼び出し
-      const response = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          priceId: window.firebaseManager.stripeConfig.priceId,
-          userId: window.firebaseManager.currentUser.uid,
-          userEmail: window.firebaseManager.currentUser.email,
-          successUrl: window.firebaseManager.stripeConfig.successUrl,
-          cancelUrl: window.firebaseManager.stripeConfig.cancelUrl
-        })
+      // Firebase Extension の Checkout Session 作成関数を呼び出し
+      const createCheckoutSession = firebase.functions().httpsCallable('ext-firestore-stripe-payments-createCheckoutSession');
+
+      const result = await createCheckoutSession({
+        price: window.firebaseManager.stripeConfig.priceId,
+        success_url: window.firebaseManager.stripeConfig.successUrl,
+        cancel_url: window.firebaseManager.stripeConfig.cancelUrl
       });
 
-      if (!response.ok) {
-        throw new Error('チェックアウトセッションの作成に失敗しました');
-      }
-
-      const { sessionId } = await response.json();
-
-      // Stripe Checkoutにリダイレクト
-      const { error } = await this.stripe.redirectToCheckout({
-        sessionId: sessionId
-      });
-
-      if (error) {
-        throw error;
+      // Stripeのcheckout URLにリダイレクト
+      if (result.data.url) {
+        window.location.href = result.data.url;
+      } else {
+        throw new Error('チェックアウトURLの取得に失敗しました');
       }
 
     } catch (error) {
@@ -85,7 +70,7 @@ class StripeManager {
     }
   }
 
-  // サブスクリプションのキャンセル
+  // サブスクリプションのキャンセル（Firebase Extension使用）
   async cancelSubscription() {
     try {
       if (!window.firebaseManager.currentUser) {
@@ -102,21 +87,24 @@ class StripeManager {
 
       console.log('サブスクリプションキャンセル開始');
 
-      const response = await fetch('/api/cancel-subscription', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: window.firebaseManager.currentUser.uid
-        })
-      });
+      // 現在のユーザーデータからサブスクリプションIDを取得
+      const userData = await this.getCurrentUserData();
+      const subscriptionId = userData?.subscription?.stripeSubscriptionId;
 
-      if (!response.ok) {
-        throw new Error('キャンセル処理に失敗しました');
+      if (!subscriptionId) {
+        throw new Error('サブスクリプションが見つかりません');
       }
 
-      const result = await response.json();
+      // Firestoreでサブスクリプションをキャンセル状態に更新
+      // Firebase Extensionのwebhookが自動でStripe側もキャンセルします
+      const userRef = window.firebaseManager.firestore
+        .collection('users')
+        .doc(window.firebaseManager.currentUser.uid);
+
+      await userRef.update({
+        'subscription.status': 'cancel_at_period_end',
+        'subscription.lastUpdated': firebase.firestore.FieldValue.serverTimestamp()
+      });
 
       window.firebaseManager.showSuccessMessage('サブスクリプションをキャンセルしました');
 
@@ -301,17 +289,17 @@ class StripeManager {
 
   // 利用可能かチェック
   isAvailable() {
-    return this.isInitialized && this.stripe;
+    return this.isInitialized && this.functions;
   }
 
   // デバッグ情報
   getDebugInfo() {
     return {
       isInitialized: this.isInitialized,
-      hasStripe: !!this.stripe,
+      hasFunctions: !!this.functions,
       customerId: this.customerId,
       subscriptionStatus: this.subscriptionStatus,
-      publishableKey: window.firebaseManager.stripeConfig.publishableKey
+      priceId: window.firebaseManager.stripeConfig.priceId
     };
   }
 }

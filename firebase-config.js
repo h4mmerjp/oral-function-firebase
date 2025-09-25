@@ -6,11 +6,10 @@ class FirebaseManager {
     this.firestore = null;
     this.currentUser = null;
     this.isInitialized = false;
-    // Stripe設定
-    this.stripe = null;
+    // Firebase Functions設定（Firebase Extension使用）
+    this.functions = null;
     this.stripeConfig = {
-      publishableKey: 'pk_test_51Q9vNaRyGCrOZJI8KLEm7SZDuNLmJ8YrptcxBQHYFRgqTPH8GfCfn7vn8GSkR6lCG5U4gZxNO4kGUxKMDDo3qC1j00qITFNrp4', // サンドボックス用
-      priceId: 'price_1Q9vO5RyGCrOZJI8p7kNvMqo', // プレミアムプランの価格ID（実際の値に要更新）
+      priceId: 'price_1QA6EjRp5qHFDcZYkAYdNt1k', // プレミアムプランの価格ID
       successUrl: window.location.origin + '/dashboard.html?subscription=success',
       cancelUrl: window.location.origin + '/dashboard.html?subscription=cancelled'
     };
@@ -51,6 +50,7 @@ class FirebaseManager {
       // サービス初期化
       this.auth = firebase.auth();
       this.firestore = firebase.firestore();
+      this.functions = firebase.functions();
 
       // Firestore設定
       try {
